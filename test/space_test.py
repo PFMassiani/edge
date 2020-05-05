@@ -1,6 +1,7 @@
 import unittest
 from edge.space.space import *
 
-class TestDiscreteSpaces(unittest.TestCase):
+
+class TestSpaces(unittest.TestCase):
     # TODO
     pass
