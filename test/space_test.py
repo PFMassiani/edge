@@ -1,4 +1,6 @@
 import unittest
+import numpy as np
+
 import edge
 from edge.space import Segment, Box, DiscreteProductSpace
 
@@ -45,7 +47,7 @@ class TestSpaces(unittest.TestCase):
         values_1d = [0, 0.5, 1]
         values = [[x, y] for x in values_1d for y in values_1d]
         x = box.sample()
-        self.assertTrue(x in values)
+        self.assertTrue(list(x) in values)
         self.assertTrue(x in box)
         self.assertTrue([0, 0] in box)
         self.assertTrue((-1, 0) not in box)
@@ -53,22 +55,25 @@ class TestSpaces(unittest.TestCase):
 
         idx = box.sample_idx()
         indexes_1d = (0, 1, 2)
-        indexes = ((i, j) for i in indexes_1d for j in indexes_1d)
-        self.assertTrue(isinstance(idx, tuple))
+        indexes = [[i, j] for i in indexes_1d for j in indexes_1d]
+        self.assertTrue(isinstance(idx, np.ndarray))
         self.assertEqual(len(idx), 2)
-        self.assertTrue(idx in indexes)
+        self.assertTrue(list(idx) in indexes)
 
         for i in box.get_index_iterator():
-            self.assertTrue(box[i] in values)
+            self.assertTrue(list(box[i]) in values)
             self.assertTrue(box[i] in box)
-            self.assertEqual(i, box.indexof(box[i]))
+            self.assertEqual(
+                list(i),
+                list(box.indexof(box[i]))
+            )
 
     def test_box_2(self):
         box = Box([0, 0], [1, 1], shape=(3, 3))
         values_1d = [0, 0.5, 1]
         values = [[x, y] for x in values_1d for y in values_1d]
         x = box.sample()
-        self.assertTrue(x in values)
+        self.assertTrue(list(x) in values)
         self.assertTrue(x in box)
         self.assertTrue([0, 0] in box)
         self.assertTrue((-1, 0) not in box)
@@ -76,15 +81,18 @@ class TestSpaces(unittest.TestCase):
 
         idx = box.sample_idx()
         indexes_1d = (0, 1, 2)
-        indexes = ((i, j) for i in indexes_1d for j in indexes_1d)
-        self.assertTrue(isinstance(idx, tuple))
+        indexes = [[i, j] for i in indexes_1d for j in indexes_1d]
+        self.assertTrue(isinstance(idx, np.ndarray))
         self.assertEqual(len(idx), 2)
-        self.assertTrue(idx in indexes)
+        self.assertTrue(list(idx) in indexes)
 
         for i in box.get_index_iterator():
-            self.assertTrue(box[i] in values)
+            self.assertTrue(list(box[i]) in values)
             self.assertTrue(box[i] in box)
-            self.assertEqual(i, box.indexof(box[i]))
+            self.assertEqual(
+                list(i),
+                list(box.indexof(box[i]))
+            )
 
     def test_product_of_boxes(self):
         b1 = Box([0, 0], [1, 1], shape=(3, 3))
@@ -96,7 +104,10 @@ class TestSpaces(unittest.TestCase):
 
         for i in iter(p):
             self.assertTrue(p[i] in p)
-            self.assertEqual(i, p.indexof(p[i]))
+            self.assertEqual(
+                list(i),
+                list(p.indexof(p[i]))
+            )
 
 
 if __name__ == '__main__':

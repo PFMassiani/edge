@@ -1,5 +1,7 @@
-from itertools import product
+from itertools import product, starmap
 import numpy as np
+
+from edge.utils import ensure_list
 
 
 class Space:
@@ -17,8 +19,9 @@ class Space:
 
 
 class DiscreteSpace(Space):
-    def __init__(self):
+    def __init__(self, index_dim):
         super(DiscreteSpace, self).__init__()
+        self.index_dim = index_dim
 
     def __getitem__(self, index):
         raise NotImplementedError
@@ -42,54 +45,74 @@ class DiscreteSpace(Space):
 
 class DiscreteProductSpace(DiscreteSpace):
     def __init__(self, *sets):
-        super(DiscreteProductSpace, self).__init__()
         self.sets = sets
+        self._n_sets = len(self.sets)
+        index_dim = 0
+        for s in self.sets:
+            index_dim += s.index_dim
 
-    def contains(self, coordinates):
-        if len(coordinates) != len(self.sets):
-            raise ValueError(f"Size mismatch: expected {len(self.sets)}"
-                             f" coordinates, received {len(coordinates)}")
-        coordinates_and_sets = zip(coordinates, self.sets)
+        super(DiscreteProductSpace, self).__init__(index_dim)
 
-        def isin(args):
-            x = args[0]
-            s = args[1]
-            return x in s
-        return all(map(isin, coordinates_and_sets))
+        self._index_masks = [None] * self._n_sets
+        current_index = 0
+        for ns in range(self._n_sets):
+            end_index = current_index + self.sets[ns].index_dim
+            self._index_masks[ns] = slice(current_index, end_index)
+            current_index = end_index
+
+    def contains(self, x):
+        if len(x) != self.index_dim:
+            raise ValueError(f"Size mismatch: expected size {self.index_dim}"
+                             f", got {len(x)}")
+        isin = True
+        for ns in range(self._n_sets):
+            s = self.sets[ns]
+            mask = self._index_masks[ns]
+            isin = isin and (x[mask] in s)
+
+        return isin
 
     def sample_idx(self):
         def sample_set(s):
-            return s.sample_idx()
-        return tuple(map(sample_set, self.sets))
+            index = s.sample_idx()
+            index = np.array(ensure_list(index), dtype=np.int).reshape(-1)
+            return index
+        return np.concatenate(tuple(map(sample_set, self.sets)))
 
     def __getitem__(self, index):
-        if len(index) != len(self.sets):
-            raise ValueError(f'Size mismatch: expected {len(self.sets)}'
-                             f' coordinates, received {len(index)}')
-        index_and_sets = list(zip(index, self.sets))
-
-        def get_item(args):
-            ind = args[0]
-            s = args[1]
-            return s[ind]
-        return list(map(get_item, index_and_sets))
+        if len(index) != self.index_dim:
+            raise ValueError(f'Size mismatch: expected size {len(self.sets)}'
+                             f', got {len(index)}')
+        x = []
+        for ns in range(self._n_sets):
+            mask = self._index_masks[ns]
+            index_in_set = index[mask]
+            s = self.sets[ns]
+            x = np.concatenate((x, s[index_in_set]))
+        return x
 
     def indexof(self, x):
-        if len(x) != len(self.sets):
-            raise ValueError(f'Size mismatch: expected {len(self.sets)}'
-                             f' coordinates, received {len(coordinates)}')
-        x_and_sets = zip(x, self.sets)
-
-        def indexof_coord(args):
-            x = args[0]
-            s = args[1]
-            return s.indexof(x)
-        return tuple(map(indexof_coord, x_and_sets))
+        if len(x) != self.index_dim:
+            raise ValueError(f'Size mismatch: expected size {len(self.sets)}'
+                             f', got {len(x)}')
+        index = np.zeros(self.index_dim, dtype=np.int)
+        for ns in range(self._n_sets):
+            s = self.sets[ns]
+            mask = self._index_masks[ns]
+            index[mask] = s.indexof(x[mask])
+        return index
 
     def get_index_iterator(self):
-        def get_idx_iter(s):
-            return s.get_index_iterator()
-        return product(*self.sets)
+        def flatten(*args):
+            x = []
+            for y in args:
+                z = ensure_list(y)
+                x += z
+            return np.array(x, dtype=np.int)
+        return starmap(
+            flatten,
+            product(*self.sets)
+        )
 
 
 class DiscreteStateActionSpace(DiscreteProductSpace):

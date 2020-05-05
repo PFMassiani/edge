@@ -8,7 +8,7 @@ from edge.utils import ensure_np
 
 class Segment(DiscreteSpace):
     def __init__(self, low, high, n_points):
-        super(Segment, self).__init__()
+        super(Segment, self).__init__(index_dim=1)
         if low >= high:
             raise ValueError(f'Bounds {low} and {high} create empty Segment')
         self.low = low
