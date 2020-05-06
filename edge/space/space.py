@@ -2,6 +2,7 @@ from itertools import product, starmap
 import numpy as np
 
 from edge.utils import ensure_list
+from edge import error
 
 
 class Space:
@@ -114,6 +115,19 @@ class DiscreteProductSpace(DiscreteSpace):
             product(*self.sets)
         )
 
+    def get_projection_on_space(self, x, target):
+        if target not in self.sets:
+            raise error.InvalidTarget
+        n_target = None
+        for ns in range(self._n_sets):
+            if self.sets[ns] == target:
+                n_target = ns
+                break
+        else:
+            raise error.InvalidTarget
+        mask = self._index_masks[n_target]
+        return x[mask]
+
 
 class DiscreteStateActionSpace(DiscreteProductSpace):
     def __init__(self, state_space, action_space):
@@ -125,7 +139,51 @@ class DiscreteStateActionSpace(DiscreteProductSpace):
         self.action_space = action_space
 
 
-class DiscreteSubspace(DiscreteSpace):
-    def __init__(self, space, idx_in_subspace):
-        super(DiscreteSubspace, self).__init__()
-        # TODO
+# class DiscreteSubspace(DiscreteSpace):
+#     SUB_TO_SPACE = 0
+#     SPACE_TO_SUB = 1
+#
+#     def __init__(self, space, space_indexes):
+#         super(DiscreteSubspace, self).__init__(space.index_dim)
+#         self.space = space
+#         self.n_points = len(index_from_space)
+#         space_index = np.atleast_1d(space_indexes, dtype=int)
+#         self._lookup_table = np.vstack(
+#             (
+#                 np.arange(self.n_points),
+#                 space_indexes
+#             ),
+#             dtype=np.object
+#         )
+#
+#     def _sub_to_space(self, sub_index):
+#         return self._lookup_table[DiscreteSubspace.SUB_TO_SPACE, sub_index]
+#
+#     def _space_to_sub(self, space_index):
+#         return np.nonzero(
+#             self._lookup_table[DiscreteSubspace.SPACE_TO_SUB, :] == space_index
+#         )[0]
+#
+#     def __getitem__(self, sub_index):
+#         return self.space[self._sub_to_space[sub_index]]
+#
+#     def indexof(self, x):
+#         space_index = self.space.indexof(x)
+#         return self._space_to_sub(space_index)
+#
+#     def get_index_iterator(self):
+#         return iter(range(self.n_points))
+#
+#     def sample_idx(self):
+#         return np.random.choice(self.n_points)
+#
+#
+# class DiscreteSubProductSpace(DiscreteSubspace):
+#     def __init__(self, product_space, space_indexes):
+#         super(
+#             DiscreteSubProjectableSpace,
+#             self
+#         ).__init__(product_space, space_indexes)
+#
+#     def project(self, x, space):
+#         pass
