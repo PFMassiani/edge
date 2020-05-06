@@ -1,7 +1,7 @@
-from .space import DiscreteProductSpace
+from .space import ProductSpace
 
 
-class DiscreteStateActionSpace(DiscreteProductSpace):
+class StateActionSpace(ProductSpace):
     def __init__(self, state_space, action_space):
         super(DiscreteStateActionSpace, self).__init__(
             state_space,

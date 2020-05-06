@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 import edge
-from edge.space import Segment, Box, DiscreteProductSpace
+from edge.space import Segment, Box, ProductSpace
 
 
 class TestSpaces(unittest.TestCase):
@@ -15,7 +15,8 @@ class TestSpaces(unittest.TestCase):
         self.assertTrue(segment.contains(0.5))
         self.assertTrue(segment.contains(0))
         self.assertTrue(segment.contains(1))
-        self.assertTrue(not segment.contains(0.25))
+        self.assertTrue(segment.contains(0.25))
+        self.assertTrue(not segment.is_on_grid(0.25))
         self.assertTrue(not segment.contains(-0.5))
         self.assertTrue(not segment.contains(1.5))
 
@@ -29,7 +30,7 @@ class TestSpaces(unittest.TestCase):
             self.assertTrue(isinstance(i, int))
             self.assertTrue(segment[i] in values)
             self.assertTrue(segment[i] in segment)
-            self.assertEqual(i, segment.indexof(segment[i]))
+            self.assertEqual(i, segment.get_index_of(segment[i]))
 
         try:
             Segment(-1, 0, 2)
@@ -50,8 +51,9 @@ class TestSpaces(unittest.TestCase):
         self.assertTrue(list(x) in values)
         self.assertTrue(x in box)
         self.assertTrue([0, 0] in box)
+        self.assertTrue((0.5, 0.25) in box)
+        self.assertTrue(not box.is_on_grid((0.5, 0.25)))
         self.assertTrue((-1, 0) not in box)
-        self.assertTrue((0.5, 0.25) not in box)
 
         idx = box.sample_idx()
         indexes_1d = (0, 1, 2)
@@ -65,7 +67,7 @@ class TestSpaces(unittest.TestCase):
             self.assertTrue(box[i] in box)
             self.assertEqual(
                 list(i),
-                list(box.indexof(box[i]))
+                list(box.get_index_of(box[i]))
             )
 
     def test_box_2(self):
@@ -76,8 +78,9 @@ class TestSpaces(unittest.TestCase):
         self.assertTrue(list(x) in values)
         self.assertTrue(x in box)
         self.assertTrue([0, 0] in box)
+        self.assertTrue((0.5, 0.25) in box)
+        self.assertTrue(not box.is_on_grid((0.5, 0.25)))
         self.assertTrue((-1, 0) not in box)
-        self.assertTrue((0.5, 0.25) not in box)
 
         idx = box.sample_idx()
         indexes_1d = (0, 1, 2)
@@ -91,13 +94,13 @@ class TestSpaces(unittest.TestCase):
             self.assertTrue(box[i] in box)
             self.assertEqual(
                 list(i),
-                list(box.indexof(box[i]))
+                list(box.get_index_of(box[i]))
             )
 
     def test_product_of_boxes(self):
         b1 = Box([0, 0], [1, 1], shape=(3, 3))
         b2 = Box(4, 5, shape=(11, 11))
-        p = DiscreteProductSpace(b1, b2)
+        p = ProductSpace(b1, b2)
 
         x = p.sample()
         self.assertTrue(x in p)
@@ -106,7 +109,7 @@ class TestSpaces(unittest.TestCase):
             self.assertTrue(p[i] in p)
             self.assertEqual(
                 list(i),
-                list(p.indexof(p[i]))
+                list(p.get_index_of(p[i]))
             )
 
 

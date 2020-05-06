@@ -19,21 +19,33 @@ class Space:
         raise NotImplementedError
 
 
-class DiscreteSpace(Space):
-    def __init__(self, index_dim):
-        super(DiscreteSpace, self).__init__()
+class DiscretizableSpace(Space):
+    def __init__(self, index_dim, discretization_shape):
+        super(DiscretizableSpace, self).__init__()
+        discretization_shape = np.atleast_1d(discretization_shape)
+        if len(discretization_shape) != index_dim:
+            raise IndexError('Size mismatch: expected shape of discretization '
+                             f'grid to be {index_dim}, got '
+                             f'{len(discretization_shape)} instead')
         self.index_dim = index_dim
+        self.discretization_shape = discretization_shape
 
-    def __getitem__(self, index):
+    def contains(self, x):
         raise NotImplementedError
 
-    def indexof(self, x):
+    def is_on_grid(self, x):
+        raise NotImplementedError
+
+    def __getitem__(self, index):
         raise NotImplementedError
 
     def __iter__(self):
         return self.get_index_iterator()
 
     def get_index_iterator(self):
+        raise NotImplementedError
+
+    def get_index_of(self, x, around_ok=False):
         raise NotImplementedError
 
     def sample_idx(self):
@@ -44,15 +56,21 @@ class DiscreteSpace(Space):
         return self[k]
 
 
-class DiscreteProductSpace(DiscreteSpace):
+class ProductSpace(DiscretizableSpace):
     def __init__(self, *sets):
         self.sets = sets
         self._n_sets = len(self.sets)
+        discretization_shape = [0
+                                for ns in range(self._n_sets)
+                                for k in range(sets[ns].index_dim)
+                                ]
         index_dim = 0
         for s in self.sets:
-            index_dim += s.index_dim
+            s_end = index_dim + s.index_dim
+            discretization_shape[index_dim:s_end] = s.discretization_shape
+            index_dim = s_end
 
-        super(DiscreteProductSpace, self).__init__(index_dim)
+        super(ProductSpace, self).__init__(index_dim, discretization_shape)
 
         self._index_masks = [None] * self._n_sets
         current_index = 0
@@ -73,12 +91,17 @@ class DiscreteProductSpace(DiscreteSpace):
 
         return isin
 
-    def sample_idx(self):
-        def sample_set(s):
-            index = s.sample_idx()
-            index = np.array(ensure_list(index), dtype=np.int).reshape(-1)
-            return index
-        return np.concatenate(tuple(map(sample_set, self.sets)))
+    def is_on_grid(self, x):
+        if len(x) != self.index_dim:
+            raise ValueError(f"Size mismatch: expected size {self.index_dim}"
+                             f", got {len(x)}")
+        ison = True
+        for ns in range(self._n_sets):
+            s = self.sets[ns]
+            mask = self._index_masks[ns]
+            ison = ison and s.is_on_grid(x[mask])
+
+        return ison
 
     def __getitem__(self, index):
         if len(index) != self.index_dim:
@@ -92,7 +115,7 @@ class DiscreteProductSpace(DiscreteSpace):
             x = np.concatenate((x, s[index_in_set]))
         return x
 
-    def indexof(self, x):
+    def get_index_of(self, x, around_ok=False):
         if len(x) != self.index_dim:
             raise ValueError(f'Size mismatch: expected size {len(self.sets)}'
                              f', got {len(x)}')
@@ -100,7 +123,7 @@ class DiscreteProductSpace(DiscreteSpace):
         for ns in range(self._n_sets):
             s = self.sets[ns]
             mask = self._index_masks[ns]
-            index[mask] = s.indexof(x[mask])
+            index[mask] = s.get_index_of(x[mask], around_ok)
         return index
 
     def get_index_iterator(self):
@@ -114,6 +137,13 @@ class DiscreteProductSpace(DiscreteSpace):
             flatten,
             product(*self.sets)
         )
+
+    def sample_idx(self):
+        def sample_set(s):
+            index = s.sample_idx()
+            index = np.array(ensure_list(index), dtype=np.int).reshape(-1)
+            return index
+        return np.concatenate(tuple(map(sample_set, self.sets)))
 
     def get_projection_on_space(self, x, target):
         if target not in self.sets:

@@ -1,6 +1,6 @@
-from .space import Space, DiscreteSpace, DiscreteProductSpace
-from .stateaction_space import DiscreteStateActionSpace
+from .space import Space, DiscretizableSpace, ProductSpace
+from .stateaction_space import StateActionSpace
 from .box import Segment, Box
 
-__all__ = ['Segment', 'Box', 'DiscreteStateActionSpace',
-           'Space', 'DiscreteSpace', 'DiscreteProductSpace']
+__all__ = ['Segment', 'Box', 'StateActionSpace',
+           'Space', 'DiscretizableSpace', 'ProductSpace']

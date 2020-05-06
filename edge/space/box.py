@@ -1,14 +1,17 @@
 import numpy as np
 from numbers import Number
 
-from .space import DiscreteSpace, DiscreteProductSpace
+from .space import DiscretizableSpace, ProductSpace
 from edge import error
 from edge.utils import ensure_np
 
 
-class Segment(DiscreteSpace):
+class Segment(DiscretizableSpace):
     def __init__(self, low, high, n_points):
-        super(Segment, self).__init__(index_dim=1)
+        super(Segment, self).__init__(
+            index_dim=1,
+            discretization_shape=n_points
+        )
         if low >= high:
             raise ValueError(f'Bounds {low} and {high} create empty Segment')
         self.low = low
@@ -26,8 +29,10 @@ class Segment(DiscreteSpace):
         return (1 - t) * self.low + t * self.high
 
     def contains(self, x):
-        is_in_bounds = (self.low <= x) and (self.high >= x)
-        if not is_in_bounds:
+        return (self.low <= x) and (self.high >= x)
+
+    def is_on_grid(self, x):
+        if x not in self:
             return False
 
         closest_index = self._get_closest_index(x)
@@ -41,11 +46,16 @@ class Segment(DiscreteSpace):
             raise IndexError('Space index out of range')
         return self._get_value_of_index(index)
 
-    def indexof(self, x):
+    def get_index_of(self, x, around_ok=False):
         if x not in self:
             raise error.OutOfSpace
         index = self._get_closest_index(x)
-        return index
+        if around_ok:
+            return index
+        elif self.is_on_grid(x):
+            return index
+        else:
+            raise error.NotOnGrid
 
     def get_index_iterator(self):
         return iter(range(self.n_points))
@@ -54,7 +64,7 @@ class Segment(DiscreteSpace):
         return np.random.choice(self.n_points)
 
 
-class Box(DiscreteProductSpace):
+class Box(ProductSpace):
     def __init__(self, low, high, shape):
         if isinstance(low, Number) and isinstance(high, Number):
             self.dim = len(shape)
