@@ -63,6 +63,14 @@ class Segment(DiscretizableSpace):
     def sample_idx(self):
         return np.random.choice(self.n_points)
 
+    def closest_in(self, x):
+        if x in self:
+            return x
+        elif x < self.low:
+            return self.low
+        elif x > self.high:
+            return self.high
+
 
 class Box(ProductSpace):
     def __init__(self, low, high, shape):

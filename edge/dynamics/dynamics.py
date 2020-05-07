@@ -20,7 +20,7 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
     def get_trajectory(self, state, action):
         raise NotImplementedError
 
-    def ensure_on_feasible_set(self, new_state):
+    def ensure_in_feasible_set(self, new_state):
         raise NotImplementedError
 
     def step(self, state, action):
@@ -32,6 +32,6 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
 
         trajectory = self.get_trajectory(state, action)
         new_state = trajectory.y[:, -1]
-        new_state = self.ensure_on_feasible_set(new_state)
+        new_state = self.ensure_in_feasible_set(new_state)
 
         return new_state
