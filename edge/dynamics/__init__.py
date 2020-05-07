@@ -1,2 +1,4 @@
 from .dynamics import DiscreteTimeDynamics, TimestepIntegratedDynamics
-from .event import event, event_based
+from .dynamics import EventBased
+from .event import event, EventBased
+from .hovership import HovershipDynamics

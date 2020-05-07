@@ -1,34 +1,40 @@
 import unittest
+from inspect import signature
 
-from edge.dynamics import event, event_based
+from edge.dynamics import event, EventBased
+
+
+def number_of_parameters(func):
+    sig = signature(func)
+    params = sig.parameters
+    return len(params)
 
 
 class TestEvent(unittest.TestCase):
     def test_event_based_class(self):
-        @event_based
-        class Foo:
+        class Foo(EventBased):
             def __init__(self):
-                pass
+                self.foo = 1
 
             @event(True, 1)
-            def event_0(t, y):
+            def event_0(self, t, y):
                 """A terminal event with direction 1"""
-                return y
+                return self.foo
 
             @event(-1)
-            def event_1(t, y):
+            def event_1(self, t, y):
                 """A nonterminal event with direction -1"""
-                return y
+                return self.foo
 
             @event
-            def event_2(t, y):
+            def event_2(self, t, y):
                 """An event with default parameterization"""
-                return y
+                return self.foo
 
             @event()
-            def event_3(t, y):
+            def event_3(self, t, y):
                 """A simple event"""
-                return t + y
+                return self.foo
 
         doc = ['', '', '', '']
         name = ['', '', '', '']
@@ -55,12 +61,23 @@ class TestEvent(unittest.TestCase):
             Foo.event_3
         ]
 
-        for n in range(len(events)):
-            evtfunc = Foo.get_events()[n]
-            self.assertEqual(evtfunc.__name__, name[n])
-            self.assertEqual(evtfunc.__doc__, doc[n])
-            self.assertEqual(evtfunc.__module__, module)
+        bar = Foo()
+        bar_events = [bar.event_0, bar.event_1, bar.event_2, bar.event_3]
+        for foovalue in [1, 2]:
+            bar.foo = foovalue
+            for n in range(len(events)):
+                for k in range(2):
+                    if k == 0:
+                        evtfunc = bar.get_events()[n]
+                    elif k == 1:
+                        evtfunc = bar_events[n]
+                    self.assertEqual(evtfunc.__name__, name[n])
+                    self.assertEqual(evtfunc.__doc__, doc[n])
+                    self.assertEqual(evtfunc.__module__, module)
+                    self.assertEqual(number_of_parameters(evtfunc), 2)
 
-            self.assertTrue(evtfunc.is_event)
-            self.assertEqual(evtfunc.terminal, params[n][0])
-            self.assertEqual(evtfunc.direction, params[n][1])
+                    self.assertTrue(evtfunc.is_event)
+                    self.assertEqual(evtfunc.terminal, params[n][0])
+                    self.assertEqual(evtfunc.direction, params[n][1])
+
+                    self.assertEqual(evtfunc(0, 0), foovalue)

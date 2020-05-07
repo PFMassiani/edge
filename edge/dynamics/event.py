@@ -32,69 +32,43 @@ def get_terminal_and_direction_from_args(args):
     return terminal, direction
 
 
-class event:
-    """
-    Decorates a function :
-        * adds a `terminal` attribute
-        * adds a `direction` attribute
-        * adds a `is_event` attribute (used by the class decorator
-            `event_based`)
-        * sets it as a static function, so the first parameter needs not to
-            be an instance of the class. This is useful for the integration
-            with the scipy.integrate module, for which events need to have
-            exactly two parameters
+def event(*args):
+    called_on_evt_func = False
+    if len(args) > 2:
+        raise ValueError("Too many parameters: expected at most 2, got "
+                         f"{len(args)}")
+    elif len(args) == 0:
+        terminal = False
+        direction = 0
+    elif callable(args[0]):
+        terminal = False
+        direction = 0
+        evt_func = args[0]
+        called_on_evt_func = True
+    else:
+        term_dir = get_terminal_and_direction_from_args(args)
+        terminal, direction = term_dir
 
-    """
-    # Adapted from
-    # https://stackoverflow.com/questions/1697501/staticmethod-with-property
+    def evt_decorator(func):
+        func.terminal = terminal
+        func.direction = direction
+        func.is_event = True
+        return func
 
-    def __init__(self, *args):
-        if len(args) > 2:
-            raise ValueError("Too many parameters: expected at most 2, got "
-                             f"{len(args)}")
-        elif len(args) == 0:
-            self.terminal = False
-            self.direction = 0
-            self.evt_func = None
-        elif callable(args[0]):
-            self.terminal = False
-            self.direction = 0
-            self.evt_func = args[0]
-            self._set_func_attributes()
-        else:
-            term_dir = get_terminal_and_direction_from_args(args)
-            self.terminal, self.direction = term_dir
-            self.evt_func = None
-
-    def _set_func_attributes(self):
-        self.evt_func.is_event = True
-        self.evt_func.terminal = self.terminal
-        self.evt_func.direction = self.direction
-
-    def __call__(self, evt_func):
-        if self.evt_func is not None:
-            raise ValueError('evt_funct has already been initialized')
-        self.evt_func = evt_func
-        self._set_func_attributes()
-
-        return self
-
-    def __get__(self, cls, owner):
-        return staticmethod(self.evt_func).__get__(None, owner)
+    if called_on_evt_func:
+        return evt_decorator(evt_func)
+    else:
+        return evt_decorator
 
 
-def event_based(cls):
-    methods = [getattr(cls, func)
-               for func in dir(cls)
-               if callable(getattr(cls, func)) and not func.startswith("__")
-               ]
-    events = []
-    for method in methods:
-        if hasattr(method, 'is_event') and method.is_event:
-            events.append(method)
-
-    def get_events():
-        return events
-
-    setattr(cls, 'get_events', get_events)
-    return cls
+class EventBased:
+    def get_events(self):
+        methods = [getattr(self, f)
+                   for f in dir(self)
+                   if callable(getattr(self, f)) and not f.startswith("__")
+                   ]
+        evt_methods = [m
+                       for m in methods
+                       if hasattr(m, 'is_event') and getattr(m, 'is_event')
+                       ]
+        return evt_methods

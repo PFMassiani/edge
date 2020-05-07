@@ -18,6 +18,9 @@ class Space:
     def sample(self):
         raise NotImplementedError
 
+    def closest_in(self, x):
+        raise NotImplementedError
+
 
 class DiscretizableSpace(Space):
     def __init__(self, index_dim, discretization_shape):
@@ -145,7 +148,16 @@ class ProductSpace(DiscretizableSpace):
             return index
         return np.concatenate(tuple(map(sample_set, self.sets)))
 
-    def get_projection_on_space(self, x, target):
+    def closest_in(self, x):
+        if x in self:
+            return x
+        y = np.array_like(x)
+        for ns in range(self._n_sets):
+            mask = self._index_masks[ns]
+            y[mask] = self.sets[ns].closest_in(x[mask])
+        return y
+
+    def get_component(self, x, target):
         if target not in self.sets:
             raise error.InvalidTarget
         n_target = None
@@ -157,3 +169,6 @@ class ProductSpace(DiscretizableSpace):
             raise error.InvalidTarget
         mask = self._index_masks[n_target]
         return x[mask]
+
+    def from_components(self, *x_sets):
+        return np.hstack(x_sets)
