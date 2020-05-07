@@ -47,10 +47,15 @@ class event:
     """
     # Adapted from
     # https://stackoverflow.com/questions/1697501/staticmethod-with-property
+
     def __init__(self, *args):
         if len(args) > 2:
             raise ValueError("Too many parameters: expected at most 2, got "
                              f"{len(args)}")
+        elif len(args) == 0:
+            self.terminal = False
+            self.direction = 0
+            self.evt_func = None
         elif callable(args[0]):
             self.terminal = False
             self.direction = 0
@@ -88,7 +93,7 @@ def event_based(cls):
         if hasattr(method, 'is_event') and method.is_event:
             events.append(method)
 
-    def get_events(clsinstance):
+    def get_events():
         return events
 
     setattr(cls, 'get_events', get_events)
