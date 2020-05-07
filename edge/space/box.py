@@ -44,7 +44,7 @@ class Segment(DiscretizableSpace):
     def __getitem__(self, index):
         if (index < 0) or (index >= self.n_points):
             raise IndexError('Space index out of range')
-        return self._get_value_of_index(index)
+        return np.atleast_1d(self._get_value_of_index(index))
 
     def get_index_of(self, x, around_ok=False):
         if x not in self:

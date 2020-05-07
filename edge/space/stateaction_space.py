@@ -11,10 +11,13 @@ class StateActionSpace(ProductSpace):
         self.action_space = action_space
 
     def get_action(self, stateaction):
-        return self.get_projection_on_space(stateaction, self.action_space)
+        return self.get_component(stateaction, self.action_space)
 
     def get_state(self, stateaction):
-        return self.get_projection_on_space(stateaction, self.state_space)
+        return self.get_component(stateaction, self.state_space)
 
     def get_stateaction(self, state, action):
-        return self.get_element_from_components(state, action)
+        return self.from_components(state, action)
+
+    def get_tuple(self, stateaction):
+        return (self.get_state(stateaction), self.get_action(stateaction))
