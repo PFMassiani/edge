@@ -1,3 +1,5 @@
+from numpy import atleast_1d
+
 from .event import EventBased
 from edge import error
 
@@ -31,7 +33,7 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
             return state, True
 
         trajectory = self.get_trajectory(state, action)
-        new_state = trajectory.y[:, -1]
+        new_state = atleast_1d(trajectory.y[:, -1])
         new_state = self.ensure_in_feasible_set(new_state)
 
         return new_state

@@ -115,7 +115,7 @@ class ProductSpace(DiscretizableSpace):
             mask = self._index_masks[ns]
             index_in_set = index[mask]
             s = self.sets[ns]
-            x = np.concatenate((x, s[index_in_set]))
+            x = np.concatenate((x, np.atleast_1d(s[index_in_set])))
         return x
 
     def get_index_of(self, x, around_ok=False):

@@ -1,18 +1,18 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from edge.space import Segment
+from edge.space import Box, StateActionSpace
 from .dynamics import TimestepIntegratedDynamics
 from .event import event
 from edge import error
 
 
 class HovershipDynamics(TimestepIntegratedDynamics):
-    def __init__(self, stateaction_space,
-                 ground_gravity, gravity_gradient, control_frequency
-                 ):
-        if not isinstance(stateaction_space.state_space, Segment):
-            raise TypeError('This dynamics only supports Segment state spaces')
+    def __init__(self, ground_gravity, gravity_gradient, control_frequency,
+                 max_thrust, max_altitude, shape=(200, 150)):
+        stateaction_space = StateActionSpace.from_product(
+            Box([0, 0], [max_altitude, max_thrust], shape)
+        )
         super(TimestepIntegratedDynamics, self).__init__(stateaction_space)
         self.ground_gravity = ground_gravity
         self.gravity_gradient = gravity_gradient
