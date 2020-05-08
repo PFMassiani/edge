@@ -2,11 +2,12 @@ from .reward import Reward
 
 
 class ConstantReward(Reward):
-    def __init__(self, constant, rewarded_set=None, unrewarded_set=None):
+    def __init__(self, stateaction_space, constant, rewarded_set=None,
+                 unrewarded_set=None):
         if rewarded_set is not None and unrewarded_set is not None:
             raise ValueError('`rewarded_set` and `unrewarded_set` cannot be'
                              'both specified')
-        super(ConstantReward, self).__init__()
+        super(ConstantReward, self).__init__(stateaction_space)
         self.constant = constant
         self.rewarded = rewarded_set
         self.unrewarded = unrewarded_set

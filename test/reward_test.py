@@ -8,7 +8,7 @@ class RewardTest(unittest.TestCase):
     def test_constant(self):
         space = StateActionSpace(*Box(0, 1, (10, 10)).sets)
 
-        reward = ConstantReward(10)
+        reward = ConstantReward(space, 10)
 
         total = 0
         for t in range(10):
@@ -27,7 +27,7 @@ class RewardTest(unittest.TestCase):
         rewarded = StateActionSpace(*Box([0, 0], [0.5, 0.5], (10, 10)).sets)
         unrewarded = StateActionSpace(*Box([0.5, 0.5], [1, 1], (10, 10)).sets)
 
-        reward = ConstantReward(10, rewarded_set=rewarded)
+        reward = ConstantReward(space, 10, rewarded_set=rewarded)
 
         total = 0
         for t in range(10):
@@ -49,7 +49,7 @@ class RewardTest(unittest.TestCase):
         rewarded = StateActionSpace(*Box([0, 0], [0.5, 0.5], (10, 10)).sets)
         unrewarded = StateActionSpace(*Box([0.5, 0.5], [1, 1], (10, 10)).sets)
 
-        reward = ConstantReward(10, rewarded_set=unrewarded)
+        reward = ConstantReward(space, 10, rewarded_set=unrewarded)
 
         total = 0
         for t in range(10):
@@ -70,8 +70,8 @@ class RewardTest(unittest.TestCase):
         # `rewarded` should be a Subspace, but this is not implemented yet
         s = StateActionSpace(*Box([0, 0], [0.5, 0.5], (10, 10)).sets)
 
-        r1 = ConstantReward(1, rewarded_set=s)
-        r2 = ConstantReward(1, unrewarded_set=s)
+        r1 = ConstantReward(space, 1, rewarded_set=s)
+        r2 = ConstantReward(space, 1, unrewarded_set=s)
 
         reward = r1 + r2
 
@@ -91,8 +91,8 @@ class RewardTest(unittest.TestCase):
         # `rewarded` should be a Subspace, but this is not implemented yet
         s = StateActionSpace(*Box([0, 0], [0.5, 0.5], (10, 10)).sets)
 
-        r1 = ConstantReward(1, rewarded_set=s)
-        r2 = ConstantReward(1, rewarded_set=s)
+        r1 = ConstantReward(space, 1, rewarded_set=s)
+        r2 = ConstantReward(space, 1, rewarded_set=s)
 
         reward = r1 - r2
 
