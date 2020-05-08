@@ -24,12 +24,6 @@ class HovershipDynamics(TimestepIntegratedDynamics):
             raise error.OutOfSpace
         return True
 
-    def ensure_in_feasible_set(self, new_state):
-        if new_state in self.stateaction_space.state_space:
-            return new_state
-        else:
-            return self.stateaction_space.state_space.closest_in(new_state)
-
     @event(True, 1)
     def ceiling(self, t, y):
         return y - self.ceiling_value

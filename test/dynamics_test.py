@@ -100,7 +100,7 @@ class HovershipTests(unittest.TestCase):
 
         initial_state = state_space.sample()
         action = np.atleast_1d(0)
-        new_state = hovership_dynamics.step(initial_state, action)
+        new_state, feasible = hovership_dynamics.step(initial_state, action)
 
         self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
         self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
@@ -118,7 +118,7 @@ class HovershipTests(unittest.TestCase):
 
         initial_state = state_space.sample()
         action = np.atleast_1d(0)
-        new_state = hovership_dynamics.step(initial_state, action)
+        new_state, feasible = hovership_dynamics.step(initial_state, action)
 
         self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
         self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
@@ -138,11 +138,11 @@ class HovershipTests(unittest.TestCase):
         action = np.atleast_1d(1)
         new_state = initial_state
         for t in range(10):
-            new_state = hovership_dynamics.step(new_state, action)
+            new_state, feasible = hovership_dynamics.step(new_state, action)
 
         self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
         self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
-        self.assertEqual(new_state, np.atleast_1d(1))
+        self.assertEqual(new_state, np.atleast_1d(1.))
 
     def test_oscillating_hovership(self):
         TOL = 1e-7
@@ -167,7 +167,10 @@ class HovershipTests(unittest.TestCase):
         previous_state = None
         state = initial_state
         for t in range(10):
-            new_state = hovership_dynamics.step(state, actions[t % 2])
+            new_state, feasible = hovership_dynamics.step(
+                state,
+                actions[t % 2]
+            )
             if previous_state is not None:
                 self.assertTrue(abs(previous_state[0] - new_state[0]) < TOL)
             previous_state, state = state, new_state

@@ -22,8 +22,11 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
     def get_trajectory(self, state, action):
         raise NotImplementedError
 
-    def ensure_in_feasible_set(self, new_state):
-        raise NotImplementedError
+    def ensure_in_state_space(self, new_state):
+        if new_state in self.stateaction_space.state_space:
+            return new_state
+        else:
+            return self.stateaction_space.state_space.closest_in(new_state)
 
     def step(self, state, action):
         if (state not in self.stateaction_space.state_space) or (
@@ -34,6 +37,7 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
 
         trajectory = self.get_trajectory(state, action)
         new_state = atleast_1d(trajectory.y[:, -1])
-        new_state = self.ensure_in_feasible_set(new_state)
-
-        return new_state
+        new_state = self.ensure_in_state_space(new_state)
+        is_feasible = self.is_feasible_state(new_state)
+        
+        return new_state, is_feasible
