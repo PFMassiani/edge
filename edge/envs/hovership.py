@@ -2,7 +2,7 @@ from numpy import atleast_1d
 
 from .environments import Environment
 from edge.dynamics import HovershipDynamics
-from edge.space import Segment
+from edge.space import Box, StateActionSpace
 from edge.reward import ConstantReward
 
 
@@ -11,9 +11,10 @@ class Hovership(Environment):
                  dynamics_parameters=None, reward=None):
         if dynamics_parameters is None:
             dynamics_parameters = {}
+        # TODO find reasonable values for these
         default_dynamics_parameters = {
-            'ground_gravity': 1,
-            'gravity_gradient': 0.1,
+            'ground_gravity': 0.1,
+            'gravity_gradient': 1,
             'control_frequency': 1,
             'max_thrust': 1,
             'max_altitude': 1,
@@ -25,7 +26,13 @@ class Hovership(Environment):
         if reward is None:
             # TODO change this so it uses subspaces
             max_altitude = default_dynamics_parameters['max_altitude']
-            rewarded_set = Segment(0.8 * max_altitude, max_altitude, 100)
+            max_thrust = default_dynamics_parameters['max_thrust']
+            rewarded_set = StateActionSpace.from_product(
+                Box([0.8 * max_altitude, 0],
+                    [max_altitude, max_thrust],
+                    (100, 100)
+                    )
+            )
             reward = ConstantReward(
                 dynamics.stateaction_space,
                 constant=1,
@@ -43,3 +50,8 @@ class Hovership(Environment):
             default_initial_state=default_initial_state,
             random_start=random_start
         )
+
+    @property
+    def in_failure_state(self):
+        # TODO change so it uses stateaction wrappers
+        return self.s[0] == 0

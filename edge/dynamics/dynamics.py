@@ -39,5 +39,5 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
         new_state = atleast_1d(trajectory.y[:, -1])
         new_state = self.ensure_in_state_space(new_state)
         is_feasible = self.is_feasible_state(new_state)
-        
+
         return new_state, is_feasible

@@ -18,7 +18,7 @@ class Environment:
 
     @property
     def has_failed(self):
-        return self.feasible and not self.in_failure_state
+        return (not self.feasible) or self.in_failure_state
 
     @property
     def in_failure_state(self):
@@ -37,13 +37,14 @@ class Environment:
             self.s = self.stateaction_space.state_space.sample()
         else:
             self.s = self.default_initial_state
-        self.feasible = self.dynamics.is_feasible_state(s)
+        self.feasible = self.dynamics.is_feasible_state(self.s)
 
     def step(self, action):
         old_state = self.s
-        self.s, self.feasible = self.dynamics.step(old_state, action)
-        reward = self.reward.get_reward(self,
-                                        old_state,
+        if not self.has_failed:
+            self.s, self.feasible = self.dynamics.step(old_state, action)
+
+        reward = self.reward.get_reward(old_state,
                                         action,
                                         self.s,
                                         self.has_failed
