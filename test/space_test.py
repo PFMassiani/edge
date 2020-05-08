@@ -1,7 +1,6 @@
 import unittest
 import numpy as np
 
-import edge
 from edge.space import Segment, Box, ProductSpace
 
 
@@ -112,6 +111,34 @@ class TestSpaces(unittest.TestCase):
                 list(p.get_index_of(p[i]))
             )
 
+    def test_slicing(self):
+        tolerance = 1e-7
 
-if __name__ == '__main__':
-    unittest.main()
+        def assertClose(x, y):
+            self.assertTrue(np.all(np.abs(x - y) < tolerance))
+
+        s = Segment(0, 1, 100)
+        u = np.linspace(0, 1, 100)
+
+        t = s[:]
+        assertClose(t, u)
+
+        t = s[25:75:2]
+        assertClose(t, u[25:75:2])
+
+        s = Box(0, 1, (100, 100))
+        ux = np.linspace(0, 1, 100)
+        uy = np.linspace(0, 1, 100)
+        u = np.dstack(np.meshgrid(ux, uy))
+
+        t = s[:, :]
+        assertClose(t, u)
+
+        t = s[0, :]
+        assertClose(t, u[0, :])
+
+        t = s[:, 0]
+        assertClose(t, u[:, 0])
+
+        t = s[3, 4]
+        assertClose(t, u[3, 4])
