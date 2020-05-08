@@ -64,7 +64,7 @@ class Segment(DiscretizableSpace):
         return np.random.choice(self.n_points)
 
     def closest_in(self, x):
-        return np.clip(x, self.low, self.high)
+        return np.atleast_1d(np.clip(x, self.low, self.high))
 
 
 class Box(ProductSpace):
