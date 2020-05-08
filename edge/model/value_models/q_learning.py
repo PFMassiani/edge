@@ -20,4 +20,8 @@ class QLearning(Model):
         index = self.space.get_index_of(stateaction)
         new_index = self.space.state_space.get_index_of(new_state)
 
-        Q[index] =
+        # The following does not work yet : we need to implement slicing in
+        # Spaces first
+        self.q_values[index] = self.q_values[index] + self.step_size * (
+            reward + self.discount_rate * max(self.space[new_index, :])
+        )
