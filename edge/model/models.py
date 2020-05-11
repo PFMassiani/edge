@@ -5,8 +5,8 @@ class Model:
     def update(self):
         raise NotImplementedError
 
-    def query(self, point):
+    def query(self):
         raise NotImplementedError
 
-    def __call__(self, point):
-        return self.query(point)
+    def __call__(self, *args, **kwargs):
+        return self.query(*args, **kwargs)

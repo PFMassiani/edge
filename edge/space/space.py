@@ -42,6 +42,10 @@ class DiscretizableSpace(Space):
             raise ValueError('Unable to create space : there should be as many'
                              ' indexing dimensions as data components.')
 
+    @property
+    def shape(self):
+        return self.index_shape
+
     def _get_index_with_data_component(self, index):
         if isinstance(index, (int, np.integer, slice)):
             return (index, slice(None, None, None))

@@ -9,8 +9,7 @@ class QLearning(Model):
         super(QLearning, self).__init__(stateaction_space)
         self.step_size = step_size
         self.discount_rate = discount_rate
-        self.q_values = np.zeros(self.space.discretization_shape,
-                                 dtype=np.float)
+        self.q_values = np.zeros(self.space.index_shape, dtype=np.float)
 
     def update(self, state, action, new_state, reward):
         stateaction = self.space.get_stateaction(state, action)
@@ -20,8 +19,11 @@ class QLearning(Model):
         index = self.space.get_index_of(stateaction)
         new_index = self.space.state_space.get_index_of(new_state)
 
-        # The following does not work yet : we need to implement slicing in
-        # Spaces first
         self.q_values[index] = self.q_values[index] + self.step_size * (
-            reward + self.discount_rate * max(self.space[new_index, :])
+            reward + self.discount_rate * np.max(self.space[new_index, :])
         )
+
+    def query(self, state, action):
+        stateaction = self.space.get_stateaction(state, action)
+        index = self.space.get_index_of(stateaction)
+        return self.q_values[index]

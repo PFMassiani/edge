@@ -17,6 +17,14 @@ class Environment:
         return self.dynamics.stateaction_space
 
     @property
+    def state_space(self):
+        return self.stateaction_space.state_space
+
+    @property
+    def action_space(self):
+        return self.stateaction_space.action_space
+
+    @property
     def has_failed(self):
         return (not self.feasible) or self.in_failure_state
 
@@ -38,6 +46,7 @@ class Environment:
         else:
             self.s = self.default_initial_state
         self.feasible = self.dynamics.is_feasible_state(self.s)
+        return self.s
 
     def step(self, action):
         old_state = self.s
