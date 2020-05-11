@@ -49,7 +49,7 @@ class RewardTest(unittest.TestCase):
         rewarded = StateActionSpace(*Box([0, 0], [0.5, 0.5], (10, 10)).sets)
         unrewarded = StateActionSpace(*Box([0.5, 0.5], [1, 1], (10, 10)).sets)
 
-        reward = ConstantReward(space, 10, rewarded_set=unrewarded)
+        reward = ConstantReward(space, 10, unrewarded_set=unrewarded)
 
         total = 0
         for t in range(10):

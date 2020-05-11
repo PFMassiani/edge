@@ -182,13 +182,13 @@ class ProductSpace(DiscretizableSpace):
         if target not in self.sets:
             raise error.InvalidTarget
         n_target = None
-        for ns in range(self._n_sets):
+        for ns in range(self.n_sets):
             if self.sets[ns] == target:
                 n_target = ns
                 break
         else:
             raise error.InvalidTarget
-        mask = self._index_masks[n_target]
+        mask = self._index_slices[n_target]
         return np.atleast_1d(x[mask])
 
     def from_components(self, *x_sets):

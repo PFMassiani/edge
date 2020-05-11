@@ -11,8 +11,7 @@ class Segment(DiscretizableSpace):
         if low >= high:
             raise ValueError(f'Bounds {low} and {high} create empty Segment')
         super(Segment, self).__init__(
-            discretization=np.linspace(low, high, n_points).reshape((-1, 1))
-        )
+            discretization=np.linspace(low, high, n_points).reshape((-1, 1)))
         self.low = low
         self.high = high
         self.n_points = n_points
