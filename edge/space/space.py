@@ -1,7 +1,6 @@
-from itertools import product, starmap
+from itertools import product
 import numpy as np
 
-from edge.utils import ensure_list
 from edge import error
 
 
@@ -27,22 +26,8 @@ class DiscretizableSpace(Space):
         super(DiscretizableSpace, self).__init__()
 
         self.discretization = discretization
-        self.index_shape = self.discretization.shape[:-1]
+        self.index_shape = self.discretization.shape
         self.index_dim = len(self.index_shape)
-        self.data_length = self.discretization.shape[-1]
-
-    def _get_index_with_data_component(self, index):
-        if len(index) == self.index_dim + 1:
-            raise IndexError(f'Expected length {self.index_dim} for index, got'
-                             f'{len(index)}. The last dimension is used for th'
-                             'e data, and should not be used for indexing on a'
-                             ' Space object. Try directly indexing on '
-                             'Space.discretization instead')
-        elif len(index) != self.index_dim:
-            raise IndexError(f'Expected length {self.index_dim} for index, got'
-                             f'{len(index)}')
-        return tuple(ensure_list(index)) + \
-            tuple(ensure_list(slice(None, None, None)))
 
     def contains(self, x):
         raise NotImplementedError
@@ -51,7 +36,6 @@ class DiscretizableSpace(Space):
         raise NotImplementedError
 
     def __getitem__(self, index):
-        index = self._get_index_with_data_component(index)
         return self.discretization[index]
 
     def __iter__(self):
@@ -93,20 +77,20 @@ class ProductSpace(DiscretizableSpace):
         is_product = [False] * self.n_sets
         for ns in range(self.n_sets):
             if isinstance(sets[ns], ProductSpace):
-                grids_to_mesh[ns] = sets[ns].discretization_grid
+                grids_to_mesh[ns] = sets[ns].discretization_grids
                 is_product[ns] = True
             else:
                 grids_to_mesh[ns] = sets[ns].discretization
 
-        discretization_grids = []
+        self.discretization_grids = []
         for subgrids, isprod in zip(grids_to_mesh, is_product):
             if isprod:
                 for grid in subgrids:
-                    discretization_grids.append(grid)
+                    self.discretization_grids.append(grid)
             else:
-                discretization_grids.append(subgrids.reshape(-1))
+                self.discretization_grids.append(subgrids.reshape(-1))
 
-        mesh = np.meshgrid(discretization_grids, indexing='ij')
+        mesh = np.meshgrid(self.discretization_grids, indexing='ij')
         discretization = np.stack(mesh, axis=-1)
 
         super(ProductSpace, self).__init__(discretization)
@@ -122,11 +106,11 @@ class ProductSpace(DiscretizableSpace):
         return x[self._index_slices[ns]]
 
     def contains(self, x):
-        if len(x) != self.data_length:
-            raise ValueError(f"Size mismatch: expected size {self.data_length}"
+        if len(x) != self.index_dim:
+            raise ValueError(f"Size mismatch: expected size {self.index_dim}"
                              f", got {len(x)}")
         isin = True
-        for ns in range(self._n_sets):
+        for ns in range(self.n_sets):
             s = self.sets[ns]
             x_slice = self._get_components(x, ns)
             isin = isin and (x_slice in s)
@@ -134,11 +118,11 @@ class ProductSpace(DiscretizableSpace):
         return isin
 
     def is_on_grid(self, x):
-        if len(x) != self.data_length:
-            raise ValueError(f"Size mismatch: expected size {self.data_length}"
+        if len(x) != self.index_dim:
+            raise ValueError(f"Size mismatch: expected size {self.index_dim}"
                              f", got {len(x)}")
         ison = True
-        for ns in range(self._n_sets):
+        for ns in range(self.n_sets):
             s = self.sets[ns]
             x_slice = self._get_components(x, ns)
             ison = ison and s.is_on_grid(x_slice)
@@ -146,22 +130,22 @@ class ProductSpace(DiscretizableSpace):
         return ison
 
     def get_index_of(self, x, around_ok=False):
-        if len(x) != self.data_length:
-            raise ValueError(f'Size mismatch: expected size {self.data_length}'
+        if len(x) != self.index_dim:
+            raise ValueError(f'Size mismatch: expected size {self.index_dim}'
                              f', got {len(x)}')
-        index = np.zeros(self.index_dim, dtype=np.int)
-        for ns in range(self._n_sets):
+        index = [None] * self.index_dim
+        for ns in range(self.n_sets):
             s = self.sets[ns]
-            mask = self._index_masks[ns]
-            index[mask] = s.get_index_of(x[mask], around_ok)
-        return index
+            index_slice = self._index_slices[ns]
+            index[index_slice] = s.get_index_of(x[index_slice], around_ok)
+        return tuple(index)
 
     def closest_in(self, x):
         if x in self:
             return x
         y = np.array_like(x)
-        for ns in range(self._n_sets):
-            mask = self._index_masks[ns]
+        for ns in range(self.n_sets):
+            mask = self._index_slices[ns]
             y[mask] = self.sets[ns].closest_in(x[mask])
         return y
 
