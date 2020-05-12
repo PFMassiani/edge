@@ -33,7 +33,7 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
                 action not in self.stateaction_space.action_space):
             raise error.OutOfSpace
         if not self.is_feasible_state(state):
-            return state, True
+            return state, False
 
         trajectory = self.get_trajectory(state, action)
         new_state = atleast_1d(trajectory.y[:, -1])

@@ -3,8 +3,8 @@ from inspect import signature
 import numpy as np
 
 from edge.dynamics import event, EventBased
-from edge.dynamics import HovershipDynamics
-from edge.space import Segment, StateActionSpace
+from edge.dynamics import HovershipDynamics, DiscreteHovershipDynamics
+from edge.space import Segment, Discrete, StateActionSpace
 
 
 def number_of_parameters(func):
@@ -125,6 +125,7 @@ class HovershipTests(unittest.TestCase):
         self.assertEqual(new_state, np.atleast_1d(0))
 
     def test_rocket_hovership(self):
+        TOL = 1e-9
         hovership_dynamics = HovershipDynamics(
             ground_gravity=0,
             gravity_gradient=0,
@@ -142,7 +143,7 @@ class HovershipTests(unittest.TestCase):
 
         self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
         self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
-        self.assertEqual(new_state, np.atleast_1d(1.))
+        self.assertTrue(abs(1 - new_state[0]) < TOL)
 
     def test_oscillating_hovership(self):
         TOL = 1e-7
@@ -173,4 +174,87 @@ class HovershipTests(unittest.TestCase):
             )
             if previous_state is not None:
                 self.assertTrue(abs(previous_state[0] - new_state[0]) < TOL)
+            previous_state, state = state, new_state
+
+
+class DiscreteHovershipTests(unittest.TestCase):
+    def test_still_hovership(self):
+        hovership_dynamics = DiscreteHovershipDynamics(
+            ground_gravity=0,
+            gravity_gradient=0,
+            max_thrust=2,
+            max_altitude=3
+        )
+        state_space = hovership_dynamics.stateaction_space.state_space
+
+        initial_state = state_space.sample()
+        action = np.atleast_1d(0)
+        new_state, feasible = hovership_dynamics.step(initial_state, action)
+
+        self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
+        self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
+        self.assertEqual(initial_state, new_state)
+
+    def test_hovership_fall(self):
+        hovership_dynamics = DiscreteHovershipDynamics(
+            ground_gravity=10,
+            gravity_gradient=0,
+            max_thrust=2,
+            max_altitude=3
+        )
+        state_space = hovership_dynamics.stateaction_space.state_space
+
+        initial_state = state_space.sample()
+        action = np.atleast_1d(0)
+        new_state, feasible = hovership_dynamics.step(initial_state, action)
+
+        self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
+        self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
+        self.assertEqual(new_state, np.atleast_1d(0))
+
+    def test_rocket_hovership(self):
+        hovership_dynamics = DiscreteHovershipDynamics(
+            ground_gravity=0,
+            gravity_gradient=0,
+            max_thrust=2,
+            max_altitude=3
+        )
+        state_space = hovership_dynamics.stateaction_space.state_space
+
+        initial_state = state_space.sample()
+        action = np.atleast_1d(1)
+        new_state = initial_state
+        for t in range(10):
+            new_state, feasible = hovership_dynamics.step(new_state, action)
+
+        self.assertTrue(hovership_dynamics.is_feasible_state(initial_state))
+        self.assertTrue(hovership_dynamics.is_feasible_state(new_state))
+        self.assertEqual(new_state, np.atleast_1d(3))
+
+    def test_oscillating_hovership(self):
+        hovership_dynamics = DiscreteHovershipDynamics(
+            ground_gravity=0,
+            gravity_gradient=0,
+            max_thrust=2,
+            max_altitude=3
+        )
+        state_space = Discrete(4)
+        action_space = Discrete(n=3, start=-1, end=1)
+        stateaction_space = StateActionSpace(
+            state_space,
+            action_space
+        )
+        hovership_dynamics.stateaction_space = stateaction_space
+
+        initial_state = np.atleast_1d(3)
+        actions = [np.atleast_1d(-1), np.atleast_1d(1)]
+        previous_state = None
+        state = initial_state
+        for t in range(10):
+            new_state, feasible = hovership_dynamics.step(
+                state,
+                actions[t % 2]
+            )
+            if previous_state is not None:
+                self.assertEqual(previous_state[0], new_state[0])
             previous_state, state = state, new_state

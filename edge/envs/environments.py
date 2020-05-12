@@ -9,7 +9,7 @@ class Environment:
         self.random_start = random_start
         if default_initial_state not in dynamics.stateaction_space.state_space:
             raise error.OutOfSpace('Default initial state is out of space')
-        self._default_initial_state = default_initial_state
+        self.default_initial_state = default_initial_state
         self.reset()
 
     @property
@@ -33,23 +33,22 @@ class Environment:
         raise NotImplementedError
 
     @property
-    def default_initial_state(self):
-        return self._default_initial_state
+    def state_index(self):
+        return self.state_space.get_index_of(self.s)
 
-    def reset(self, s=None):
-        if s is not None and s not in self.stateaction_space.state_space:
-            raise ValueError('Invalid state')
-        elif s is not None:
-            self.s = s
+    def reset(self, state_index=None):
+        if state_index is not None:
+            self.s = self.state_space[state_index]
         elif self.random_start:
             self.s = self.stateaction_space.state_space.sample()
         else:
             self.s = self.default_initial_state
         self.feasible = self.dynamics.is_feasible_state(self.s)
-        return self.s
+        return self.state_index
 
-    def step(self, action):
+    def step(self, action_index):
         old_state = self.s
+        action = self.action_space[action_index]
         if not self.has_failed:
             self.s, self.feasible = self.dynamics.step(old_state, action)
 

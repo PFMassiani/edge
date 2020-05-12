@@ -2,28 +2,32 @@ import unittest
 import numpy as np
 
 from edge.model.value_models import QLearning
-from edge.envs import Hovership
-from edge.space import StateActionSpace, Box
+from edge.envs import DiscreteHovership
+from edge.space import Discrete, StateActionSpace
 from edge.reward import ConstantReward
 
 
-class TopHovership(Hovership):
+class ToyHovership(DiscreteHovership):
     def __init__(self):
-        super(TopHovership, self).__init__(dynamics_parameters={
-            'shape': (10, 3)
-        })
-        rewarded = StateActionSpace.from_product(Box([0.99, 0], [1, 1], (10,3)))
+        super(ToyHovership, self).__init__(default_initial_state=np.array([2.]))
+        max_altitude = self.state_space.n - 1
+        max_thrust = self.action_space.n -1
+        rewarded_set = StateActionSpace(
+            Discrete(n=2, start=max_altitude - 1, end=max_altitude),
+            Discrete(max_thrust + 1)
+        )
         reward = ConstantReward(
             self.stateaction_space,
             constant=1,
-            rewarded_set=rewarded
+            rewarded_set=rewarded_set
         )
         self.reward = reward
 
 
 class TestQLearning(unittest.TestCase):
     def test_policy_convergence(self):
-        env = TopHovership()
+        env = ToyHovership()
+        nA = env.action_space.n
         qlearning = QLearning(env.stateaction_space, 0.9, 0.9)
 
         def policy_from_q_values(q_values, eps=0.1):
@@ -34,30 +38,21 @@ class TestQLearning(unittest.TestCase):
 
         eps = 0.1
         nA = qlearning.q_values.shape[1]
-        for episode in range(10):
-            print(f'Episode #{episode}')
-            state = env.reset()
-            stateindex = env.state_space.get_index_of(state, around_ok=True)
-            state = env.state_space[stateindex]
+        for episode in range(100):
+            reset_state = np.random.choice([2, 3])
+            state = env.reset(reset_state)
             failed = False
             n_steps = 0
-            while not failed and n_steps < 300:
+            while not failed and n_steps < 10:
                 probas = np.ones(nA) * eps / nA
-                probas[np.argmax(qlearning.q_values[stateindex, :])] += 1 - eps
-                actionindex = np.random.choice(nA, p=probas)
-                action = env.action_space[actionindex]
+                probas[np.argmax(qlearning.q_values[state, :])] += 1 - eps
+                action = np.random.choice(nA, p=probas)
                 new_state, reward, failed = env.step(action)
-                new_index = env.state_space.get_index_of(new_state, around_ok=True)
-                new_state = env.state_space[new_index]
                 qlearning.update(state, action, new_state, reward)
                 state = new_state
-                stateindex = new_index
                 n_steps += 1
-            print(f'Completed in {n_steps}')
-            print('Values:')
-            print(qlearning.q_values)
 
-        policy = policy_from_q_values(qlearning.q_values)
-        print('=== Final policy')
-        print(policy)
-        self.assertTrue(True)
+        policy = policy_from_q_values(qlearning.q_values, eps=0)
+
+        self.assertTrue(np.all(policy[2, :] == [0, 0, 1]), 'Final policy '
+                                                           f'is\n{policy}')
