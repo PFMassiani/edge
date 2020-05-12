@@ -2,7 +2,7 @@ import gpytorch
 import torch
 
 from edge.utils import atleast_2d
-from . import tensorwrap
+from .tensorwrap import tensorwrap
 
 
 class GPModel(gpytorch.models.ExactGP):

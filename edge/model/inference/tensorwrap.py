@@ -32,11 +32,13 @@ def tensorwrap(*deco_args):
                 all_parameter_names[:len(args)],
                 args
             )))
+
             for pname in parameters_to_wrap:
                 if not torch.is_tensor(kwargs[pname]):
                     kwargs[pname] = torch.from_numpy(kwargs[pname])
 
             return func(**kwargs)
+        return numpy_tensor_wrapper
 
     if called_on_func:
         return tensor_wrapper_decorator(deco_args[0])

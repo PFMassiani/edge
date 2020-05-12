@@ -1,7 +1,8 @@
 import gpytorch
 
 from edge.utils import atleast_2d, constraint_from_tuple
-from . import GPModel, tensorwrap
+from .inference import GPModel
+from .tensorwrap import tensorwrap
 
 
 class MaternGP(GPModel):
