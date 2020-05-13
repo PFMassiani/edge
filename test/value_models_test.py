@@ -46,7 +46,7 @@ class TestQLearning(unittest.TestCase):
             while not failed and n_steps < 10:
                 probas = np.ones(nA) * eps / nA
                 probas[np.argmax(qlearning.q_values[state, :])] += 1 - eps
-                action = np.random.choice(nA, p=probas)
+                action = env.action_space[np.random.choice(nA, p=probas)]
                 new_state, reward, failed = env.step(action)
                 qlearning.update(state, action, new_state, reward)
                 state = new_state

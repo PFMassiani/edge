@@ -44,11 +44,10 @@ class Environment:
         else:
             self.s = self.default_initial_state
         self.feasible = self.dynamics.is_feasible_state(self.s)
-        return self.state_index
+        return self.s
 
-    def step(self, action_index):
+    def step(self, action):
         old_state = self.s
-        action = self.action_space[action_index]
         if not self.has_failed:
             self.s, self.feasible = self.dynamics.step(old_state, action)
 
