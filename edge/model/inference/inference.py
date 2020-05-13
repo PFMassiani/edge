@@ -63,11 +63,11 @@ class GPModel(gpytorch.models.ExactGP):
                 return self.likelihood(self(x))
 
     def empty_data(self):
-        outputs_shape = (0,) if len(self.train_y) == 1 else \
+        outputs_shape = (0,) if len(self.train_y.shape) == 1 else \
                         (0, self.train_y.shape[1])
         return self.set_data(
-            inputs=torch.empty((0, self.train_x.shape[1])),
-            outputs=torch.empty(outputs_shape)
+            x=torch.empty((0, self.train_x.shape[1])),
+            y=torch.empty(outputs_shape)
         )
 
     @tensorwrap('x', 'y')
@@ -78,15 +78,16 @@ class GPModel(gpytorch.models.ExactGP):
         self.train_y = y
         self.set_train_data(
             inputs=self.train_x,
-            outputs=self.train_y
+            targets=self.train_y,
+            strict=False
         )
         return self
 
     @tensorwrap('x', 'y')
     def append_data(self, x, y):
         new_self = self.get_fantasy_model(x, y)
-        new_self.train_x = atleast_2d(x)
-        new_self.train_y = y
+        new_self.train_x = torch.cat((self.train_x, atleast_2d(x)), dim=0)
+        new_self.train_y = torch.cat((self.train_y, y), dim=0)
         return new_self
 
     def save(self, save_path):

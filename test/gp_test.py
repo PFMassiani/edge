@@ -124,3 +124,32 @@ class TestMaternGP(unittest.TestCase):
         predictions = gp.predict(x).mean.numpy()
 
         self.assertTrue(np.all(np.abs(y - predictions) < tol))
+
+    def test_data_manipulation(self):
+        tol = 1e-1
+        x = np.linspace(0, 1, 101)
+        y = np.exp(-x**2)
+        x_ = np.linspace(1.5, 2, 51)
+        y_ = 1 + np.exp(-x_**2)
+
+        gp = MaternGP(x, y, noise_prior=(0.1, 0.1))
+
+        tmp = gp.empty_data()
+        self.assertEqual(tmp, gp)
+        self.assertTrue(tuple(gp.train_x.shape), (0, 1))
+
+        gp.set_data(x, y)
+        self.assertEqual(tuple(gp.train_x.shape), (len(x), 1))
+
+        gp.optimize_hyperparameters(epochs=10)
+        gp_pred = gp.predict(x_).mean.numpy()
+        self.assertFalse(np.all(np.abs(gp_pred - y_) < tol))
+
+        tmp = gp.append_data(x_, y_)
+        self.assertTrue(gp != tmp)
+        self.assertEqual(tuple(gp.train_x.shape), (len(x), 1))
+        self.assertEqual(tuple(tmp.train_x.shape), (len(x) + len(x_), 1))
+
+        tmp.optimize_hyperparameters(epochs=10)
+        tmp_pred = tmp.predict(x_).mean.numpy()
+        self.assertTrue(np.all(np.abs(tmp_pred - y_) < tol))
