@@ -5,14 +5,14 @@ from edge.utils import atleast_2d, dynamically_import
 from .tensorwrap import tensorwrap
 
 
-class GPModel(gpytorch.models.ExactGP):
+class GP(gpytorch.models.ExactGP):
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, mean_module, covar_module,
                  likelihood):
         self.train_x = atleast_2d(train_x)
         self.train_y = train_y
 
-        super(GPModel, self).__init__(train_x, train_y, likelihood)
+        super(GP, self).__init__(train_x, train_y, likelihood)
 
         self.mean_module = mean_module
         self.covar_module = covar_module
@@ -26,7 +26,7 @@ class GPModel(gpytorch.models.ExactGP):
 
     @tensorwrap()
     def __call__(self, *args, **kwargs):
-        return super(GPModel, self).__call__(*args, **kwargs)
+        return super(GP, self).__call__(*args, **kwargs)
 
     @tensorwrap('x')
     def forward(self, x):
@@ -85,10 +85,10 @@ class GPModel(gpytorch.models.ExactGP):
 
     @tensorwrap('x', 'y')
     def append_data(self, x, y):
-        new_self = self.get_fantasy_model(x, y)
-        new_self.train_x = torch.cat((self.train_x, atleast_2d(x)), dim=0)
-        new_self.train_y = torch.cat((self.train_y, y), dim=0)
-        return new_self
+        new_x = torch.cat((self.train_x, atleast_2d(x)), dim=0)
+        new_y = torch.cat((self.train_y, y), dim=0)
+        self.set_data(new_x, new_y)
+        return self
 
     def save(self, save_path):
         if not save_path.endswith('.pth'):

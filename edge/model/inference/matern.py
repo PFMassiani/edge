@@ -1,11 +1,11 @@
 import gpytorch
 
 from edge.utils import atleast_2d, constraint_from_tuple
-from .inference import GPModel
+from .inference import GP
 from .tensorwrap import tensorwrap
 
 
-class MaternGP(GPModel):
+class MaternGP(GP):
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, nu=2.5,
                  noise_prior=None, noise_constraint=(1e-3, 1e4),
