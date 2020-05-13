@@ -195,5 +195,21 @@ class ProductSpace(DiscretizableSpace):
         mask = self._index_slices[n_target]
         return np.hstack(x[mask])
 
+    def get_index_component(self, index, target):
+        if target not in self.sets:
+            raise error.InvalidTarget
+        n_target = None
+        for ns in range(self.n_sets):
+            if self.sets[ns] == target:
+                n_target = ns
+                break
+        else:
+            raise error.InvalidTarget
+        mask = self._index_slices[n_target]
+        masked = index[mask]
+        if len(masked) == 1:
+            return masked[0]
+        return masked
+
     def from_components(self, *x_sets):
         return np.hstack(x_sets)

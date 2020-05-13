@@ -28,3 +28,13 @@ class StateActionSpace(ProductSpace):
 
     def get_tuple(self, stateaction):
         return (self.get_state(stateaction), self.get_action(stateaction))
+
+    def get_state_index(self, stateaction_index):
+        return self.get_index_component(stateaction_index, self.state_space)
+
+    def get_action_index(self, stateaction_index):
+        return self.get_index_component(stateaction_index, self.action_space)
+
+    def get_index_tuple(self, stateaction_index):
+        return (self.get_state_index(stateaction_index),
+                self.get_action_index(stateaction_index))
