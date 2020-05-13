@@ -1,3 +1,4 @@
+decorator==4.4.2
 entrypoints==0.3
 flake8==3.7.9
 future==0.18.2

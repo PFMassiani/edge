@@ -1,7 +1,7 @@
 import gpytorch
 import torch
 
-from edge.utils import atleast_2d
+from edge.utils import atleast_2d, dynamically_import
 from .tensorwrap import tensorwrap
 
 
@@ -11,6 +11,8 @@ class GPModel(gpytorch.models.ExactGP):
                  likelihood):
         self.train_x = atleast_2d(train_x)
         self.train_y = train_y
+
+        super(GPModel, self).__init__(train_x, train_y, likelihood)
 
         self.mean_module = mean_module
         self.covar_module = covar_module
@@ -22,7 +24,7 @@ class GPModel(gpytorch.models.ExactGP):
     def structure_dict(self):
         raise NotImplementedError
 
-    @tensorwrap
+    @tensorwrap()
     def __call__(self, *args, **kwargs):
         return super(GPModel, self).__call__(*args, **kwargs)
 
@@ -92,7 +94,7 @@ class GPModel(gpytorch.models.ExactGP):
             save_path += '.pth'
 
         save_dict = {
-            'state_dict': self.state_dict,
+            'state_dict': self.state_dict(),
             'structure_dict': self.structure_dict,
             'classname': type(self).__name__
         }
@@ -105,9 +107,9 @@ class GPModel(gpytorch.models.ExactGP):
         save_dict = torch.load(load_path)
         classname = save_dict['classname']
 
-        constructor = globals().get(classname)
+        constructor = dynamically_import('edge.model.inference.' + classname)
         if constructor is None:
-            raise NameError(f'Name {classname} is not defined')
+            raise NameError(f'Name {classname} not found')
         construction_parameters = save_dict['structure_dict']
         model = constructor(
             train_x=train_x,

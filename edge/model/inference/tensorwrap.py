@@ -1,46 +1,55 @@
 import torch
 from inspect import signature
-from functools import wraps
+from decorator import decorator
+
+
+def ensure_tensor(x):
+    if not torch.is_tensor(x):
+        x = torch.tensor(x)
+    return x
 
 
 def tensorwrap(*deco_args):
-    called_on_func = False
-    if len(deco_args) == 1 and callable(deco_args[0]):
-        wrap_end = None
-        retrieve_parameter_names = True
-        called_on_func = True
-    elif len(deco_args) == 1 and isinstance(deco_args[0], int):
+    wrap_all = False
+    wrap_args = False
+    wrap_names = False
+    num_params = len(deco_args)
+    if num_params == 0:
+        wrap_all = True
+    elif num_params == 1 and isinstance(deco_args[0], int):
         wrap_end = deco_args[0]
-        retrieve_parameter_names = True
+        wrap_args = True
     else:
-        parameters_to_wrap = deco_args
-        wrap_end = len(deco_args)
-        retrieve_parameter_names = False
+        names_to_wrap = deco_args
+        wrap_names = True
 
-    def tensor_wrapper_decorator(func):
-        nonlocal wrap_end
-        nonlocal parameters_to_wrap
-        all_parameter_names = list(signature(func).parameters.keys())
-        wrap_start = 1 if all_parameter_names[0] == 'self' else 0
-        wrap_end = wrap_end if wrap_end is None else wrap_end + wrap_start
-        if retrieve_parameter_names:
-            parameters_to_wrap = all_parameter_names[wrap_start:wrap_end]
+    @decorator
+    def numpy_tensor_wrapper(func, *args, **kwargs):
+        args = list(args)
+        all_names = list(signature(func).parameters.keys())
+        wrap_start = 1 if all_names[0] == 'self' else 0
 
-        @wraps(func)
-        def numpy_tensor_wrapper(*args, **kwargs):
+        if wrap_all:
+            for argnum in range(wrap_start, len(args)):
+                args[argnum] = ensure_tensor(args[argnum])
+            for name, arg in kwargs.items():
+                kwargs[name] = ensure_tensor(arg)
+            return func(*args, **kwargs)
+
+        elif wrap_args:
+            nonlocal wrap_end
+            wrap_end += wrap_start
+            for argnum in range(wrap_start, wrap_end):
+                args[argnum] = ensure_tensor(args[argnum])
+            return func(*args, **kwargs)
+
+        elif wrap_names:
             kwargs.update(dict(zip(
-                all_parameter_names[:len(args)],
+                all_names[:len(args)],
                 args
             )))
-
-            for pname in parameters_to_wrap:
-                if not torch.is_tensor(kwargs[pname]):
-                    kwargs[pname] = torch.from_numpy(kwargs[pname])
-
+            for name in names_to_wrap:
+                kwargs[name] = ensure_tensor(kwargs[name])
             return func(**kwargs)
-        return numpy_tensor_wrapper
 
-    if called_on_func:
-        return tensor_wrapper_decorator(deco_args[0])
-    else:
-        return tensor_wrapper_decorator
+    return numpy_tensor_wrapper

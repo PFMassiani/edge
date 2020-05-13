@@ -1,8 +1,13 @@
 import unittest
 import torch
 import numpy as np
+import tempfile
+import os
+import warnings
+import gpytorch
 
-from edge.model.inference.tensorwrap import tensorwrap
+from edge.model.inference import tensorwrap
+from edge.model.inference import MaternGP
 
 
 class TestTensorwrap(unittest.TestCase):
@@ -13,7 +18,7 @@ class TestTensorwrap(unittest.TestCase):
             self.assertTrue(torch.is_tensor(a))
 
     def test_for_method(self):
-        @tensorwrap
+        @tensorwrap()
         def m1(x, y):
             self.check_tensor(x, y)
 
@@ -27,25 +32,33 @@ class TestTensorwrap(unittest.TestCase):
             self.check_tensor(y)
             self.assertFalse(torch.is_tensor(x))
 
+        @tensorwrap()
+        def m4(*args, **kwargs):
+            self.check_tensor(*args, **kwargs)
+
         t = np.array([0])
         m1(t, y=t)
         m2(t, t)
         m3(t, t)
+        m4(t, key=t)
 
     def test_for_class(me):
         class Foo:
-            @tensorwrap
+            @tensorwrap()
             def m1(self, x, y):
+                me.assertFalse(torch.is_tensor(self))
                 me.check_tensor(x, y)
 
             @tensorwrap(1)
             def m2(self, x, y):
                 me.check_tensor(x)
+                me.assertFalse(torch.is_tensor(self))
                 me.assertFalse(torch.is_tensor(y))
 
             @tensorwrap('y')
             def m3(self, x, y):
                 me.check_tensor(y)
+                me.assertFalse(torch.is_tensor(self))
                 me.assertFalse(torch.is_tensor(x))
 
             @staticmethod
@@ -53,6 +66,11 @@ class TestTensorwrap(unittest.TestCase):
             def m4(x, y):
                 me.check_tensor(x)
                 me.assertFalse(torch.is_tensor(y))
+
+            @tensorwrap()
+            def m5(self, *args, **kwargs):
+                me.assertFalse(torch.is_tensor(self))
+                me.check_tensor(*args, **kwargs)
 
         bar = Foo()
         t = np.array([0])
@@ -62,3 +80,47 @@ class TestTensorwrap(unittest.TestCase):
         bar.m3(t, t)
         bar.m4(t, t)
         Foo.m4(t, t)
+        bar.m5(t, key=t)
+
+
+class TestMaternGP(unittest.TestCase):
+    def test_initialization(self):
+        x = np.arange(18).reshape((6, 3))
+        y = np.arange(6)
+        gp = MaternGP(x, y)
+        self.assertTrue(torch.is_tensor(gp.train_x))
+        self.assertTrue(torch.is_tensor(gp.train_y))
+
+    def test_load_save(self):
+        x = np.linspace(0, 1, 11)
+        y = np.sin(2 * np.pi * x) + np.random.randn(len(x)) * 0.2
+
+        model = MaternGP(
+            x,
+            y,
+            noise_prior=(1, 0.1),
+            noise_constraint=0.5,
+            outputscale_constraint=(2.7, np.pi)
+        )
+        save_file = tempfile.NamedTemporaryFile(suffix='.pth').name
+        model.save(save_file)
+        self.assertTrue(os.path.isfile(save_file))
+
+        loaded = MaternGP.load(save_file, x, y)
+
+        self.assertEqual(model.covar_module.outputscale,
+                         loaded.covar_module.outputscale)
+
+    def test_hyper_optimization(self):
+        warnings.simplefilter('ignore', gpytorch.utils.warnings.GPInputWarning)
+
+        tol = 5e-2
+        x = np.linspace(0, 1, 101)
+        y = np.exp(-x**2)
+
+        gp = MaternGP(x, y, noise_prior=(0.1, 0.1))
+        gp.optimize_hyperparameters(epochs=50)
+
+        predictions = gp.predict(x).mean.numpy()
+
+        self.assertTrue(np.all(np.abs(y - predictions) < tol))
