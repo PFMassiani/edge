@@ -193,7 +193,7 @@ class ProductSpace(DiscretizableSpace):
         else:
             raise error.InvalidTarget
         mask = self._index_slices[n_target]
-        return np.atleast_1d(x[mask])
+        return np.hstack(x[mask])
 
     def from_components(self, *x_sets):
         return np.hstack(x_sets)
