@@ -115,8 +115,8 @@ class TestMaternGP(unittest.TestCase):
         warnings.simplefilter('ignore', gpytorch.utils.warnings.GPInputWarning)
 
         tol = 5e-2
-        x = np.linspace(0, 1, 101)
-        y = np.exp(-x**2)
+        x = np.linspace(0, 1, 101).reshape((-1, 1))
+        y = np.exp(-x**2).reshape(-1)
 
         gp = MaternGP(x, y, noise_prior=(0.1, 0.1))
         gp.optimize_hyperparameters(epochs=50)
@@ -127,16 +127,17 @@ class TestMaternGP(unittest.TestCase):
 
     def test_data_manipulation(self):
         tol = 1e-1
-        x = np.linspace(0, 1, 101)
-        y = np.exp(-x**2)
-        x_ = np.linspace(1.5, 2, 51)
-        y_ = 1 + np.exp(-x_**2)
+        x = np.linspace(0, 1, 101).reshape((-1, 1))
+        y = np.exp(-x**2).reshape(-1)
+        x_ = np.linspace(1.5, 2, 51).reshape((-1, 1))
+        y_ = 1 + np.exp(-x_**2).reshape(-1)
 
         gp = MaternGP(x, y, noise_prior=(0.1, 0.1))
 
         tmp = gp.empty_data()
         self.assertEqual(tmp, gp)
         self.assertTrue(tuple(gp.train_x.shape), (0, 1))
+        # gp.predict(x)
 
         gp.set_data(x, y)
         self.assertEqual(tuple(gp.train_x.shape), (len(x), 1))
@@ -153,3 +154,21 @@ class TestMaternGP(unittest.TestCase):
         tmp.optimize_hyperparameters(epochs=10)
         tmp_pred = tmp.predict(x_).mean.numpy()
         self.assertTrue(np.all(np.abs(tmp_pred - y_) < tol))
+
+    def test_multi_dim_input(self):
+        tol = 0.1
+        lin = np.linspace(0, 1, 101)
+        x = lin.reshape((-1, 1))
+        x = x + x.T
+        y = np.exp(-lin**2)
+
+        gp = MaternGP(x, y, noise_prior=(0.1, 0.1))
+        gp.optimize_hyperparameters(epochs=10)
+
+        x_query = np.linspace(0.25, 0.75, 27)
+        y_ = np.exp(-x_query**2)
+        x_query = x_query.reshape((-1, 1)) + lin.reshape((1, -1))
+
+        pred = gp.predict(x_query).mean.numpy()
+        self.assertEqual(pred.shape, (27,))
+        self.assertTrue(np.all(np.abs(pred - y_) < tol))

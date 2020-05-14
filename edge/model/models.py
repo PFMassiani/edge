@@ -3,8 +3,8 @@ from itertools import product
 
 
 class Model:
-    def __init__(self, space):
-        self.space = space
+    def __init__(self, env):
+        self.env = env
 
     def update(self):
         raise NotImplementedError
@@ -25,41 +25,45 @@ class Model:
 
 class DiscreteModel(Model):
     def _get_query_from_index(self, index):
-        state, action = self.space.get_index_tuple(index)
+        state, action = self.env.stateaction_space.get_index_tuple(index)
         if isinstance(state, np.ndarray):
-            state = self.space.state_space.get_index_of(state)
+            state = self.env.stateaction_space.state_space.get_index_of(state)
         if isinstance(action, np.ndarray):
-            action = self.space.state_space.get_index_of(action)
+            action = self.env.stateaction_space.state_space.get_index_of(
+                action)
         return tuple(np.hstack((state, action)))
 
 
 class ContinuousModel(Model):
     def _get_query_from_index(self, index):
-        state, action = self.space.get_index_tuple(index)
+        state, action = self.env.stateaction_space.get_index_tuple(index)
         if isinstance(state, np.ndarray):
             states = state
         else:
-            states = self.space.state_space[state]
+            states = self.env.stateaction_space.state_space[state]
         if isinstance(action, np.ndarray):
             actions = action
         else:
-            actions = self.space.action_space[action]
+            actions = self.env.stateaction_space.action_space[action]
         states = np.atleast_2d(states)
         actions = np.atleast_2d(actions)
         query = np.zeros(
-            (states.shape[1] * actions.shape[1], self.space.data_length),
+            (
+                states.shape[0] * actions.shape[0],
+                self.env.stateaction_space.data_length
+            ),
             dtype=np.float
         )
         qind = 0
         for s, a in product(states, actions):
-            query[qind] = self.space.get_stateaction(s, a)
+            query[qind] = self.env.stateaction_space.get_stateaction(s, a)
             qind += 1
         return query
 
 
 class GPModel(ContinuousModel):
-    def __init__(self, space, gp):
-        super(GPModel, self).__init__(self, space)
+    def __init__(self, env, gp):
+        super(GPModel, self).__init__(env)
         self.gp = gp
 
     def query(self, x):

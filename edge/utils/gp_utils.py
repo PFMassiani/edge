@@ -4,7 +4,7 @@ from numbers import Number
 
 def atleast_2d(ten):
     if ten.ndimension() == 1:
-        ten = ten.unsqueeze(-1)
+        ten = ten.unsqueeze(0)
     return ten
 
 
