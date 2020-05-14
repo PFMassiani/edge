@@ -10,12 +10,37 @@ class Segment(DiscretizableSpace):
     def __init__(self, low, high, n_points):
         if low >= high:
             raise ValueError(f'Bounds {low} and {high} create empty Segment')
-        super(Segment, self).__init__(
-            discretization=np.linspace(low, high, n_points).reshape((-1, 1)))
+        super(Segment, self).__init__(index_shape=(n_points,))
         self.low = low
         self.high = high
         self.n_points = n_points
         self.tolerance = (high - low) * 1e-7
+
+    def __getitem__(self, index):
+        if isinstance(index, np.ndarray):
+            elem = index
+            if elem in self:
+                return elem
+            else:
+                raise IndexError(f'Index {index} is understood as an element '
+                                 'of the Space and does not belong to it')
+        elif isinstance(index, (int, np.integer)):
+            if index < 0:
+                index += self.n_points
+            if index < 0 or index > self.n_points - 1:
+                raise IndexError(f"Index {index} is out of bounds for Segment "
+                                 f"with length {self.n_points}")
+            else:
+                return np.atleast_1d(self._get_value_of_index(index))
+        elif isinstance(index, slice):
+            rangeargs = index.indices(self.n_points)
+            return np.array([
+                np.atleast_1d(self._get_value_of_index(i))
+                for i in range(*rangeargs)
+            ])
+        else:
+            raise TypeError('Index can only be numpy ndarray, int or slice, '
+                            f'not {type(index)}')
 
     def _get_closest_index(self, x):
         return int(np.around(

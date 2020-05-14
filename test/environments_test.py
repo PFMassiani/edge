@@ -129,7 +129,7 @@ class TestDiscreteHovership(unittest.TestCase):
         t = 0
         while r == 0 and t < MAX_ITER:
             s, r, failed = hovership.step(atleast_1d(
-                hovership.action_space.discretization[-1]
+                hovership.action_space[-1]
             ))
             t += 1
         self.assertTrue(hovership.s[0] >= hovership.default_initial_state[0])

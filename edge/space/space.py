@@ -30,32 +30,16 @@ class Space:
 
 
 class DiscretizableSpace(Space):
-    def __init__(self, discretization):
+    def __init__(self, index_shape):
         super(DiscretizableSpace, self).__init__()
 
-        self.discretization = discretization
-        self.index_shape = self.discretization.shape[:-1]
+        self.index_shape = index_shape
         self.index_dim = len(self.index_shape)
-        self.data_length = self.discretization.shape[-1]
-
-        if self.data_length != self.index_dim:
-            raise ValueError('Unable to create space : there should be as many'
-                             ' indexing dimensions as data components.')
+        self.data_length = self.index_dim
 
     @property
     def shape(self):
         return self.index_shape
-
-    def _get_index_with_data_component(self, index):
-        if isinstance(index, (int, np.integer, slice)):
-            return (index, slice(None, None, None))
-        elif len(index) == self.index_dim + 1:
-            return index
-        elif len(index) != self.index_dim:
-            raise IndexError(f'Expected length {self.index_dim} for index, got'
-                             f' {len(index)}')
-        return tuple(ensure_list(index)) + \
-            tuple(ensure_list(slice(None, None, None)))
 
     def contains(self, x):
         raise NotImplementedError
@@ -64,6 +48,9 @@ class DiscretizableSpace(Space):
         raise NotImplementedError
 
     def get_index_of(self, x, around_ok=False):
+        raise NotImplementedError
+
+    def __getitem__(self, index):
         raise NotImplementedError
 
     def sample_idx(self):
@@ -76,10 +63,6 @@ class DiscretizableSpace(Space):
     def sample(self):
         k = self.sample_idx()
         return self[k]
-
-    def __getitem__(self, index):
-        index = self._get_index_with_data_component(index)
-        return self.discretization[index]
 
     def __iter__(self):
         return DiscretizableSpaceIterator(self)
@@ -106,30 +89,49 @@ class DiscretizableSpaceIterator:
 
 class ProductSpace(DiscretizableSpace):
     def __init__(self, *sets):
-        self.sets = sets
-        self.n_sets = len(self.sets)
-        self.discretization_grids = []
-        for ns in range(self.n_sets):
-            if isinstance(sets[ns], ProductSpace):
-                grids_to_mesh = sets[ns].discretization_grids
-                for subgrid in grids_to_mesh:
-                    self.discretization_grids.append(subgrid)
+        self._flattened_sets = []
+        for s in sets:
+            if isinstance(s, ProductSpace):
+                for second_order_set in s._flattened_sets:
+                    self._flattened_sets.append(second_order_set)
             else:
-                self.discretization_grids.append(
-                    sets[ns].discretization.reshape(-1)
-                )
+                self._flattened_sets.append(s)
+        self._n_flattened_sets = len(self._flattened_sets)
 
-        mesh = np.meshgrid(*self.discretization_grids, indexing='ij')
-        discretization = np.stack(mesh, axis=-1)
+        index_shape = tuple([s.index_shape[0] for s in self._flattened_sets])
 
-        super(ProductSpace, self).__init__(discretization)
+        super(ProductSpace, self).__init__(index_shape)
+
+        self.sets = sets
+        self.n_sets = len(sets)
 
         self._index_slices = [None] * self.n_sets
         current_index = 0
         for ns in range(self.n_sets):
-            end_index = current_index + self.sets[ns].index_dim
+            end_index = current_index + sets[ns].index_dim
             self._index_slices[ns] = slice(current_index, end_index)
             current_index = end_index
+
+    def __getitem__(self, index):
+        squeeze_dim = [False] * self._n_flattened_sets
+
+        def get_dim(ns):
+            return np.atleast_2d(self._flattened_sets[ns][index[ns]])
+
+        def isnotslice(x):
+            return not isinstance(x, slice)
+
+        dims_outputs = list(map(get_dim, list(range(self._n_flattened_sets))))
+        squeeze_dim = list(map(isnotslice, index))
+
+        output_meshgrid = np.meshgrid(*dims_outputs, indexing='ij')
+        output = np.stack(output_meshgrid, axis=-1)
+
+        dims_to_squeeze = tuple([dim
+                                for dim in range(len(squeeze_dim))
+                                if squeeze_dim[dim]])
+        output = np.squeeze(output, axis=dims_to_squeeze)
+        return output
 
     def _get_components(self, x, ns):
         return x[self._index_slices[ns]]

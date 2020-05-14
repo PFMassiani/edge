@@ -36,9 +36,9 @@ class Environment:
     def state_index(self):
         return self.state_space.get_index_of(self.s)
 
-    def reset(self, state_index=None):
-        if state_index is not None:
-            self.s = self.state_space[state_index]
+    def reset(self, s=None):
+        if s is not None:
+            self.s = s
         elif self.random_start:
             self.s = self.stateaction_space.state_space.sample()
         else:
