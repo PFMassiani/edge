@@ -25,40 +25,22 @@ class Model:
 
 class DiscreteModel(Model):
     def _get_query_from_index(self, index):
-        state, action = self.env.stateaction_space.get_index_tuple(index)
-        if isinstance(state, np.ndarray):
-            state = self.env.stateaction_space.state_space.get_index_of(state)
-        if isinstance(action, np.ndarray):
-            action = self.env.stateaction_space.state_space.get_index_of(
-                action)
-        return tuple(np.hstack((state, action)))
+        stateactions = self.env.stateaction_space[index]
+        if stateactions.ndim == 1:
+            stateactions = np.atleast_2d(stateactions)
+        index = np.array(list(map(
+            self.env.stateaction_space.get_index_of,
+            stateactions
+        )))
+        # Index is a nxd list of indexes we will use to index on a np.ndarray
+        # We need d lists of n points for the function take or the [] operator
+        # This is achieved by taking the transpose of index
+        return index.T.tolist()
 
 
 class ContinuousModel(Model):
     def _get_query_from_index(self, index):
-        state, action = self.env.stateaction_space.get_index_tuple(index)
-        if isinstance(state, np.ndarray):
-            states = state
-        else:
-            states = self.env.stateaction_space.state_space[state]
-        if isinstance(action, np.ndarray):
-            actions = action
-        else:
-            actions = self.env.stateaction_space.action_space[action]
-        states = np.atleast_2d(states)
-        actions = np.atleast_2d(actions)
-        query = np.zeros(
-            (
-                states.shape[0] * actions.shape[0],
-                self.env.stateaction_space.data_length
-            ),
-            dtype=np.float
-        )
-        qind = 0
-        for s, a in product(states, actions):
-            query[qind] = self.env.stateaction_space.get_stateaction(s, a)
-            qind += 1
-        return query
+        return self.env.stateaction_space[index]
 
 
 class GPModel(ContinuousModel):
@@ -67,4 +49,6 @@ class GPModel(ContinuousModel):
         self.gp = gp
 
     def query(self, x):
-        return self.gp.predict(x).mean.numpy()
+        return self.gp.predict(
+            x.reshape((-1, self.env.stateaction_space.data_length))
+        ).mean.numpy()

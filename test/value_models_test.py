@@ -91,17 +91,16 @@ class TestGPQLearning(unittest.TestCase):
                 n_steps += 1
 
         def policy_from_gpq(gpq):
-            # TODO Reshape it properly
             q_values = gpq[:, :].reshape(
                 gpq.env.stateaction_space.index_shape
             )
-            eps = 0
-            policy = np.zeros_like(q_values) * eps / q_values.shape[1]
-            for i, state in iter(env.state_space):
-                policy[i, np.argmax(q_values[i, :])] += 1 - eps
+            policy = np.zeros_like(q_values)
+            for i, _ in iter(env.state_space):
+                policy[i, np.argmax(q_values[i, :])] = 1
             return policy
 
         policy = policy_from_gpq(gpqlearning)
+        print(policy)
         self.assertTrue(False, "The computation of the policy works, but "
                                "the convergence value is not tested.")
 

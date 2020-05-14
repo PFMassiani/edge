@@ -30,5 +30,5 @@ class GPQLearning(GPModel):
         )
         q_value_update = self[state, action] + q_value_step
 
-        stateaction = self.env.stateaction_space.get_stateaction(state, action)
+        stateaction = self.env.stateaction_space[state, action]
         self.gp = self.gp.append_data(stateaction, q_value_update)

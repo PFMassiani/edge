@@ -159,3 +159,6 @@ class TestSpaces(unittest.TestCase):
 
         t = s[0, 1]
         assertClose(t, u[0, 1])
+
+        t = s[np.array([0.15]), :]
+        assertClose(t[:, 1], uy)
