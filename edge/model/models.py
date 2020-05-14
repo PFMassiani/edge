@@ -9,17 +9,17 @@ class Model:
     def update(self):
         raise NotImplementedError
 
-    def query(self):
+    def _query(self):
         raise NotImplementedError
 
     def _get_query_from_index(self, index):
         raise NotImplementedError
 
-    def __call__(self, *args, **kwargs):
-        return self.query(*args, **kwargs)
+    def query(self, index, *args, **kwargs):
+        query = self._get_query_from_index(index)
+        return self._query(query, *args, **kwargs)
 
     def __getitem__(self, index):
-        query = self._get_query_from_index(index)
         return self.query(query)
 
 
@@ -40,7 +40,9 @@ class DiscreteModel(Model):
 
 class ContinuousModel(Model):
     def _get_query_from_index(self, index):
-        return self.env.stateaction_space[index]
+        return self.env.stateaction_space[index].reshape(
+            (-1, self.env.stateaction_space.data_length)
+        )
 
 
 class GPModel(ContinuousModel):
@@ -48,7 +50,5 @@ class GPModel(ContinuousModel):
         super(GPModel, self).__init__(env)
         self.gp = gp
 
-    def query(self, x):
-        return self.gp.predict(
-            x.reshape((-1, self.env.stateaction_space.data_length))
-        ).mean.numpy()
+    def _query(self, x):
+        return self.gp.predict(x).mean.numpy()
