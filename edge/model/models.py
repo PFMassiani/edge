@@ -51,3 +51,18 @@ class GPModel(ContinuousModel):
 
     def _query(self, x):
         return self.gp.predict(x).mean.numpy()
+
+    def fit(self, train_x, train_y, epochs, **optimizer_kwargs):
+        x_data = self.gp.train_x
+        y_data = self.gp.train_y
+
+        self.gp.set_data(train_x, train_y)
+        self.gp.optimize_hyperparameters(epochs=epochs, **optimizer_kwargs)
+
+        self.gp.set_data(x_data, y_data)
+
+    def empty_data(self):
+        pseudo_empty_x = np.ones(self.gp.input_shape) * (-1000)
+        pseudo_empty_y = np.zeros(self.gp.output_shape)
+
+        self.gp.set_data(pseudo_empty_x, pseudo_empty_y)

@@ -40,7 +40,7 @@ class TestQLearning(unittest.TestCase):
         eps = 0.1
         nA = qlearning.q_values.shape[1]
         for episode in range(100):
-            reset_state = np.random.choice([2, 3])
+            reset_state = np.atleast_1d(np.random.choice([2, 3]))
             state = env.reset(reset_state)
             failed = False
             n_steps = 0
@@ -81,7 +81,7 @@ class TestGPQLearning(unittest.TestCase):
             state = env.reset()
             failed = env.has_failed
             n_steps = 0
-            while not failed and n_steps < 100:
+            while not failed and n_steps < 50:
                 probas = np.ones(nA) * eps / nA
                 probas[np.argmax(gpqlearning[state, :])] += 1 - eps
                 action = env.action_space[np.random.choice(nA, p=probas)]
@@ -100,9 +100,9 @@ class TestGPQLearning(unittest.TestCase):
             return policy
 
         policy = policy_from_gpq(gpqlearning)
-        print(policy)
         self.assertTrue(False, "The computation of the policy works, but "
-                               "the convergence value is not tested.")
+                               "the convergence value is not tested. "
+                               f"Policy:\n{policy}")
 
     def test_indexing(self):
         hovership_params = {

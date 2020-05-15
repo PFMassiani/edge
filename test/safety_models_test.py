@@ -67,10 +67,10 @@ class TestSafetyMeasure(unittest.TestCase):
 
         final_measure = measure[:, :].reshape(
             env.stateaction_space.shape
-        ) > tol
+        )
         expected_final = np.array([[0, 0], [0, 1]]).astype(np.bool)
         self.assertTrue(
-            np.all(final_measure == expected_final),
+            np.all((final_measure > tol) == expected_final),
             f'Final measure does not match the expected one. Final measure :\n'
             f'{final_measure}\nExpected final measure:\n{expected_final}'
         )

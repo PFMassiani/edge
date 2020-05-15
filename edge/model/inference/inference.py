@@ -24,6 +24,19 @@ class GP(gpytorch.models.ExactGP):
     def structure_dict(self):
         raise NotImplementedError
 
+    @property
+    def input_shape(self):
+        shape_x = tuple(self.train_x.shape)
+        return shape_x[1:]
+
+    @property
+    def output_shape(self):
+        shape_y = tuple(self.train_y.shape)
+        if len(shape_y) == 1:
+            return (1,)
+        else:
+            return shape_y[1:]
+
     @tensorwrap()
     def __call__(self, *args, **kwargs):
         return super(GP, self).__call__(*args, **kwargs)
