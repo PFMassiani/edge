@@ -29,7 +29,7 @@ class Discrete(DiscretizableSpace):
                 raise IndexError(f'Index {index} is understood as an element '
                                  'of the Space and does not belong to it')
 
-        elif isinstance(index, (int, np.integer, slice)):
+        elif isinstance(index, (int, np.integer, slice, tuple)):
             return self.__discretization[index]
 
         else:

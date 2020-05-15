@@ -17,6 +17,14 @@ class Segment(DiscretizableSpace):
         self.tolerance = (high - low) * 1e-7
 
     def __getitem__(self, index):
+        if isinstance(index, tuple):
+            if len(index) == 1:
+                index = index[0]
+            else:
+                # This brings us to the else clause of the next if : nothing
+                # needs to be done
+                pass
+
         if isinstance(index, np.ndarray):
             elem = index
             if elem in self:
@@ -39,8 +47,8 @@ class Segment(DiscretizableSpace):
                 for i in range(*rangeargs)
             ])
         else:
-            raise TypeError('Index can only be numpy ndarray, int or slice, '
-                            f'not {type(index)}')
+            raise TypeError('Index can only be numpy ndarray, int, slice, '
+                            f'or 1d tuple, not {type(index)}')
 
     def _get_closest_index(self, x):
         return int(np.around(
