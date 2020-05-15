@@ -25,7 +25,7 @@ class TestMeasure(MaternSafety):
             'noise_prior': (0.001, 0.001)
         }
         super(TestMeasure, self).__init__(env, x_seed, y_seed,
-                                          **hyperparameters)
+                                          gp_params=hyperparameters)
 
 
 class TestSafetyMeasure(unittest.TestCase):
@@ -54,7 +54,7 @@ class TestSafetyMeasure(unittest.TestCase):
                     raise NotImplementedError('Please implement the case where'
                                               ' no cautious action exists')
                 else:
-                    cautious_indexes = np.nonzero(cautious_actions)[0]
+                    cautious_indexes = np.argwhere(cautious_actions)
                     most_variance_action = np.argmax(
                         covar_slice[cautious_actions]
                     )

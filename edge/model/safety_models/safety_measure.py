@@ -31,7 +31,7 @@ class SafetyMeasure(GPModel):
         return np.atleast_1d(measure_slice.mean(axis=-1))
 
     def level_set(self, state, lambda_threshold, gamma_threshold,
-                  return_covar=False):
+                  return_proba=False, return_covar=False):
         query = self.env.stateaction_space[state, :]
 
         measure_slice, covar_slice = self._query(query, return_covar=True)
@@ -40,13 +40,21 @@ class SafetyMeasure(GPModel):
         )
 
         level_set = level_value > gamma_threshold
-        if not return_covar:
-            return level_set
-        else:
-            return level_set, covar_slice
+
+        return_var = level_set
+        if return_proba:
+            return_var = (return_var, level_value)
+        if return_covar:
+            if not isinstance(return_var, tuple):
+                return_var = (return_var, )
+            return_var += (level_set, )
+
+        return return_var
 
 
 class MaternSafety(SafetyMeasure):
-    def __init__(self, env, x_seed, y_seed, *gp_args, **gp_kwargs):
-        gp = MaternGP(x_seed, y_seed, *gp_args, **gp_kwargs)
+    def __init__(self, env, x_seed, y_seed, gp_params=None):
+        if gp_params is None:
+            gp_params = {}
+        gp = MaternGP(x_seed, y_seed, **gp_params)
         super(MaternSafety, self).__init__(env, gp)
