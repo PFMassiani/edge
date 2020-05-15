@@ -115,6 +115,13 @@ class ProductSpace(DiscretizableSpace):
     def __getitem__(self, index):
         squeeze_dim = [False] * self._n_flattened_sets
 
+        if not isinstance(index, tuple):
+            index = tuple([index])
+
+        n_missing_indexes = self._n_flattened_sets - len(index)
+        index = index + tuple([slice(None, None, None)
+                               for k in range(n_missing_indexes)])
+
         def get_dim(ns):
             return np.atleast_2d(self._flattened_sets[ns][index[ns]])
 

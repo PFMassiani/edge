@@ -154,6 +154,9 @@ class TestSpaces(unittest.TestCase):
         t = s[0, :]
         assertClose(t, u[0, :])
 
+        t = s[0]
+        assertClose(t, u[0, :])
+
         t = s[:, 0]
         assertClose(t, u[:, 0])
 
