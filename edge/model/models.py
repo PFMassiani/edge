@@ -1,5 +1,4 @@
 import numpy as np
-from itertools import product
 
 
 class Model:
@@ -20,7 +19,7 @@ class Model:
         return self._query(query, *args, **kwargs)
 
     def __getitem__(self, index):
-        return self.query(query)
+        return self.query(index)
 
 
 class DiscreteModel(Model):
