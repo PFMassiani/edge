@@ -7,8 +7,10 @@ from . import Agent
 class SafetyLearner(Agent):
     def __init__(self, env, gamma_optimistic, gamma_cautious, lambda_cautious,
                  x_seed, y_seed, gp_params=None, keep_seed_in_data=False):
-        super(SafetyLearner, self).__init__(env)
-        self.safety_model = MaternSafety(env, x_seed, y_seed, gp_params)
+        safety_model = MaternSafety(env, x_seed, y_seed, gp_params)
+        super(SafetyLearner, self).__init__(env, safety_model)
+
+        self.safety_model = safety_model
 
         self.gamma_optimistic = gamma_optimistic
         self.gamma_cautious = gamma_cautious

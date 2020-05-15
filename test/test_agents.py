@@ -84,7 +84,6 @@ class TestSafetyLearner(unittest.TestCase):
             failed = agent.failed
             n_steps = 0
             while not failed and n_steps < 50:
-                state = agent.state
                 new_state, reward, failed = agent.step()
                 n_steps += 1
 

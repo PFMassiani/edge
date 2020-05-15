@@ -1,8 +1,9 @@
 class Agent:
-    def __init__(self, env):
+    def __init__(self, env, *models):
         self.env = env
         self.state = env.s
         self.last_action = None
+        self.models = models
 
     def get_next_action(self):
         raise NotImplementedError
