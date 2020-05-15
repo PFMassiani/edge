@@ -86,7 +86,10 @@ class TestGPQLearning(unittest.TestCase):
                 probas[np.argmax(gpqlearning[state, :])] += 1 - eps
                 action = env.action_space[np.random.choice(nA, p=probas)]
                 new_state, reward, failed = env.step(action)
-                gpqlearning.update(state, action, new_state, reward)
+                print(f'Step {n_steps} - State {state} - New state {new_state}'
+                      f' - Action - {action} - Reward {reward} - Failed '
+                      f'{failed}')
+                gpqlearning.update(state, action, new_state, reward, failed)
                 state = new_state
                 n_steps += 1
 

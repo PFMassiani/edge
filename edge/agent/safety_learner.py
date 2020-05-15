@@ -26,7 +26,7 @@ class SafetyLearner(Agent):
         )
 
         if not is_cautious.any():
-            action_idx = np.unravel_idx(
+            action_idx = np.unravel_index(
                 np.argmax(proba_slice),
                 shape=self.env.action_space.shape
             )

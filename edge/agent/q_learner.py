@@ -6,7 +6,7 @@ from . import Agent
 
 class QLearner(Agent):
     def __init__(self, env, greed, step_size, discount_rate, x_seed, y_seed,
-                 gp_params=None, keep_seed_in_data=False):
+                 gp_params=None, keep_seed_in_data=True):
         super(QLearner, self).__init__(env)
         self.Q_model = GPQLearning(env, step_size, discount_rate,
                                    x_seed=x_seed, y_seed=y_seed,
