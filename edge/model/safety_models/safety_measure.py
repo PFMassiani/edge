@@ -27,8 +27,13 @@ class SafetyMeasure(GPModel):
             return mean
 
     def measure(self, state):
+        # TODO correct this so it averages the indicator function
         measure_slice = self[state, :]
-        return np.atleast_1d(measure_slice.mean(axis=-1))
+        actions_axes = list(range(
+            self.env.state_space.index_dim,
+            self.env.stateaction_space.index_dim
+        ))
+        return np.atleast_1d(measure_slice.mean(axis=actions_axes))
 
     def level_set(self, state, lambda_threshold, gamma_threshold,
                   return_proba=False, return_covar=False):
@@ -47,9 +52,37 @@ class SafetyMeasure(GPModel):
         if return_covar:
             if not isinstance(return_var, tuple):
                 return_var = (return_var, )
-            return_var += (level_set, )
+            return_var += (covar_slice, )
 
         return return_var
+
+    def full_level_set(self, lambdas_threshold, gammas_threshold,
+                       return_covar=False):
+        if not isinstance(lambdas_threshold, (list, tuple)):
+            lambdas_threshold = [lambdas_threshold]
+        if not isinstance(gammas_threshold, (list, tuple)):
+            gammas_threshold = [gammas_threshold]
+        n_samples = len(lambdas_threshold)
+
+        measure, covar = self.query(
+            slice(None, None, None),
+            return_covar=True
+        )
+
+        level_values = [norm.cdf((measure - l_threshold) / np.sqrt(covar))
+                        for l_threshold in lambdas_threshold]
+
+        level_sets = [level_value > gamma
+                      for level_value, gamma in zip(level_values,
+                                                    gammas_threshold)]
+
+        if n_samples == 1:
+            level_sets = level_sets[0]
+
+        if return_covar:
+            return level_sets, covar
+        else:
+            return level_sets
 
 
 class MaternSafety(SafetyMeasure):
