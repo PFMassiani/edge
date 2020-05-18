@@ -5,7 +5,8 @@ from . import Subplotter
 
 class SafetyMeasureSubplotter(Subplotter):
     def __init__(self, agent, model, colors):
-        super(SafetyMeasureSubplotter, self).__init__(model, colors)
+        super(SafetyMeasureSubplotter, self).__init__(colors)
+        self.model = model
         self.agent = agent
         self.states = squeeze(self.model.env.state_space[:])
         self.actions = squeeze(self.model.env.action_space[:])
@@ -33,8 +34,8 @@ class SafetyMeasureSubplotter(Subplotter):
     def draw_on_Q(self, ax_Q, Q_optimistic, Q_cautious):
         def draw_contour(Q):
             ax_Q.contour(
-                self.states_grid,
                 self.actions_grid,
+                self.states_grid,
                 Q,
                 [.5],
                 colors='k'
@@ -42,8 +43,8 @@ class SafetyMeasureSubplotter(Subplotter):
 
         def fill_contour(Q, color):
             ax_Q.contourf(
-                self.states_grid,
                 self.actions_grid,
+                self.states_grid,
                 Q,
                 [.5, 2],
                 colors=[color, (0, 0, 0, 0)],

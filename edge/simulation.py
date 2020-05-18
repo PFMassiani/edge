@@ -19,6 +19,13 @@ class Simulation:
     def run(self):
         raise NotImplementedError
 
+    def on_run_iteration(self, *args, **kwargs):
+        for plotter in self.plotters.values():
+            try:
+                plotter.on_run_iteration(*args, **kwargs)
+            except Exception:
+                pass
+
     def save_figs(self, prefix):
         for name, plotter in self.plotters.items():
             savename = prefix + '_' + name + '.pdf'

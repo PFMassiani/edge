@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from edge.model.safety_models import MaternSafety
 
-from ..subplotter import SafetyMeasureSubplotter  # , SafetyTruthSubplotter
+from ..subplotter import SafetyMeasureSubplotter, SampleSubplotter
 from ..colors import corl_colors
 
 
@@ -11,6 +11,9 @@ class Plotter:
         self.agent = agent
 
     def get_figure(self):
+        raise NotImplementedError
+
+    def on_run_iteration(self):
         raise NotImplementedError
 
 
@@ -25,6 +28,8 @@ class CoRLPlotter(Plotter):
                     model,
                     corl_colors
                 )
+                break
+        self.sample_subplotter = SampleSubplotter(corl_colors)
 
     def get_figure(self):
         figure = plt.figure(constrained_layout=True, figsize=(5.5, 4.8))
@@ -39,6 +44,7 @@ class CoRLPlotter(Plotter):
         Q_optimistic, Q_cautious, S_optimistic = self.get_subplotters_params()
         self.safety_subplotter.draw_on_axs(ax_Q, ax_S, Q_optimistic,
                                            Q_cautious, S_optimistic)
+        self.sample_subplotter.draw_on_axs(ax_Q)
 
         plt.title('Safety measure')
         return figure
@@ -65,3 +71,6 @@ class CoRLPlotter(Plotter):
         # The action axis is 1 because we can only plot 2D Stateaction spaces
         S_optimistic = Q_optimistic.mean(axis=1)
         return Q_optimistic, Q_cautious, S_optimistic
+
+    def on_run_iteration(self, state, action, new_state, reward, failed):
+        self.sample_subplotter.incur_sample(state, action, failed)
