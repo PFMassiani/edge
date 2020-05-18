@@ -18,25 +18,29 @@ class TestHovership(Hovership):
 
 
 class TestMeasure(MaternSafety):
-    def __init__(self, env, x_seed, y_seed):
+    def __init__(self, env, gamma_optimistic, x_seed, y_seed):
         hyperparameters = {
             'outputscale_prior': (1, 0.1),
             'lengthscale_prior': (0.1, 0.05),
             'noise_prior': (0.001, 0.001)
         }
-        super(TestMeasure, self).__init__(env, x_seed, y_seed,
+        super(TestMeasure, self).__init__(env, gamma_optimistic,
+                                          x_seed, y_seed,
                                           gp_params=hyperparameters)
 
 
 class TestSafetyMeasure(unittest.TestCase):
     def test_convergence(self):
-        tol = 1e-1
+        tol = 1e-5
         env = TestHovership()
 
         x_seed = np.array([1., 1.])
         y_seed = np.array([1.])
 
-        measure = TestMeasure(env=env, x_seed=x_seed, y_seed=y_seed)
+        gamma = 0.1
+
+        measure = TestMeasure(env=env, gamma_optimistic=gamma, x_seed=x_seed,
+                              y_seed=y_seed)
 
         epochs = 3
         max_steps = 100
@@ -48,7 +52,7 @@ class TestSafetyMeasure(unittest.TestCase):
             n_steps = 0
             while not failed and n_steps < max_steps:
                 cautious_actions, covar_slice = measure.level_set(
-                    state, 0.05, 0.1, return_covar=True
+                    state, 0.05, gamma, return_covar=True
                 )
                 if not cautious_actions.any():
                     raise NotImplementedError('Please implement the case where'
@@ -74,3 +78,30 @@ class TestSafetyMeasure(unittest.TestCase):
             f'Final measure does not match the expected one. Final measure :\n'
             f'{final_measure}\nExpected final measure:\n{expected_final}'
         )
+
+    def test_level_set_shape(self):
+        env = TestHovership()
+
+        x_seed = np.array([1., 1.])
+        y_seed = np.array([1.])
+
+        gamma = 0.1
+
+        measure = TestMeasure(env=env, gamma_optimistic=gamma, x_seed=x_seed,
+                              y_seed=y_seed)
+
+        level_set = measure.level_set(None, 0, gamma)
+        self.assertEqual(
+            level_set.shape[0],
+            np.prod(env.stateaction_space.shape),
+            'The level set does not have the right number of elements. '
+            f'Expected number: {np.prod(env.stateaction_space.shape)} - '
+            f'Actual shape: {level_set.shape}')
+
+        meas = measure.measure(None, 0, gamma)
+        self.assertEqual(
+            meas.shape[0],
+            np.prod(env.state_space.shape),
+            'The measure does not have the expected number of elements. '
+            f'Expected number: {np.prod(env.state_space.shape)} - '
+            f'Actual shape: {meas.shape}')

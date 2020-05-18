@@ -91,7 +91,7 @@ class TestSafetyLearner(unittest.TestCase):
             env.stateaction_space.shape
         )
         max_s = np.max(safety_values)
-        test = safety_values < 0.01 * max_s
+        test = safety_values < 1e-5
         test[1, 1] = safety_values[1, 1] == max_s
         self.assertTrue(np.all(test), 'The final safety is not the expected '
                                       f'one. Final safety:\n{safety_values}')
