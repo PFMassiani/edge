@@ -16,11 +16,12 @@ class Hovership(Environment):
             'ground_gravity': 0.1,
             'gravity_gradient': 1,
             'control_frequency': 1,
-            'max_thrust': 1,
-            'max_altitude': 1,
+            'max_thrust': 0.5,
+            'max_altitude': 2,
             'shape': (200, 150)
         }
         default_dynamics_parameters.update(dynamics_parameters)
+        print(default_dynamics_parameters)
         dynamics = HovershipDynamics(**default_dynamics_parameters)
 
         if reward is None:

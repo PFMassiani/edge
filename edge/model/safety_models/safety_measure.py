@@ -27,7 +27,7 @@ class SafetyMeasure(GPModel):
         prediction = self.gp.predict(x)
         mean = prediction.mean.numpy()
         if return_covar:
-            return mean, prediction.variance.numpy()
+            return mean, prediction.variance.detach().numpy()
         else:
             return mean
 

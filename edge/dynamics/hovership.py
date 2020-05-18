@@ -29,10 +29,11 @@ class HovershipDynamics(TimestepIntegratedDynamics):
         return y - self.ceiling_value
 
     def get_force_on_ship(self, state, action):
-        gravity_correction = - np.tanh(0.75 * self.ceiling_value - state
-                                       ) * self.gravity_gradient
-        corrected_gravity = self.ground_gravity + min(0, gravity_correction)
-        total_force = - corrected_gravity + action
+        grav_field = np.max([
+            0,
+            np.tanh(0.75 * (self.ceiling_value - state))
+        ]) * self.gravity_gradient
+        total_force = - self.ground_gravity - grav_field + action
         return total_force
 
     def get_trajectory(self, state, action):
