@@ -1,4 +1,4 @@
-class SubPlotter:
+class Subplotter:
     def __init__(self, model, colors):
         self.model = model
         self.colors = colors

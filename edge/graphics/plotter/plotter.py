@@ -1,9 +1,8 @@
 import matplotlib.pyplot as plt
 
-from edge.models import SafetyModel
-from edge.utils import dynamically_import
+from edge.model.safety_models import MaternSafety
 
-from ..subplotter import SafetyMeasureSubplotter, SafetyTruthSubplotter
+from ..subplotter import SafetyMeasureSubplotter  # , SafetyTruthSubplotter
 from ..colors import corl_colors
 
 
@@ -16,31 +15,53 @@ class Plotter:
 
 
 class CoRLPlotter(Plotter):
-    def __init__(self, agent, ground_truth):
+    def __init__(self, agent, ground_truth=None):
         super(CoRLPlotter, self).__init__(agent)
 
-        self.subplotters = {}
         for model in agent.models:
-            if isinstance(model, SafetyModel):
-                self.subplotters['safety'] = SafetyMeasureSubplotter(
+            if isinstance(model, MaternSafety):
+                self.safety_subplotter = SafetyMeasureSubplotter(
                     agent,
                     model,
                     corl_colors
                 )
-        self.subplotters['truth'] = SafetyTruthSubplotter(ground_truth)
 
     def get_figure(self):
         figure = plt.figure(constrained_layout=True, figsize=(5.5, 4.8))
         gs = figure.add_gridspec(1, 2, width_ratios=[3, 1])
 
         ax_Q = figure.add_subplot(gs[0, 0])
-        ax_S = figure.add_subplot(gs[0, 0], sharey=ax_Q)
+        ax_S = figure.add_subplot(gs[0, 1], sharey=ax_Q)
 
         ax_Q.tick_params(direction='in', top=True, right=True)
         ax_S.tick_params(direction='in', left=False)
 
-        self.subplotters['safety'].draw_on_axs(ax_Q, ax_S)
-        self.subplotters['truth'].draw_on_axs(ax_Q, ax_S)
+        Q_optimistic, Q_cautious, S_optimistic = self.get_subplotters_params()
+        self.safety_subplotter.draw_on_axs(ax_Q, ax_S, Q_optimistic,
+                                           Q_cautious, S_optimistic)
 
-        figure.title('Safety measure')
+        plt.title('Safety measure')
         return figure
+
+    def get_subplotters_params(self):
+        Q_optimistic, Q_cautious = self.safety_subplotter.model.level_set(
+            state=None,
+            lambda_threshold=[
+                0,
+                self.agent.lambda_cautious
+            ],
+            gamma_threshold=[
+                self.agent.gamma_optimistic,
+                self.agent.gamma_cautious
+            ],
+            return_covar=False
+        )
+        Q_optimistic = Q_optimistic.reshape(
+            self.agent.env.stateaction_space.shape
+        ).astype(float)
+        Q_cautious = Q_cautious.reshape(
+            self.agent.env.stateaction_space.shape
+        ).astype(float)
+        # The action axis is 1 because we can only plot 2D Stateaction spaces
+        S_optimistic = Q_optimistic.mean(axis=1)
+        return Q_optimistic, Q_cautious, S_optimistic

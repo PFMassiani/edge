@@ -18,6 +18,10 @@ class SafetyLearner(Agent):
 
         self.keep_seed_in_data = keep_seed_in_data
 
+    @property
+    def gamma_optimistic(self):
+        return self.safety_model.gamma_measure
+
     def get_next_action(self):
         is_cautious, proba_slice, covar_slice = self.safety_model.level_set(
             self.state,

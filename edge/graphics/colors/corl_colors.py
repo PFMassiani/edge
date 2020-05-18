@@ -8,9 +8,9 @@ green = [115, 163, 72]
 orange = [253, 174, 97]
 yellow = [227, 198, 52]
 
-optimistic_color = light_blue / 256
-explore_color = dark_blue / 256
-truth_color = green / 256
+optimistic = tuple([c / 256 for c in light_blue])
+cautious = tuple([c / 256 for c in dark_blue])
+truth = tuple([c / 256 for c in green])
 
-failure_color = orange / 256
-unviable_color = yellow / 256
+failure = tuple([c / 256 for c in orange])
+unviable = tuple([c / 256 for c in yellow])

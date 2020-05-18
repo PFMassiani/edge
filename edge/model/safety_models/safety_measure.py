@@ -43,21 +43,41 @@ class SafetyMeasure(GPModel):
 
     def level_set(self, state, lambda_threshold, gamma_threshold,
                   return_proba=False, return_covar=False):
+        # We permit calling this function on different lambda and gamma
+        # to avoid multiple inference passes
+        if not isinstance(lambda_threshold, (list, tuple)):
+            lambda_threshold_list = [lambda_threshold]
+        else:
+            lambda_threshold_list = lambda_threshold
+        if not isinstance(gamma_threshold, (list, tuple)):
+            gamma_threshold_list = [gamma_threshold]
+        else:
+            gamma_threshold_list = gamma_threshold
+
         if state is None:
             state = slice(None, None, None)
         action = slice(None, None, None)
 
         measure_slice, covar_slice = self.query(
             (state, action), return_covar=True)
-        level_value = norm.cdf(
-            (measure_slice - lambda_threshold) / np.sqrt(covar_slice)
-        )
+        level_value_list = [
+            norm.cdf(
+                (measure_slice - lambda_threshold) / np.sqrt(covar_slice)
+            )
+            for lambda_threshold in lambda_threshold_list
+        ]
 
-        level_set = level_value > gamma_threshold
+        level_set_list = [level_value > gamma_threshold
+                          for level_value, gamma_threshold in
+                          zip(level_value_list, gamma_threshold_list)]
 
-        return_var = level_set
+        if len(level_set_list) == 1:
+            level_set_list = level_set_list[0]
+            level_value_list = level_value_list[0]
+
+        return_var = level_set_list
         if return_proba:
-            return_var = (return_var, level_value)
+            return_var = (return_var, level_value_list)
         if return_covar:
             if not isinstance(return_var, tuple):
                 return_var = (return_var, )
