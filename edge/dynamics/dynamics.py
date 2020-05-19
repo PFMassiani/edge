@@ -8,6 +8,10 @@ class DiscreteTimeDynamics(EventBased):
     def __init__(self, stateaction_space):
         self.stateaction_space = stateaction_space
 
+    @property
+    def parameters(self):
+        raise NotImplementedError
+
     def step(self, state, action):
         raise NotImplementedError
 

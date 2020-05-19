@@ -3,6 +3,7 @@ import numpy as np
 
 from .. import GroundTruth
 from edge.space import Segment, ProductSpace, StateActionSpace
+from edge.utils import get_parameters_lookup_dictionary
 
 
 class SafetyTruth(GroundTruth):
@@ -95,3 +96,16 @@ class SafetyTruth(GroundTruth):
         self.viable_set = self.viable_set.astype(float)
         self.failure_set = self.failure_set.astype(float)
         self.unviable_set = self.unviable_set.astype(float)
+
+        lookup_dictionary = get_parameters_lookup_dictionary(self.env)
+
+        for vibly_pname, vibly_value in data['p'].items():
+            pname = lookup_dictionary[vibly_pname]
+            if pname is not None:
+                value = self.env.dynamics.parameters[pname]
+                if value != vibly_value:
+                    raise ValueError(
+                        f'Value mismatch: value loaded for {pname} from '
+                        f'{vibly_pname} does not match. Expected {value}, '
+                        f'got {vibly_value}'
+                    )

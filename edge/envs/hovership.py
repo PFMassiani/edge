@@ -16,7 +16,7 @@ class Hovership(Environment):
             'ground_gravity': 0.1,
             'gravity_gradient': 1,
             'control_frequency': 1,
-            'max_thrust': 0.5,
+            'max_thrust': 0.8,
             'max_altitude': 2,
             'shape': (200, 150)
         }

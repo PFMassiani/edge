@@ -18,11 +18,23 @@ class HovershipDynamics(TimestepIntegratedDynamics):
         self.gravity_gradient = gravity_gradient
         self.control_frequency = control_frequency
         self.ceiling_value = stateaction_space.state_space.high
+        self.max_thrust = stateaction_space.action_space.high
 
     def is_feasible_state(self, state):
         if state not in self.stateaction_space.state_space:
             raise error.OutOfSpace
         return True
+
+    @property
+    def parameters(self):
+        return {
+            'ground_gravity': self.ground_gravity,
+            'gravity_gradient': self.gravity_gradient,
+            'control_frequency': self.control_frequency,
+            'max_thrust': self.max_thrust,
+            'max_altitude': self.ceiling_value,
+            'shape': self.stateaction_space.shape
+        }
 
     @event(True, 1)
     def ceiling(self, t, y):
