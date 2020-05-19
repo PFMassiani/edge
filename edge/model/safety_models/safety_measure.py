@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import norm
+from pathlib import Path
 
 from .. import GPModel
 from ..inference import MaternGP
@@ -87,8 +88,18 @@ class SafetyMeasure(GPModel):
 
 
 class MaternSafety(SafetyMeasure):
-    def __init__(self, env, gamma_optimistic, x_seed, y_seed, gp_params=None):
+    def __init__(self, env, gamma_measure, x_seed, y_seed, gp_params=None):
         if gp_params is None:
             gp_params = {}
         gp = MaternGP(x_seed, y_seed, **gp_params)
-        super(MaternSafety, self).__init__(env, gp, gamma_optimistic)
+        super(MaternSafety, self).__init__(env, gp, gamma_measure)
+
+    def save(self, save_path):
+        self.gp.save(save_path)
+
+    @staticmethod
+    def load(load_path, env, gamma_measure, x_seed, y_seed):
+        gp = MaternGP.load(load_path)
+        model = MaternSafety(env, gamma_measure, x_seed, y_seed)
+        model.gp = gp
+        return model

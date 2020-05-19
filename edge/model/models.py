@@ -21,6 +21,13 @@ class Model:
     def __getitem__(self, index):
         return self.query(index)
 
+    def save(self, save_path):
+        raise NotImplementedError
+
+    @staticmethod
+    def load(self, load_path):
+        raise NotImplementedError
+
 
 class DiscreteModel(Model):
     def _get_query_from_index(self, index):
