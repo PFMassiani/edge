@@ -6,7 +6,7 @@ from . import Agent
 
 class SafetyLearner(Agent):
     def __init__(self, env, gamma_optimistic, gamma_cautious, lambda_cautious,
-                 x_seed, y_seed, gp_params=None, keep_seed_in_data=False):
+                 x_seed, y_seed, gp_params=None, keep_seed_in_data=True):
         safety_model = MaternSafety(env, gamma_optimistic,
                                     x_seed, y_seed, gp_params)
         super(SafetyLearner, self).__init__(env, safety_model)
