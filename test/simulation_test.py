@@ -5,6 +5,7 @@ from pathlib import Path
 from edge import Simulation
 from edge.agent import SafetyLearner
 from edge.envs import Hovership
+from edge.model.safety_models import SafetyTruth
 from edge.graphics.plotter import CoRLPlotter
 
 
@@ -12,14 +13,13 @@ class ToySimulation(Simulation):
     def __init__(self, output_directory, name, max_samples=250,
                  gamma_optimistic=0.9, gamma_cautious=0.9,
                  lambda_cautious=0.1, lengthscale_prior=(0.1, 0.05),
-                 shape=(10, 10), hyperparameters=None, every=50):
+                 shape=(10, 10), hyperparameters=None, ground_truth=None,
+                 every=50):
         x_seed = np.array([1.45, 0.5])
         y_seed = np.array([1.])
 
         dynamics_parameters = {
-            'shape': shape,
-            'max_thrust': 0.8,
-            'max_altitude': 2
+            'shape': shape
         }
 
         self.env = Hovership(
@@ -38,6 +38,12 @@ class ToySimulation(Simulation):
         default_hyperparameters.update(hyperparameters)
         hyperparameters = default_hyperparameters
 
+        if ground_truth is None:
+            self.ground_truth = None
+        else:
+            self.ground_truth = SafetyTruth(self.env)
+            self.ground_truth.from_vibly_file(ground_truth)
+
         self.agent = SafetyLearner(
             env=self.env,
             gamma_optimistic=gamma_optimistic,
@@ -49,10 +55,9 @@ class ToySimulation(Simulation):
         )
 
         self.agent.reset()
-        print('INITIAL STATE:', self.agent.state)
 
         plotters = {
-            'Safety': CoRLPlotter(self.agent)
+            'Safety': CoRLPlotter(self.agent, self.ground_truth)
         }
 
         super(ToySimulation, self).__init__(output_directory, name, plotters)
@@ -122,6 +127,7 @@ class TestSimulation(unittest.TestCase):
             lambda_cautious=0.1,
             lengthscale_prior=(0.3, 0.01),
             shape=(101, 101),
+            ground_truth='../vibly/data/dynamics/hover_map.pickle',
             every=50
             # hyperparameters={
             #     'hyperparameters_initialization': {

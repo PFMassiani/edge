@@ -31,8 +31,11 @@ class CoRLPlotter(Plotter):
                 )
                 break
         self.sample_subplotter = SampleSubplotter(corl_colors)
-        self.truth_subplotter = SafetyTruthSubplotter(ground_truth,
-                                                      corl_colors)
+        if ground_truth is not None:
+            self.truth_subplotter = SafetyTruthSubplotter(ground_truth,
+                                                          corl_colors)
+        else:
+            self.truth_subplotter = None
 
     def get_figure(self):
         figure = plt.figure(constrained_layout=True, figsize=(5.5, 4.8))
@@ -44,11 +47,12 @@ class CoRLPlotter(Plotter):
         ax_Q.tick_params(direction='in', top=True, right=True)
         ax_S.tick_params(direction='in', left=False)
 
+        if self.truth_subplotter is not None:
+            self.truth_subplotter.draw_on_axs(ax_Q, ax_S)
         Q_optimistic, Q_cautious, S_optimistic = self.get_subplotters_params()
         self.safety_subplotter.draw_on_axs(ax_Q, ax_S, Q_optimistic,
                                            Q_cautious, S_optimistic)
         self.sample_subplotter.draw_on_axs(ax_Q)
-        self.truth_subplotter.draw_on_axs(ax_Q, ax_S)
 
         plt.title('Safety measure')
         return figure

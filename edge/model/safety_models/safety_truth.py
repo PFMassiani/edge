@@ -85,6 +85,7 @@ class SafetyTruth(GroundTruth):
         action_space = get_product_space(actions)
         self.stateaction_space = StateActionSpace(state_space, action_space)
 
+        self.state_measure = data['S_M']
         self.measure = data['Q_M']
         self.viable_set = data['Q_V']
         self.failure_set = data['Q_F']

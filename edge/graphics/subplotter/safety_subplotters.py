@@ -80,14 +80,22 @@ class SafetyTruthSubplotter(Subplotter):
     def __init__(self, ground_truth, colors):
         self.ground_truth = ground_truth
         self.colors = colors
-        self.states = squeeze(self.ground_truth.state_space[:])
-        self.actions = squeeze(self.ground_truth.action_space[:])
+        self.states = squeeze(
+            self.ground_truth.stateaction_space.state_space[:]
+        )
+        self.actions = squeeze(
+            self.ground_truth.stateaction_space.action_space[:]
+        )
 
         stateaction_grid = self.ground_truth.stateaction_space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
 
     def draw_on_axs(self, ax_Q, ax_S):
+        self.draw_on_Q(ax_Q)
+        self.draw_on_S(ax_S)
+
+    def draw_on_Q(self, ax_Q):
         def draw_contour(Q):
             ax_Q.contour(
                 self.actions_grid,
@@ -112,3 +120,14 @@ class SafetyTruthSubplotter(Subplotter):
         fill_contour(self.ground_truth.failure_set, self.colors.failure, 'XX')
         fill_contour(self.ground_truth.unviable_set, self.colors.unviable,
                      '//')
+
+    def draw_on_S(self, ax_S):
+        ax_S.plot(self.ground_truth.state_measure, self.states, color='k')
+
+        ax_S.fill_betweenx(self.states, 0, self.ground_truth.state_measure,
+                           hatch='--',
+                           facecolor='none', edgecolor=self.colors.truth)
+
+        ax_S.set_xlim((0, max(self.ground_truth.state_measure) * 1.2))
+        ax_S.get_yaxis().set_visible(False)
+        ax_S.set_xlabel('$\Lambda$')
