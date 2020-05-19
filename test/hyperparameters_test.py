@@ -12,7 +12,7 @@ class HyperparametersSimulation(Simulation):
     def __init__(self, output_directory, name, max_samples,
                  gamma_optimistic, gamma_cautious, lambda_cautious,
                  shape, ground_truth,
-                 every=50):
+                 random_start=False, every=50):
         x_seed = np.array([1.45, 0.5])
         y_seed = np.array([.8])
 
@@ -20,7 +20,7 @@ class HyperparametersSimulation(Simulation):
             'shape': shape
         }
         self.env = Hovership(
-            random_start=False,
+            random_start=random_start,
             dynamics_parameters=dynamics_parameters,
             default_initial_state=x_seed[:1]
         )
@@ -54,6 +54,7 @@ class HyperparametersSimulation(Simulation):
 
         self.max_samples = max_samples
         self.every = every
+        self.random_start = random_start
 
     def run(self):
         self.run_optim()
@@ -87,11 +88,17 @@ class HyperparametersSimulation(Simulation):
 
                 if n_samples >= self.max_samples:
                     break
-            reset_state = self.agent.get_random_safe_state()
-            if reset_state is None:
-                raise Exception('The whole measure is 0. There is no safe '
-                                'action.')
-            self.agent.reset(reset_state)
+            if self.random_start:
+                reset_state = np.atleast_1d(
+                    np.random.choice(np.linspace(0, 1.5, 100))
+                )
+                self.agent.reset(reset_state)
+            else:
+                reset_state = self.agent.get_random_safe_state()
+                if reset_state is None:
+                    raise Exception('The whole measure is 0. There is no safe '
+                                    'action.')
+                self.agent.reset(reset_state)
 
         self.compile_gif()
 
@@ -100,8 +107,8 @@ class HyperparametersSimulation(Simulation):
         super(HyperparametersSimulation, self).on_run_iteration(
             old_state, action, new_state, reward, failed
         )
-        print(f'Step {n_samples}/{self.max_samples} - {old_state} '
-              f' -> {action} -> {new_state} ({failed})')
+        # print(f'Step {n_samples}/{self.max_samples} - {old_state} '
+        #       f' -> {action} -> {new_state} ({failed})')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -151,3 +158,18 @@ class TestHyperparametersLearning(unittest.TestCase):
         sim.run_optim()
         self.__print_hyperparameters(sim)
         sim.run_learning()
+
+    def test_optimistic_init(self):
+        sim = HyperparametersSimulation(
+            output_directory='results/',
+            name='test_optimistic_init',
+            max_samples=300,
+            gamma_optimistic=0.4,
+            gamma_cautious=0.9,
+            lambda_cautious=0.,
+            shape=(201, 151),
+            ground_truth='../vibly/data/dynamics/hover_map.pickle',
+            random_start=True,
+            every=50
+        )
+        sim.run()
