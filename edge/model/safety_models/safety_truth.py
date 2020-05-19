@@ -15,19 +15,56 @@ class SafetyTruth(GroundTruth):
         self.viable_set = None
         self.measure = None
 
-    def get_training_examples(self):
-        examples = [(stateaction, self.measure[index])
-                    for index, stateaction in iter(self.stateaction_space)]
-        train_x, train_y = zip(*examples)
+    def get_training_examples(self, n_examples=2000, from_viable=True,
+                              from_failure=False, viable_proportion=0.6):
+        def sample_when_true(n, condition):
+            if n > 0:
+                idx_satisfying_condition = np.argwhere(condition)
+            else:
+                idx_satisfying_condition = np.empty(
+                    shape=(0, len(condition.shape)),
+                    dtype=int
+                )
 
-        return np.atleast_2d(train_x), np.atleast_2d(train_y)
+            n = min(n, len(idx_satisfying_condition))
+            sample = np.random.choice(
+                idx_satisfying_condition.shape[0], n, replace=False
+            )
+            sample_idx_list = idx_satisfying_condition[sample]
+            sample_idx_tuple = tuple(zip(*sample_idx_list))
+            if len(sample_idx_tuple) == 0:
+                sample_idx_tuple = ((), ())
+
+            sample_x = np.array([
+                self.stateaction_space[tuple(idx)]
+                for idx in sample_idx_list
+            ]).reshape((-1, self.stateaction_space.index_dim))
+            sample_y = self.measure[sample_idx_tuple].squeeze()
+            return sample_x, sample_y
+
+        n_viable = 0 if not from_viable\
+            else n_examples if not from_failure\
+            else int(viable_proportion * n_examples)
+        n_failure = n_examples - n_viable
+
+        viable_x, viable_y = sample_when_true(
+            n_viable, self.viable_set.astype(bool)
+        )
+        failure_x, failure_y = sample_when_true(
+            n_failure, self.failure_set.astype(bool)
+        )
+
+        train_x = np.vstack((viable_x, failure_x))
+        train_y = np.hstack((viable_y, failure_y))
+
+        return train_x, train_y
 
     def from_vibly_file(self, vibly_file_path):
         with open(vibly_file_path, 'rb') as f:
             data = pkl.load(f)
         # dict_keys(['grids', 'Q_map', 'Q_F', 'Q_V', 'Q_M', 'S_M', 'p', 'x0'])
-        states = data['grids']
-        actions = data['actions']
+        states = data['grids']['states']
+        actions = data['grids']['actions']
 
         if len(states) != self.env.state_space.index_dim:
             raise IndexError('Size mismatch : expected state space with '
@@ -48,5 +85,12 @@ class SafetyTruth(GroundTruth):
         action_space = get_product_space(actions)
         self.stateaction_space = StateActionSpace(state_space, action_space)
 
-        self.viable_set = data['Q_V']
         self.measure = data['Q_M']
+        self.viable_set = data['Q_V']
+        self.failure_set = data['Q_F']
+        self.unviable_set = ~self.failure_set
+        self.unviable_set[self.viable_set] = False
+
+        self.viable_set = self.viable_set.astype(float)
+        self.failure_set = self.failure_set.astype(float)
+        self.unviable_set = self.unviable_set.astype(float)
