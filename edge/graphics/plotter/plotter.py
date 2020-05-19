@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 
 from edge.model.safety_models import MaternSafety
 
-from ..subplotter import SafetyMeasureSubplotter, SampleSubplotter
+from ..subplotter import SafetyMeasureSubplotter, SafetyTruthSubplotter,\
+    SampleSubplotter
 from ..colors import corl_colors
 
 
@@ -30,6 +31,8 @@ class CoRLPlotter(Plotter):
                 )
                 break
         self.sample_subplotter = SampleSubplotter(corl_colors)
+        self.truth_subplotter = SafetyTruthSubplotter(ground_truth,
+                                                      corl_colors)
 
     def get_figure(self):
         figure = plt.figure(constrained_layout=True, figsize=(5.5, 4.8))
@@ -45,6 +48,7 @@ class CoRLPlotter(Plotter):
         self.safety_subplotter.draw_on_axs(ax_Q, ax_S, Q_optimistic,
                                            Q_cautious, S_optimistic)
         self.sample_subplotter.draw_on_axs(ax_Q)
+        self.truth_subplotter.draw_on_axs(ax_Q, ax_S)
 
         plt.title('Safety measure')
         return figure

@@ -21,7 +21,6 @@ class Hovership(Environment):
             'shape': (200, 150)
         }
         default_dynamics_parameters.update(dynamics_parameters)
-        print(default_dynamics_parameters)
         dynamics = HovershipDynamics(**default_dynamics_parameters)
 
         if reward is None:
