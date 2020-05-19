@@ -87,7 +87,11 @@ class HyperparametersSimulation(Simulation):
 
                 if n_samples >= self.max_samples:
                     break
-            self.agent.reset()
+            reset_state = self.agent.get_random_safe_state()
+            if reset_state is None:
+                raise Exception('The whole measure is 0. There is no safe '
+                                'action.')
+            self.agent.reset(reset_state)
 
         self.compile_gif()
 

@@ -22,6 +22,22 @@ class SafetyLearner(Agent):
     def gamma_optimistic(self):
         return self.safety_model.gamma_measure
 
+    def get_random_safe_state(self):
+        measure = self.safety_model.measure(
+            state=None,
+            lambda_threshold=self.lambda_cautious,
+            gamma_threshold=self.gamma_cautious
+        ).squeeze()
+        safe_states = measure > 0
+        if not safe_states.any():
+            return None
+        else:
+            safe_indexes = np.argwhere(safe_states).squeeze()
+            chosen_index = safe_indexes[np.random.choice(len(safe_indexes))]
+            return self.env.state_space[np.unravel_index(
+                chosen_index, self.env.state_space.shape
+            )]
+
     def get_next_action(self):
         is_cautious, proba_slice, covar_slice = self.safety_model.level_set(
             self.state,
