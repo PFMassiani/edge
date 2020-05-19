@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from matplotlib.pyplot import close as plt_close
 
 
 class Simulation:
@@ -37,6 +38,8 @@ class Simulation:
                 self.__saved_figures[name] = [str(savepath)]
             else:
                 self.__saved_figures[name] += [str(savepath)]
+
+            plt_close('all')
 
     def compile_gif(self):
         for name, figures in self.__saved_figures.items():
