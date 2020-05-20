@@ -94,12 +94,15 @@ class MaternSafety(SafetyMeasure):
         gp = MaternGP(x_seed, y_seed, **gp_params)
         super(MaternSafety, self).__init__(env, gp, gamma_measure)
 
-    def save(self, save_path):
-        self.gp.save(save_path)
-
     @staticmethod
     def load(load_path, env, gamma_measure, x_seed, y_seed):
-        gp = MaternGP.load(load_path)
-        model = MaternSafety(env, gamma_measure, x_seed, y_seed)
+        load_path = Path(load_path)
+        gp_load_path = str(load_path / GPModel.GP_SAVE_NAME)
+
+        gp = MaternGP.load(gp_load_path)
+
+        model = MaternSafety(env, gamma_measure=gamma_measure,
+                             x_seed=x_seed, y_seed=y_seed)
         model.gp = gp
+
         return model

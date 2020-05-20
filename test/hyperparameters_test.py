@@ -66,9 +66,12 @@ class HyperparametersSimulation(Simulation):
             from_viable=True,
             from_failure=False
         )
-        self.agent.fit_models(train_x, train_y, epochs=50)
+        self.agent.fit_models(train_x, train_y, epochs=20)
 
     def run_learning(self):
+        gamma_optim_increment = (
+            self.agent.gamma_cautious - self.agent.safety_model.gamma_measure
+        ) / self.max_samples
         n_samples = 0
         self.save_figs(prefix='0')
         while n_samples < self.max_samples:
@@ -100,6 +103,8 @@ class HyperparametersSimulation(Simulation):
                                     'action.')
                 self.agent.reset(reset_state)
 
+            self.agent.safety_model.gamma_measure += gamma_optim_increment
+
         self.compile_gif()
 
     def on_run_iteration(self, n_samples, old_state, action, new_state,
@@ -107,8 +112,8 @@ class HyperparametersSimulation(Simulation):
         super(HyperparametersSimulation, self).on_run_iteration(
             old_state, action, new_state, reward, failed
         )
-        # print(f'Step {n_samples}/{self.max_samples} - {old_state} '
-        #       f' -> {action} -> {new_state} ({failed})')
+        print(f'Step {n_samples}/{self.max_samples} - {old_state} '
+              f' -> {action} -> {new_state} ({failed})')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -123,7 +128,7 @@ class TestHyperparametersLearning(unittest.TestCase):
             gamma_cautious=0.95,
             lambda_cautious=0.,
             shape=(201, 151),
-            ground_truth='../vibly/data/dynamics/hover_map.pickle',
+            ground_truth='./data/ground_truth/from_vibly/hover_map.pickle',
             every=every
         )
 
@@ -163,13 +168,13 @@ class TestHyperparametersLearning(unittest.TestCase):
         sim = HyperparametersSimulation(
             output_directory='results/',
             name='test_optimistic_init',
-            max_samples=300,
-            gamma_optimistic=0.4,
-            gamma_cautious=0.9,
-            lambda_cautious=0.,
+            max_samples=1500,
+            gamma_optimistic=0.52,
+            gamma_cautious=0.7,
+            lambda_cautious=0.1,
             shape=(201, 151),
-            ground_truth='../vibly/data/dynamics/hover_map.pickle',
-            random_start=True,
+            ground_truth='./data/ground_truth/from_vibly/hover_map.pickle',
+            random_start=False,
             every=50
         )
         sim.run()

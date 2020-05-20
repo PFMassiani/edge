@@ -1,4 +1,6 @@
 import numpy as np
+import json
+from pathlib import Path
 
 
 class Model:
@@ -20,13 +22,6 @@ class Model:
 
     def __getitem__(self, index):
         return self.query(index)
-
-    def save(self, save_path):
-        raise NotImplementedError
-
-    @staticmethod
-    def load(self, load_path):
-        raise NotImplementedError
 
 
 class DiscreteModel(Model):
@@ -52,6 +47,9 @@ class ContinuousModel(Model):
 
 
 class GPModel(ContinuousModel):
+    GP_SAVE_NAME = 'gp.pth'
+    SAVE_NAME = 'model.json'
+
     def __init__(self, env, gp):
         super(GPModel, self).__init__(env)
         self.gp = gp
@@ -73,3 +71,20 @@ class GPModel(ContinuousModel):
         pseudo_empty_y = np.zeros(self.gp.output_shape)
 
         self.gp.set_data(pseudo_empty_x, pseudo_empty_y)
+
+    def save(self, save_path):
+        save_path = Path(save_path)
+        gp_save_path = str(save_path / GPModel.GP_SAVE_NAME)
+        model_save_path = str(save_path / GPModel.SAVE_NAME)
+
+        self.gp.save(gp_save_path)
+        try:
+            state_dict = self.state_dict
+            with open(model_save_path, 'w') as f:
+                json.dump(state_dict, f, indent=4)
+        except NotImplementedError:
+            pass
+
+    @staticmethod
+    def load(load_path):
+        raise NotImplementedError
