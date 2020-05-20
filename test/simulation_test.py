@@ -6,7 +6,7 @@ from edge import Simulation
 from edge.agent import SafetyLearner
 from edge.envs import Hovership
 from edge.model.safety_models import SafetyTruth
-from edge.graphics.plotter import CoRLPlotter
+from edge.graphics.plotter import SafetyPlotter
 
 
 class ToySimulation(Simulation):
@@ -57,7 +57,7 @@ class ToySimulation(Simulation):
         self.agent.reset()
 
         plotters = {
-            'Safety': CoRLPlotter(self.agent, self.ground_truth)
+            'Safety': SafetyPlotter(self.agent, self.ground_truth)
         }
 
         super(ToySimulation, self).__init__(output_directory, name, plotters)

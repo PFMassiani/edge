@@ -18,9 +18,9 @@ class Plotter:
         raise NotImplementedError
 
 
-class CoRLPlotter(Plotter):
+class SafetyPlotter(Plotter):
     def __init__(self, agent, ground_truth=None):
-        super(CoRLPlotter, self).__init__(agent)
+        super(SafetyPlotter, self).__init__(agent)
 
         for model in agent.models:
             if isinstance(model, MaternSafety):

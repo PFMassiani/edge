@@ -5,7 +5,7 @@ from edge import Simulation
 from edge.agent import SafetyLearner
 from edge.envs import Hovership
 from edge.model.safety_models import SafetyTruth
-from edge.graphics.plotter import CoRLPlotter
+from edge.graphics.plotter import SafetyPlotter
 
 
 class HyperparametersSimulation(Simulation):
@@ -45,7 +45,7 @@ class HyperparametersSimulation(Simulation):
         self.agent.reset()
 
         plotters = {
-            'Safety': CoRLPlotter(self.agent, self.ground_truth)
+            'Safety': SafetyPlotter(self.agent, self.ground_truth)
         }
 
         super(HyperparametersSimulation, self).__init__(

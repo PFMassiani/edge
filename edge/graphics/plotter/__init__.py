@@ -1,1 +1,1 @@
-from .plotter import CoRLPlotter
+from .plotter import SafetyPlotter
