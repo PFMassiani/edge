@@ -5,7 +5,7 @@ from numpy.random import seed as npseed
 
 
 class Simulation:
-    def __init__(self, output_directory, name, plotters)
+    def __init__(self, output_directory, name, plotters):
         self.set_seed(random=False, value=0)
         self.output_directory = Path(output_directory) / name
         self.name = name
