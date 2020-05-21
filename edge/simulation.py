@@ -1,10 +1,12 @@
 from pathlib import Path
 import os
 from matplotlib.pyplot import close as plt_close
+from numpy.random import seed as npseed
 
 
 class Simulation:
-    def __init__(self, output_directory, name, plotters):
+    def __init__(self, output_directory, name, plotters)
+        self.set_seed(random=False, value=0)
         self.output_directory = Path(output_directory) / name
         self.name = name
         self.plotters = plotters
@@ -16,6 +18,12 @@ class Simulation:
         self.log_path.mkdir(parents=False, exist_ok=True)
 
         self.__saved_figures = {}
+
+    def set_seed(self, random=False, value=0):
+        if random:
+            npseed(None)
+        else:
+            npseed(value)
 
     def run(self):
         raise NotImplementedError
@@ -52,3 +60,43 @@ class Simulation:
                 os.system(gif_command)
             except Exception as e:
                 print(f'Error: could not compile {name}.gif. Exception: {e}')
+
+
+class GPModelLearningSimulation(Simulation):
+    def __init__(self, output_directory, name, plotters):
+        super(GPModelLearningSimulation, self).__init__(
+            output_directory, name, plotters
+        )
+        self.models_path = Path(__file__).parent / 'data' / 'models'
+        self.local_models_path = self.output_directory / 'models'
+        self.local_models_path.mkdir(exist_ok=True)
+        self.samples_path = self.output_directory / 'samples'
+        self.samples_path.mkdir(exist_ok=True)
+
+    def get_models_to_save(self):
+        raise NotImplementedError
+
+    def save_models(self, globally=False, locally=True):
+        models_to_save = self.get_models_to_save()
+        paths_where_to_save = []
+        if globally:
+            paths_where_to_save.append(self.models_path)
+        if locally:
+            paths_where_to_save.append(self.local_models_path)
+
+        for path in paths_where_to_save:
+            for savename, model in models_to_save.items():
+                model.save(path / savename)
+
+    def load_models(self, skip_local=False):
+        raise NotImplementedError
+
+    def save_samples(self, name):
+        models_to_save = self.get_models_to_save()
+        for savename, model in models_to_save.items():
+            model.save_samples(self.samples_path / savename / name)
+
+    def load_samples(self, name):
+        models_to_load = self.get_models_to_save()
+        for savename, model in models_to_load.items():
+            model.load_samples(self.samples_path / savename / name)
