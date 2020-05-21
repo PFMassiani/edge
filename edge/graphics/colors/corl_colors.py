@@ -14,3 +14,7 @@ truth = tuple([c / 256 for c in green])
 
 failure = tuple([c / 256 for c in orange])
 unviable = tuple([c / 256 for c in yellow])
+
+cmap_var='cividis'
+cmap_meas='seismic'
+cmap_proba='seismic'
