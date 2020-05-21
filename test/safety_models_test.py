@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import tempfile
 
 from edge.envs import Hovership
 from edge.model.safety_models import MaternSafety
@@ -105,3 +106,27 @@ class TestSafetyMeasure(unittest.TestCase):
             'The measure does not have the expected number of elements. '
             f'Expected number: {np.prod(env.state_space.shape)} - '
             f'Actual shape: {meas.shape}')
+
+    def test_save_load(self):
+        env = Hovership()
+        x_seed = np.array([1.45, 0.6])
+        y_seed = np.array([0.8])
+        x_blank = np.array([0., 0])
+        y_blank = np.array([0.])
+        hyperparameters = {
+            'outputscale_prior': (0.4, 2),
+            'lengthscale_prior': (0.2, 0.2),
+            'noise_prior': (0.001, 0.002)
+        }
+        safety = MaternSafety(env, 0.7, x_seed, y_seed, hyperparameters)
+
+        tmpdir = 'results/'#tempfile.TemporaryDirectory().name
+        safety.save(tmpdir)
+        safety.save_samples(tmpdir + 'samples.npz')
+
+        blank = MaternSafety.load(tmpdir, env, 0.7, x_blank, y_blank)
+        blank.load_samples(tmpdir + 'samples.npz')
+
+        self.assertTrue((blank.gp.train_x == safety.gp.train_x).all())
+        self.assertEqual(blank.gp.structure_dict, safety.gp.structure_dict)
+
