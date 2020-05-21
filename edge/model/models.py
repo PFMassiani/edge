@@ -72,8 +72,15 @@ class GPModel(ContinuousModel):
 
         self.gp.set_data(pseudo_empty_x, pseudo_empty_y)
 
-    def save(self, save_path):
-        save_path = Path(save_path)
+    def set_data(self, train_x, train_y):
+        self.gp.set_data(train_x, train_y)
+
+    @property
+    def state_dict(self):
+        raise NotImplementedError
+
+    def save(self, save_folder):
+        save_path = Path(save_folder)
         gp_save_path = str(save_path / GPModel.GP_SAVE_NAME)
         model_save_path = str(save_path / GPModel.SAVE_NAME)
 
@@ -85,6 +92,19 @@ class GPModel(ContinuousModel):
         except NotImplementedError:
             pass
 
+    def save_samples(self, save_path):
+        np.savez(
+            save_path,
+            inputs=self.gp.train_x.numpy(),
+            targets=self.gp.train_y.numpy()
+        )
+
+    def load_samples(self, load_path):
+        data = np.load(load_path, allow_pickle=False)
+        train_x = data['inputs']
+        train_y = data['targets']
+        self.set_data(train_x, train_y)
+
     @staticmethod
-    def load(load_path):
+    def load(load_folder):
         raise NotImplementedError

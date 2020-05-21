@@ -34,8 +34,8 @@ class GPQLearning(GPModel):
         }
 
     @staticmethod
-    def load(load_path, env, x_seed, y_seed):
-        load_path = Path(load_path)
+    def load(load_folder, env, x_seed, y_seed):
+        load_folder = Path(load_path)
         gp_load_path = str(load_path / GPModel.GP_SAVE_NAME)
         model_load_path = str(load_path / GPModel.SAVE_NAME)
 

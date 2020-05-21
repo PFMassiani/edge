@@ -60,6 +60,26 @@ class SafetyTruth(GroundTruth):
 
         return train_x, train_y
 
+    def is_viable(self, state, action):
+        index = self.stateaction_space.get_index_of(
+            (state, action), around_ok=True
+        )
+        return self.viable_set[index] == 1
+
+    def is_unviable(self, state, action):
+        sa = self.stateaction_space[state, action]
+        index = self.stateaction_space.get_index_of(
+            sa, around_ok=True
+        )
+        out = self.unviable_set[index] == 1
+        return out
+
+    def is_failure(self, state, action):
+        index = self.stateaction_space.get_index_of(
+            (state, action), around_ok=True
+        )
+        return self.failure_set[index] == 1
+
     def from_vibly_file(self, vibly_file_path):
         with open(vibly_file_path, 'rb') as f:
             data = pkl.load(f)

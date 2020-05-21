@@ -43,7 +43,7 @@ class SafetyMeasure(GPModel):
         return np.atleast_1d(level_set.mean(mean_axes))
 
     def level_set(self, state, lambda_threshold, gamma_threshold,
-                  return_proba=False, return_covar=False):
+                  return_proba=False, return_covar=False, return_measure=False):
         # We permit calling this function on different lambda and gamma
         # to avoid multiple inference passes
         if not isinstance(lambda_threshold, (list, tuple)):
@@ -83,6 +83,10 @@ class SafetyMeasure(GPModel):
             if not isinstance(return_var, tuple):
                 return_var = (return_var, )
             return_var += (covar_slice, )
+        if return_measure:
+            if not isinstance(return_var, tuple):
+                return_var = (return_var, )
+            return_var += (measure_slice, )
 
         return return_var
 
@@ -95,11 +99,11 @@ class MaternSafety(SafetyMeasure):
         super(MaternSafety, self).__init__(env, gp, gamma_measure)
 
     @staticmethod
-    def load(load_path, env, gamma_measure, x_seed, y_seed):
-        load_path = Path(load_path)
+    def load(load_folder, env, gamma_measure, x_seed, y_seed):
+        load_path = Path(load_folder)
         gp_load_path = str(load_path / GPModel.GP_SAVE_NAME)
 
-        gp = MaternGP.load(gp_load_path)
+        gp = MaternGP.load(gp_load_path, x_seed, y_seed)
 
         model = MaternSafety(env, gamma_measure=gamma_measure,
                              x_seed=x_seed, y_seed=y_seed)
