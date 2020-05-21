@@ -5,7 +5,7 @@ from edge import Simulation
 from edge.agent import SafetyLearner
 from edge.envs import Hovership
 from edge.model.safety_models import SafetyTruth, MaternSafety
-from edge.graphics.plotter import SafetyPlotter
+from edge.graphics.plotter import SafetyPlotter, DetailedSafetyPlotter
 
 
 class OptimisticSimulation(Simulation):
@@ -42,7 +42,7 @@ class OptimisticSimulation(Simulation):
             gp_params=self.hyperparameters,
         )
         plotters = {
-            'Safety': SafetyPlotter(self.agent, self.ground_truth)
+            'DetailedSafety': DetailedSafetyPlotter(self.agent, self.ground_truth)
         }
 
         super(OptimisticSimulation, self).__init__(
@@ -138,16 +138,17 @@ class OptimisticSimulation(Simulation):
 
 
 if __name__ == '__main__':
-    np.random.seed(1)
+    np.random.seed(2)
     sim = OptimisticSimulation(
         max_samples=500,
         gamma_optimistic=0.52,
         gamma_cautious=0.7,
         lambda_cautious=0.1,
         shape=(201, 151),
-        every=1
+        every=25
     )
-    optimize = False
+    optimize = True
+    load_hyper = False
     samples_to_load = None #'1500.npz'
 
     if optimize:
@@ -155,9 +156,11 @@ if __name__ == '__main__':
         sim.run_optim()
         print('saving hyperparameters...')
         sim.save_model()
-    else:
+    elif load_hyper:
         print('loading hyperparameters...')
         sim.load_model()
+    else:
+        print(f'keeping default hyperparameters: {sim.hyperparameters}... ')
     if samples_to_load is not None:
         print('loading samples...')
         sim.load_samples(samples_to_load)
