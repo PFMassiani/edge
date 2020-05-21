@@ -24,7 +24,7 @@ class MaternGP(GP):
             'outputscale_constraint': outputscale_constraint
         }
 
-        mean_module = gpytorch.means.ConstantMean()
+        mean_module = gpytorch.means.ZeroMean()
 
         if lengthscale_prior is not None:
             lengthscale_prior = gpytorch.priors.NormalPrior(*lengthscale_prior)
