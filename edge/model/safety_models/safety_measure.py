@@ -32,7 +32,10 @@ class SafetyMeasure(GPModel):
         else:
             return mean
 
-    def measure(self, state, lambda_threshold, gamma_threshold):
+    def measure(self, state, lambda_threshold=0, gamma_threshold=None):
+        if gamma_threshold is None:
+            gamma_threshold = self.gamma_measure
+
         level_set = self.level_set(state, lambda_threshold, gamma_threshold,
                                    return_proba=False, return_covar=False)
 

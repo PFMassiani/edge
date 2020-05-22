@@ -86,7 +86,9 @@ class GPModelLearningSimulation(Simulation):
 
         for path in paths_where_to_save:
             for savename, model in models_to_save.items():
-                model.save(path / savename)
+                savepath = path / savename
+                savepath.mkdir(exist_ok=True)
+                model.save(savepath)
 
     def load_models(self, skip_local=False):
         raise NotImplementedError

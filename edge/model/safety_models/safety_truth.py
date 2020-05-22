@@ -14,7 +14,10 @@ class SafetyTruth(GroundTruth):
         # These attributes are initialized either by compute or from_vibly_file
         self.stateaction_space = None
         self.viable_set = None
-        self.measure = None
+        self.unviable_set = None
+        self.failure_set = None
+        self.state_measure = None
+        self.measure_value = None
 
     def get_training_examples(self, n_examples=2000, from_viable=True,
                               from_failure=False, viable_proportion=0.6):
@@ -60,9 +63,17 @@ class SafetyTruth(GroundTruth):
 
         return train_x, train_y
 
-    def is_viable(self, state, action):
+    def measure(self, state, action):
         index = self.stateaction_space.get_index_of(
             (state, action), around_ok=True
+        )
+        return self.measure[index]
+
+    def is_viable(self, state=None, action=None, stateaction=None):
+        if stateaction is None:
+            stateaction = self.stateaction_space[state, action]
+        index = self.stateaction_space.get_index_of(
+            stateaction, around_ok=True
         )
         return self.viable_set[index] == 1
 
@@ -81,7 +92,7 @@ class SafetyTruth(GroundTruth):
         return self.failure_set[index] == 1
 
     def from_vibly_file(self, vibly_file_path):
-        with open(vibly_file_path, 'rb') as f:
+        with vibly_file_path.open('rb') as f:
             data = pkl.load(f)
         # dict_keys(['grids', 'Q_map', 'Q_F', 'Q_V', 'Q_M', 'S_M', 'p', 'x0'])
         states = data['grids']['states']
@@ -107,7 +118,7 @@ class SafetyTruth(GroundTruth):
         self.stateaction_space = StateActionSpace(state_space, action_space)
 
         self.state_measure = data['S_M']
-        self.measure = data['Q_M']
+        self.measure_value = data['Q_M']
         self.viable_set = data['Q_V']
         self.failure_set = data['Q_F']
         self.unviable_set = ~self.failure_set
