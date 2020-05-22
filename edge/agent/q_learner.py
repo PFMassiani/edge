@@ -80,25 +80,33 @@ class ConstrainedQLearner(Agent):
         self.__greed = np.clip(new_greed, 0, 1)
 
     def get_next_action(self):
+        def choose_action(q_values):
+            n = len(q_values)
+            best_value = np.argmax(q_values)
+            probabilities = np.ones(n) * self.greed / n
+            probabilities[best_value] += 1 - self.greed
+            return np.random.choice(n, p=probabilities)
+
         all_stateactions = self.Q_model.env.stateaction_space[self.state, :]
         action_is_viable = [
             self.safety_measure.is_viable(stateaction=sa)
             for sa in all_stateactions
         ]
-        # TODO Change this so it only predicts the necessary values
-        q_values = self.Q_model[self.state, :][action_is_viable]
-        viable_to_all_lookup = np.argwhere(action_is_viable).squeeze()
+        n_viable = sum(action_is_viable)
+        q_values = self.Q_model[self.state, :]
 
-        n_viable = len(viable_to_all_lookup)
-        probabilities = np.ones(n_viable) * self.greed / n_viable
-
-        best_value_viable = np.argmax(q_values)
-        probabilities[best_value_viable] += 1 - self.greed
+        if n_viable > 0:
+            viable_to_all_lookup = np.atleast_1d(
+                np.argwhere(action_is_viable).squeeze()
+            )
+            viable_q_values = q_values[action_is_viable]
+            action_index_in_viable = choose_action(viable_q_values)
+            raveled_index = viable_to_all_lookup[action_index_in_viable]
+        else:
+            raveled_index = choose_action(q_values)
 
         action_index = np.unravel_index(
-            viable_to_all_lookup[
-                np.random.choice(n_viable, p=probabilities)
-            ],
+            raveled_index,
             self.env.action_space.shape
         )
         action = self.env.action_space[action_index]
