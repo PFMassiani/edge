@@ -64,10 +64,19 @@ class SafetyTruth(GroundTruth):
         return train_x, train_y
 
     def measure(self, state, action):
-        index = self.stateaction_space.get_index_of(
-            (state, action), around_ok=True
-        )
-        return self.measure[index]
+        stateactions = self.stateaction_space[state, action]
+        if len(stateactions.shape) > 1:
+            index = [
+                self.stateaction_space.get_index_of(sa, around_ok=True)
+                for sa in stateactions
+            ]
+            # We get a tuple of indexes along each coordinate to index the
+            # NumPy array
+            index = tuple(zip(*index))
+        else:
+            index = tuple(self.stateaction_space.get_index_of(stateactions,
+                                                              around_ok=True))
+        return self.measure_value[index]
 
     def is_viable(self, state=None, action=None, stateaction=None):
         if stateaction is None:

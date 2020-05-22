@@ -1,6 +1,6 @@
 class Policy:
-    def __init__(self, env):
-        self.env = env
+    def __init__(self, stateaction_space):
+        self.stateaction_space = stateaction_space
 
     def __call__(self, *args, **kwargs):
         return self.get_action(*args, **kwargs)

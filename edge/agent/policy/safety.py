@@ -4,15 +4,15 @@ from .policy import Policy
 
 
 class SafetyMaximization(Policy):
-    def __init__(self, env):
-        super(SafetyMaximization, self).__init__(env)
+    def __init__(self, stateaction_space):
+        super(SafetyMaximization, self).__init__(stateaction_space)
 
     def get_action(self, cautious_probability):
         action_index = np.unravel_index(
             np.argmax(cautious_probability),
-            shape=self.env.action_space.shape
+            shape=self.stateaction_space.action_space.shape
         )
-        action = self.env.action_space[action_index]
+        action = self.stateaction_space.action_space[action_index]
         return action
 
     def get_policy_map(self):
@@ -20,8 +20,8 @@ class SafetyMaximization(Policy):
 
 
 class SafetyActiveSampling(Policy):
-    def __init__(self, env):
-        super(SafetyActiveSampling, self).__init__(env)
+    def __init__(self, stateaction_space):
+        super(SafetyActiveSampling, self).__init__(stateaction_space)
 
     def get_action(self, safety_covariance, is_cautious):
         if not is_cautious.any():
@@ -37,7 +37,7 @@ class SafetyActiveSampling(Policy):
             safety_covariance[cautious_indexes]
         )
         action_idx = tuple(cautious_indexes[most_variance_action])
-        action = self.env.action_space[action_idx]
+        action = self.stateaction_space.action_space[action_idx]
         return action
 
     def get_policy_map(self):

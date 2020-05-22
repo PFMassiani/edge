@@ -36,6 +36,7 @@ class QLearner(Agent):
 
 class ConstrainedQLearner(Agent):
     def __init__(self, env, safety_measure, greed, step_size, discount_rate,
+                 safety_threshold,
                  x_seed, y_seed, gp_params=None, keep_seed_in_data=True):
         Q_model = GPQLearning(env, step_size, discount_rate,
                               x_seed=x_seed, y_seed=y_seed,
@@ -44,17 +45,20 @@ class ConstrainedQLearner(Agent):
 
         self.Q_model = Q_model
         self.safety_measure = safety_measure
-        self.constrained_value_policy = ConstrainedEpsilonGreedy(env, greed)
-        self.safety_maximization_policy = SafetyMaximization(env)
+        self.constrained_value_policy = ConstrainedEpsilonGreedy(
+            self.env.stateaction_space, greed)
+        self.safety_maximization_policy = SafetyMaximization(
+            self.safety_measure.stateaction_space)
+        self.safety_threshold = safety_threshold
         self.keep_seed_in_data = keep_seed_in_data
         if not keep_seed_in_data:
             self.Q_model.empty_data()
 
     def get_next_action(self):
-        all_stateactions = self.Q_model.env.stateaction_space[self.state, :]
+        all_actions = self.Q_model.env.action_space[:].reshape(-1, 1)
         action_is_viable = [
-            self.safety_measure.is_viable(stateaction=sa)
-            for sa in all_stateactions
+            self.safety_measure.measure(self.state, a) > self.safety_threshold
+            for a in all_actions
         ]
         q_values = self.Q_model[self.state, :]
 
@@ -62,11 +66,12 @@ class ConstrainedQLearner(Agent):
             q_values, action_is_viable
         )
         if action is None:
-
-            safety_values = None
+            safety_values = self.safety_measure.measure(
+                self.state, slice(None, None, None)
+            )
             action = self.safety_maximization_policy.get_action(safety_values)
         if action is None:
-            raise NoActionError('The policies could not find a suitable action')
+            raise NoActionError('The agent could not find a suitable action')
 
         return action
 

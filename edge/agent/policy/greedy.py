@@ -4,8 +4,8 @@ from .policy import Policy
 
 
 class ConstrainedEpsilonGreedy(Policy):
-    def __init__(self, env, greed):
-        super(ConstrainedEpsilonGreedy, self).__init__(env)
+    def __init__(self, stateaction_space, greed):
+        super(ConstrainedEpsilonGreedy, self).__init__(stateaction_space)
         self.__greed = greed
 
     @property
@@ -41,9 +41,9 @@ class ConstrainedEpsilonGreedy(Policy):
             raveled_index = available_to_all_lookup[action_index_in_available]
             action_index = np.unravel_index(
                 raveled_index,
-                self.env.action_space.shape
+                self.stateaction_space.action_space.shape
             )
-            action = self.env.action_space[action_index]
+            action = self.stateaction_space.action_space[action_index]
             return action
         else:
             return None
@@ -53,9 +53,9 @@ class ConstrainedEpsilonGreedy(Policy):
 
 
 class EpsilonGreedy(ConstrainedEpsilonGreedy):
-    def __init__(self, env, greed):
-        super(EpsilonGreedy, self).__init__(env, greed)
+    def __init__(self, stateaction_space, greed):
+        super(EpsilonGreedy, self).__init__(stateaction_space, greed)
 
     def get_action(self, q_values):
-        constraint = np.ones(self.env.action_space.shape, dtype=bool)
+        constraint = np.ones(self.stateaction_space.action_space.shape, dtype=bool)
         return super(EpsilonGreedy, self).get_action(q_values, constraint)
