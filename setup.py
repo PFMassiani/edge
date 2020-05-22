@@ -7,5 +7,5 @@ setup(name='edge',
       author='Pierre-Francois Massiani',
       author_email='pfmassiani@gmail.com',
       license='MIT',
-      packages=['data', 'edge', 'examples', 'test'],
+      packages=['data', 'edge', 'test'],
       zip_safe=False)
