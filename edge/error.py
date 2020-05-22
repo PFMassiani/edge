@@ -15,3 +15,9 @@ class InvalidTarget(Exception):
     """
     Raised when the target space for a projection is invalid
     """
+
+
+class NoActionError(Exception):
+    """
+    Raised when an agent could not find a suitable action in a given state
+    """

@@ -2,6 +2,7 @@ import numpy as np
 
 from edge.model.safety_models import MaternSafety
 from . import Agent
+from .policy import SafetyActiveSampling, SafetyMaximization
 
 
 class SafetyLearner(Agent):
@@ -12,6 +13,9 @@ class SafetyLearner(Agent):
         super(SafetyLearner, self).__init__(env, safety_model)
 
         self.safety_model = safety_model
+
+        self.active_sampling_policy = SafetyActiveSampling(env)
+        self.safety_maximization_policy = SafetyMaximization(env)
 
         self.gamma_cautious = gamma_cautious
         self.lambda_cautious = lambda_cautious
@@ -46,21 +50,11 @@ class SafetyLearner(Agent):
             return_proba=True,
             return_covar=True
         )
-
-        if not is_cautious.any():
-            action_idx = np.unravel_index(
-                np.argmax(proba_slice),
-                shape=self.env.action_space.shape
-            )
-            action = self.env.action_space[action_idx]
-
-        else:
-            cautious_indexes = np.argwhere(is_cautious)
-            most_variance_action = np.argmax(
-                covar_slice[cautious_indexes]
-            )
-            action_idx = tuple(cautious_indexes[most_variance_action])
-            action = self.env.action_space[action_idx]
+        action = self.active_sampling_policy.get_action(
+            covar_slice, is_cautious
+        )
+        if action is None:
+            action = self.safety_maximization_policy.get_action(proba_slice)
 
         return action
 
