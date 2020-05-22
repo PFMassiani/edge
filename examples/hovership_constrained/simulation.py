@@ -21,7 +21,7 @@ class LowGoalHovership(Hovership):
 
 
 class ConstrainedSimulation(GPModelLearningSimulation):
-    def __init__(self, name, max_samples, step_size, discount_rate,
+    def __init__(self, name, max_samples, greed, step_size, discount_rate,
                  x_seed, y_seed,
                  shape, every):
         dynamics_parameters = {
@@ -41,7 +41,7 @@ class ConstrainedSimulation(GPModelLearningSimulation):
             'noise_prior': (0.001, 0.002)
         }
         self.agent = ConstrainedQLearner(self.env, self.ground_truth,
-                                         0.1, step_size, discount_rate,
+                                         greed, step_size, discount_rate,
                                          safety_threshold=0.05,
                                          x_seed=x_seed, y_seed=y_seed,
                                          gp_params=self.hyperparameters)
@@ -82,6 +82,8 @@ class ConstrainedSimulation(GPModelLearningSimulation):
                 old_state = self.agent.state
                 new_state, reward, failed = self.agent.step()
                 action = self.agent.last_action
+                if n_samples > 300:
+                    self.agent.greed *= (n_samples - 300) / (n_samples - 299)
 
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
@@ -94,15 +96,17 @@ class ConstrainedSimulation(GPModelLearningSimulation):
     def on_run_iteration(self, n_samples, *args, **kwargs):
         super(ConstrainedSimulation, self).on_run_iteration(*args, **kwargs)
 
-        print(f'Iteration {n_samples}/{self.max_samples}')
+        print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed}')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
+
 
 
 if __name__ == '__main__':
     sim = ConstrainedSimulation(
         name='constrained',
         max_samples=1000,
+        greed=0.1,
         step_size=0.6,
         discount_rate=0.9,
         x_seed=np.array([1.45, 0.7]),

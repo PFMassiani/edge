@@ -54,6 +54,14 @@ class ConstrainedQLearner(Agent):
         if not keep_seed_in_data:
             self.Q_model.empty_data()
 
+    @property
+    def greed(self):
+        return self.constrained_value_policy.greed
+
+    @greed.setter
+    def greed(self, new_greed):
+        self.constrained_value_policy.greed = new_greed
+
     def get_next_action(self):
         all_actions = self.Q_model.env.action_space[:].reshape(-1, 1)
         action_is_viable = [
@@ -66,6 +74,7 @@ class ConstrainedQLearner(Agent):
             q_values, action_is_viable
         )
         if action is None:
+            print('No viable action, taking the safest...')
             safety_values = self.safety_measure.measure(
                 self.state, slice(None, None, None)
             )
