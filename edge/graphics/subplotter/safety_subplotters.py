@@ -82,8 +82,8 @@ class SafetyMeasureSubplotter(Subplotter):
 
 class SafetyTruthSubplotter(Subplotter):
     def __init__(self, ground_truth, colors):
+        super(SafetyTruthSubplotter, self).__init__(colors)
         self.ground_truth = ground_truth
-        self.colors = colors
         self.states = squeeze(
             self.ground_truth.stateaction_space.state_space[:]
         )
@@ -95,9 +95,11 @@ class SafetyTruthSubplotter(Subplotter):
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
 
-    def draw_on_axs(self, ax_Q, ax_S):
-        self.draw_on_Q(ax_Q)
-        self.draw_on_S(ax_S)
+    def draw_on_axs(self, ax_Q=None, ax_S=None):
+        if ax_Q is not None:
+            self.draw_on_Q(ax_Q)
+        if ax_S is not None:
+            self.draw_on_S(ax_S)
 
     def draw_on_Q(self, ax_Q):
         def draw_contour(Q):

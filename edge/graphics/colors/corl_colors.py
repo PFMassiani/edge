@@ -19,4 +19,4 @@ cmap_var='cividis'
 cmap_meas='seismic'
 cmap_proba='seismic'
 
-cmap_q_values='BuGn'
+cmap_q_values='jet'
