@@ -18,10 +18,12 @@ class GPQLearning(GPModel):
         self.discount_rate = discount_rate
 
     def update(self, state, action, new_state, reward, failed):
+        current_value = self[state, action]
         q_value_step = self.step_size * (
             reward + self.discount_rate * np.max(self[new_state, :])
+            - current_value
         )
-        q_value_update = self[state, action] + q_value_step
+        q_value_update = current_value + q_value_step
 
         stateaction = self.env.stateaction_space[state, action]
         self.gp = self.gp.append_data(stateaction, q_value_update)

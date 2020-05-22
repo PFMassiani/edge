@@ -21,6 +21,7 @@ class QLearning(DiscreteModel):
 
         self.q_values[sa_index] = self[sa_index] + self.step_size * (
             reward + self.discount_rate * np.max(self[new_state, :])
+            - self.q_values[sa_index]
         )
 
     def query(self, index):
