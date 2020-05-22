@@ -10,8 +10,8 @@ HOVERSHIP_LOOKUP_DICTIONARY = {
 
 
 def get_parameters_lookup_dictionary(env):
-    envtype = type(env).__name__
-    if envtype == "Hovership":
+    from edge.envs import Hovership
+    if isinstance(env, Hovership):
         return HOVERSHIP_LOOKUP_DICTIONARY
     else:
         return None

@@ -1,7 +1,6 @@
 from itertools import product
 import numpy as np
 
-from edge.utils import ensure_list
 from edge import error
 
 
@@ -19,6 +18,10 @@ class Space:
         raise NotImplementedError
 
     def closest_in(self, x):
+        raise NotImplementedError
+
+    @property
+    def limits(self):
         raise NotImplementedError
 
     @staticmethod
@@ -177,9 +180,9 @@ class ProductSpace(DiscretizableSpace):
             index_slice = self._index_slices[ns]
             # It is only possible to assign iterables to slices, so we need
             # the ensure_list wrapping
-            index[index_slice] = ensure_list(
+            index[index_slice] = np.atleast_1d(
                 s.get_index_of(x[index_slice], around_ok)
-            )
+            ).tolist()
         return tuple(index)
 
     def closest_in(self, x):
@@ -190,6 +193,15 @@ class ProductSpace(DiscretizableSpace):
             mask = self._index_slices[ns]
             y[mask] = self.sets[ns].closest_in(x[mask])
         return y
+
+    @property
+    def limits(self):
+        limits = [None] * self._n_flattened_sets
+        for ns in range(self._n_flattened_sets):
+            s = self._flattened_sets[ns]
+            limits[ns] = s.limits
+        return tuple(limits)
+
 
     def get_component(self, x, target):
         if target not in self.sets:

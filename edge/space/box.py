@@ -3,7 +3,6 @@ from numbers import Number
 
 from .space import DiscretizableSpace, ProductSpace
 from edge import error
-from edge.utils import ensure_np
 
 
 class Segment(DiscretizableSpace):
@@ -85,6 +84,10 @@ class Segment(DiscretizableSpace):
     def closest_in(self, x):
         return np.clip(x, self.low, self.high)
 
+    @property
+    def limits(self):
+        return self.low, self.high
+
 
 class Box(ProductSpace):
     def __init__(self, low, high, shape):
@@ -93,8 +96,8 @@ class Box(ProductSpace):
             low = np.array([low] * self.dim)
             high = np.array([high] * self.dim)
         else:
-            low = ensure_np(low)
-            high = ensure_np(high)
+            low = np.array(low)
+            high = np.array(high)
             if not (low.shape == high.shape) and (low.shape == shape):
                 raise ValueError(f'Shape mismatch. Low {low.shape} High '
                                  '{high.shape} Shape {shape}')
