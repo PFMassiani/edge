@@ -20,6 +20,14 @@ class QLearner(Agent):
         if not keep_seed_in_data:
             self.Q_model.empty_data()
 
+    @property
+    def greed(self):
+        return self.policy.greed
+
+    @greed.setter
+    def greed(self, new_greed):
+        self.policy.greed = new_greed
+
     def get_next_action(self):
         q_values = self.Q_model[self.state, :]
         action = self.policy.get_action(q_values)

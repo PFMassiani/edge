@@ -51,10 +51,9 @@ class Hovership(Environment):
             random_start=random_start
         )
 
-    @property
-    def in_failure_state(self):
+    def is_failure_state(self, state):
         # TODO change so it uses stateaction wrappers
-        return self.s[0] == 0
+        return state == 0
 
 
 class DiscreteHovership(Environment):
@@ -97,6 +96,5 @@ class DiscreteHovership(Environment):
             random_start=random_start
         )
 
-    @property
-    def in_failure_state(self):
-        return self.s[0] == 0
+    def is_failure_state(self, state):
+        return state[0] == 0

@@ -28,9 +28,12 @@ class Environment:
     def has_failed(self):
         return (not self.feasible) or self.in_failure_state
 
+    def is_failure_state(self, state):
+        raise NotImplementedError
+
     @property
     def in_failure_state(self):
-        raise NotImplementedError
+        return self.is_failure_state(self.s)
 
     @property
     def state_index(self):
