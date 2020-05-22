@@ -18,3 +18,5 @@ unviable = tuple([c / 256 for c in yellow])
 cmap_var='cividis'
 cmap_meas='seismic'
 cmap_proba='seismic'
+
+cmap_q_values='BuGn'
