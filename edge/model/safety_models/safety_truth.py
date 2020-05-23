@@ -1,5 +1,6 @@
 import pickle as pkl
 import numpy as np
+from pathlib import Path
 
 from .. import GroundTruth
 from edge.space import Segment, ProductSpace, StateActionSpace
@@ -150,3 +151,66 @@ class SafetyTruth(GroundTruth):
                         f'{vibly_pname} does not match. Expected {value}, '
                         f'got {vibly_value}'
                     )
+
+    def compute(self, Q_map_path=None):
+        self.stateaction_space = self.env.stateaction_space
+
+        if Q_map_path is not None:
+            Q_map = np.load(Q_map_path)
+            if Q_map.shape != self.stateaction_space.shape:
+                raise ValueError('Loaded map shape and stateaction space shape '
+                                 'don\'t match')
+        else:
+            Q_map = self.env.dynamics.compute_map()
+        action_axes = tuple([
+            self.stateaction_space.state_space.index_dim + k
+            for k in range(self.stateaction_space.action_space.index_dim)
+        ])
+
+        def next_state_fails(next_index):
+            return self.env.is_failure_state(
+                self.stateaction_space.state_space[next_index]
+            )
+
+        failure_set = np.array(
+            list(map(
+                next_state_fails,
+                Q_map.reshape(-1).tolist()
+            ))
+        ).reshape(Q_map.shape)
+        viable_set = np.logical_not(failure_set)
+        viability_kernel = viable_set.any(axis=action_axes)
+        previous_viability_kernel = np.zeros_like(viability_kernel, dtype=bool)
+
+        done = False
+        while not done:
+            for index, _ in iter(self.stateaction_space):
+                is_viable = viable_set[index]
+                if is_viable:
+                    next_state_index = Q_map[index]
+                    next_is_viable = viability_kernel[next_state_index]
+                    if not next_is_viable:
+                        viable_set[index] = False
+            previous_viability_kernel = viability_kernel
+            viability_kernel = viable_set.any(axis=action_axes)
+            done = np.all(viability_kernel == previous_viability_kernel)
+
+
+        self.viable_set = viable_set
+        self.failure_set = failure_set
+        self.unviable_set = np.logical_and(
+            np.logical_not(viable_set),
+            np.logical_not(failure_set)
+        )
+        self.state_measure = self.viable_set.mean(axis=action_axes)
+
+        def next_state_measure(next_index):
+            return self.state_measure[next_index]
+        self.measure_value = np.array(
+            list(map(
+                next_state_measure,
+                Q_map.reshape(-1).tolist()
+            ))
+        ).reshape(Q_map.shape)
+
+

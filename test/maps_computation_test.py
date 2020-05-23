@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 
 from edge.envs import Hovership, DiscreteHovership
+from edge.model.safety_models import SafetyTruth
 
 
 class MyDiscreteHovership(DiscreteHovership):
@@ -35,6 +36,26 @@ class MyTestCase(unittest.TestCase):
             (true_Q_map == Q_map).all(),
             'Error: computed Q_map is different from ground truth.\nComputed:\n'
             f'{Q_map}\nGround truth:\n{true_Q_map}'
+        )
+
+    def test_safety_map(self):
+        env = MyDiscreteHovership()
+        safety = SafetyTruth(env)
+        safety.compute()
+
+        true_safety_map = np.array([
+            [False, False, False,  False],
+            [False, False, False,  False],
+            [False, False, False,  True],
+            [False, True,  True,   True],
+            [True,  True,  True,   True],
+            [True,  True,  True,   True]
+        ])
+
+        self.assertTrue(
+            np.all(safety.viable_set == true_safety_map),
+            'Error: computed Safety map is different from ground truth.\n'
+            f'Computed:\n{safety.viable_set}\nGround truth:\n{true_safety_map}'
         )
 
 
