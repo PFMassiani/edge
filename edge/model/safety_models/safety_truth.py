@@ -135,6 +135,7 @@ class SafetyTruth(GroundTruth):
         self.unviable_set = ~self.failure_set
         self.unviable_set[self.viable_set] = False
 
+        # TODO get rid of that
         self.viable_set = self.viable_set.astype(float)
         self.failure_set = self.failure_set.astype(float)
         self.unviable_set = self.unviable_set.astype(float)
@@ -213,4 +214,29 @@ class SafetyTruth(GroundTruth):
             ))
         ).reshape(Q_map.shape)
 
+    def save(self, save_path):
+        save_dict = {
+            'viable_set': self.viable_set,
+            'unviable_set': self.unviable_set,
+            'failure_set': self.failure_set,
+            'state_measure': self.state_measure,
+            'measure_value': self.measure_value
+        }
+        np.savez(save_path, **save_dict)
 
+    @staticmethod
+    def load(load_path, env):
+        truth = SafetyTruth(env)
+        truth.stateaction_space = env.stateaction_space
+
+        loaded = np.load(load_path)
+
+        for attribute_name, attribute in loaded.items():
+            setattr(truth, attribute_name, attribute)
+
+        if truth.stateaction_space.shape != truth.viable_set.shape:
+            raise ValueError(f'Got {truth.viable_set.shape} shape for the '
+                             'viable set, expected '
+                             f'{truth.stateaction_space.shape}')
+
+        return truth

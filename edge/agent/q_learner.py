@@ -162,7 +162,7 @@ class DiscreteQLearner(Agent):
         if not self.is_constrained:
             return None
         else:
-            is_viable = self.constraint.state_measure > 0
+            is_viable = self.constraint.state_measure > self.safety_threshold
             viable_indexes = np.argwhere(is_viable).squeeze()
             state_index = viable_indexes[np.random.choice(len(viable_indexes))]
             state = self.constraint.stateaction_space.state_space[state_index]

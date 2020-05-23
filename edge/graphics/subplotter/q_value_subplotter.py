@@ -20,20 +20,28 @@ class QValueSubplotter(Subplotter):
     def model(self):
         return self.agent.Q_model
 
-    def draw_on_axs(self, ax_Q, Q_values):
-        qmin = Q_values.min()
-        qmax = Q_values.max()
+    def __get_min_max(self, Q_values):
+        nonzero_Q = Q_values[Q_values.nonzero()]
+        if len(nonzero_Q) == 0:
+            return 0.9, 1.1
+        else:
+            qmin = nonzero_Q.min()
+            qmax = nonzero_Q.max()
         if self.min is None or qmin < self.min:
             self.min = qmin
         if self.max is None or qmax > self.max:
             self.max = qmax
+        return self.min, self.max
+
+    def draw_on_axs(self, ax_Q, Q_values):
+        vmin, vmax = self.__get_min_max(Q_values)
         image = ax_Q.pcolormesh(
             self.actions_grid,
             self.states_grid,
             Q_values,
             cmap=self.colors.cmap_q_values,
-            vmin=self.min,
-            vmax=self.max,
+            vmin=vmin,
+            vmax=vmax,
             alpha=0.7
         )
 

@@ -1,3 +1,5 @@
+from matplotlib import cm
+
 dark_blue = [31, 120, 180]
 light_blue = [166, 206, 227]
 
@@ -15,8 +17,10 @@ truth = tuple([c / 256 for c in green])
 failure = tuple([c / 256 for c in orange])
 unviable = tuple([c / 256 for c in yellow])
 
-cmap_var='cividis'
-cmap_meas='seismic'
-cmap_proba='seismic'
+cmap_var = cm.cividis
+cmap_meas = cm.seismic
+cmap_proba = cm.seismic
 
-cmap_q_values='jet'
+cmap_q_values = cm.seismic
+# cmap_q_values.set_under('gray', alpha=0)
+cmap_q_values.set_over('gray', alpha=0)

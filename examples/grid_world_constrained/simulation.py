@@ -1,5 +1,4 @@
 from pathlib import Path
-import numpy as np
 
 from edge import ModelLearningSimulation
 from edge.envs import DiscreteHovership
@@ -23,17 +22,20 @@ class LowGoalHovership(DiscreteHovership):
 
 class ConstrainedSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
-                 every):
+                 every, glie_start):
+        output_directory = Path(__file__).parent.resolve()
+        super(ConstrainedSimulation, self).__init__(output_directory, name,
+                                                    None)
         dynamics_parameters = {
+            'ground_gravity': 10,
+            'gravity_gradient': 5,
+            'max_thrust': 50,
+            'max_altitude': 50,
+            'minimum_gravity_altitude': 40
         }
         self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters)
 
-        # TODO implement Ground Truth computation
-        self.ground_truth = SafetyTruth(self.env)
-        self.ground_truth.from_vibly_file(
-            Path(__file__).parent.parent.parent / 'data' / 'ground_truth' /
-                'from_vibly' / 'hover_map.pickle'
-        )
+        self.ground_truth = self.get_ground_truth()
 
         self.agent = DiscreteQLearner(self.env, greed, step_size, discount_rate,
                                       constraint=self.ground_truth,
@@ -43,12 +45,11 @@ class ConstrainedSimulation(ModelLearningSimulation):
             'Q-Values': QValuePlotter(self.agent, self.agent.constraint)
         }
 
-        output_directory = Path(__file__).parent.resolve()
-        super(ConstrainedSimulation, self).__init__(output_directory, name,
-                                                    plotters)
+        self.plotters = plotters
 
         self.max_samples = max_samples
         self.every = every
+        self.glie_start = glie_start
 
     def get_models_to_save(self):
         return {'q_values': self.agent.Q_model}
@@ -60,7 +61,24 @@ class ConstrainedSimulation(ModelLearningSimulation):
 
         else:
             load_path = self.models_path / model_name
-        self.agent.value_model = GPQLearning.load(load_path)
+        self.agent.value_model = QLearning.load(load_path)
+
+    def get_ground_truth(self):
+        self.ground_truth_path = self.local_models_path / 'safety_ground_truth.npz'
+        load = self.ground_truth_path.exists()
+        if load:
+            try:
+                ground_truth = SafetyTruth.load(
+                    self.ground_truth_path, self.env
+                )
+            except ValueError:
+                load = False
+        if not load:
+            ground_truth = SafetyTruth(self.env)
+            ground_truth.compute()
+            ground_truth.save(self.ground_truth_path)
+        return ground_truth
+
 
     def run(self):
         n_samples = 0
@@ -74,8 +92,10 @@ class ConstrainedSimulation(ModelLearningSimulation):
                 old_state = self.agent.state
                 new_state, reward, failed = self.agent.step()
                 action = self.agent.last_action
-                # if n_samples > 300:
-                #     self.agent.greed *= (n_samples - 300) / (n_samples - 299)
+                if self.glie_start is not None and n_samples > self.glie_start:
+                    self.agent.greed *= (n_samples - self.glie_start) / (
+                            n_samples - (self.glie_start - 1)
+                    )
 
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
@@ -85,10 +105,14 @@ class ConstrainedSimulation(ModelLearningSimulation):
             reset_state = self.agent.get_random_safe_state()
             self.agent.reset(reset_state)
 
-    def on_run_iteration(self, n_samples, *args, **kwargs):
-        super(ConstrainedSimulation, self).on_run_iteration(*args, **kwargs)
+    def on_run_iteration(self, n_samples, old_state, action, new_state,
+                                      reward, failed):
+        super(ConstrainedSimulation, self).on_run_iteration(old_state, action,
+                                                          new_state, reward,
+                                                          failed)
 
-        print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed}')
+        # print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed} | '
+        #       f'{old_state} -> {action} -> {new_state} ({reward})')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -96,11 +120,12 @@ class ConstrainedSimulation(ModelLearningSimulation):
 if __name__ == '__main__':
     sim = ConstrainedSimulation(
         name='constrained',
-        max_samples=1000,
+        max_samples=10000,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.9,
-        every=50
+        every=1000,
+        glie_start=None
     )
     sim.set_seed(0)
 

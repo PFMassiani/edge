@@ -49,9 +49,6 @@ class Discrete(DiscretizableSpace):
     def get_index_of(self, x, around_ok=False):
         if x not in self:
             raise error.OutOfSpace
-        if around_ok:
-            raise ValueError('around_ok=True is not supported for Discrete '
-                             'spaces.')
 
         return np.argmax(self.__discretization == x)
 

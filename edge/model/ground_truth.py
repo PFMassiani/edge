@@ -10,3 +10,10 @@ class GroundTruth:
 
     def from_vibly_file(self, vibly_file_path):
         raise NotImplementedError
+
+    def save(self, save_path):
+        raise NotImplementedError
+
+    @staticmethod
+    def load(load_path):
+        raise NotImplementedError

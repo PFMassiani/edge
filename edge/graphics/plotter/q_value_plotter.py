@@ -41,4 +41,4 @@ class QValuePlotter(Plotter):
         return Q_values
 
     def on_run_iteration(self, state, action, new_state, reward, failed):
-        self.sample_subplotter.incur_sample(state, action, failed)
+        pass

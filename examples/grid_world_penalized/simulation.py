@@ -36,18 +36,20 @@ class PenalizedHovership(LowGoalHovership):
 class PenalizedSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
                  penalty_level, every, glie_start):
+        output_directory = Path(__file__).parent.resolve()
+        super(PenalizedSimulation, self).__init__(output_directory, name,
+                                                    None)
         dynamics_parameters = {
             'ground_gravity': 10,
             'gravity_gradient': 5,
-            'max_thrust': 30,
+            'max_thrust': 50,
             'max_altitude': 50,
             'minimum_gravity_altitude': 40
         }
         self.env = PenalizedHovership(penalty_level=penalty_level,
                                       dynamics_parameters=dynamics_parameters)
 
-        # TODO implement Ground Truth computation
-        self.ground_truth = None
+        self.ground_truth = self.get_ground_truth()
 
         self.agent = DiscreteQLearner(self.env, greed, step_size, discount_rate)
 
@@ -55,9 +57,7 @@ class PenalizedSimulation(ModelLearningSimulation):
             'Q-Values': QValuePlotter(self.agent, self.ground_truth)
         }
 
-        output_directory = Path(__file__).parent.resolve()
-        super(PenalizedSimulation, self).__init__(output_directory, name,
-                                                    plotters)
+        self.plotters = plotters
 
         self.max_samples = max_samples
         self.every = every
@@ -74,6 +74,16 @@ class PenalizedSimulation(ModelLearningSimulation):
         else:
             load_path = self.models_path / model_name
         self.agent.value_model = GPQLearning.load(load_path)
+
+    def get_ground_truth(self):
+        self.ground_truth_path = self.local_models_path / 'safety_ground_truth.npz'
+        if not self.ground_truth_path.exists():
+            ground_truth = SafetyTruth(self.env)
+            ground_truth.compute()
+            ground_truth.save(self.ground_truth_path)
+        else:
+            ground_truth = SafetyTruth.load(self.ground_truth_path, self.env)
+        return ground_truth
 
     def run(self):
         n_samples = 0
@@ -106,8 +116,8 @@ class PenalizedSimulation(ModelLearningSimulation):
         #                                                   new_state, reward,
         #                                                   failed)
 
-        print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed} | '
-              f'{old_state} -> {action} -> {new_state} ({reward})')
+        # print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed} | '
+        #       f'{old_state} -> {action} -> {new_state} ({reward})')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
