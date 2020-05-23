@@ -1,20 +1,19 @@
 from pathlib import Path
-import numpy as np
 
 from edge import ModelLearningSimulation
-from edge.envs import Hovership
-from edge.agent import QLearner
+from edge.envs import DiscreteHovership
+from edge.agent import DiscreteQLearner
 from edge.reward import AffineReward, ConstantReward
 from edge.model.safety_models import SafetyTruth
 from edge.model.value_models import GPQLearning
 from edge.graphics.plotter import QValuePlotter
 
 
-class LowGoalHovership(Hovership):
+class LowGoalHovership(DiscreteHovership):
     def __init__(self, dynamics_parameters=None):
         super(LowGoalHovership, self).__init__(
-            dynamics_parameters=dynamics_parameters,
-            random_start=True
+            random_start=True,
+            dynamics_parameters=dynamics_parameters
         )
 
         reward = AffineReward(self.stateaction_space, [(5,-5), (0, 0)])
@@ -24,6 +23,7 @@ class LowGoalHovership(Hovership):
 class PenalizedHovership(LowGoalHovership):
     def __init__(self, penalty_level=100, dynamics_parameters=None):
         super(PenalizedHovership, self).__init__(dynamics_parameters)
+
         def penalty_condition(state, action, new_state, reward):
             return self.is_failure_state(new_state)
 
@@ -32,33 +32,24 @@ class PenalizedHovership(LowGoalHovership):
 
         self.reward += penalty
 
+
 class PenalizedSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
-                 penalty_level, x_seed, y_seed,
-                 shape, every):
+                 penalty_level, every, glie_start):
         dynamics_parameters = {
-            'shape':shape
+            'ground_gravity': 10,
+            'gravity_gradient': 5,
+            'max_thrust': 30,
+            'max_altitude': 50,
+            'minimum_gravity_altitude': 40
         }
         self.env = PenalizedHovership(penalty_level=penalty_level,
                                       dynamics_parameters=dynamics_parameters)
 
-        self.ground_truth = SafetyTruth(self.env)
-        self.ground_truth.from_vibly_file(
-            Path(__file__).parent.parent.parent / 'data' / 'ground_truth' /
-                'from_vibly' / 'hover_map.pickle'
-        )
+        # TODO implement Ground Truth computation
+        self.ground_truth = None
 
-        self.hyperparameters = {
-            'outputscale_prior': (0.4, 2),
-            'lengthscale_prior': (0.2, 0.2),
-            'noise_prior': (0.001, 0.002)
-        }
-        self.x_seed = x_seed
-        self.y_seed = y_seed
-        self.agent = QLearner(self.env,
-                              greed, step_size, discount_rate,
-                              x_seed=self.x_seed, y_seed=self.y_seed,
-                              gp_params=self.hyperparameters)
+        self.agent = DiscreteQLearner(self.env, greed, step_size, discount_rate)
 
         plotters = {
             'Q-Values': QValuePlotter(self.agent, self.ground_truth)
@@ -66,10 +57,11 @@ class PenalizedSimulation(ModelLearningSimulation):
 
         output_directory = Path(__file__).parent.resolve()
         super(PenalizedSimulation, self).__init__(output_directory, name,
-                                                  plotters)
+                                                    plotters)
 
         self.max_samples = max_samples
         self.every = every
+        self.glie_start = glie_start
 
     def get_models_to_save(self):
         return {'q_values': self.agent.Q_model}
@@ -78,10 +70,10 @@ class PenalizedSimulation(ModelLearningSimulation):
         model_name = list(self.get_models_to_save().keys())[0]
         if not skip_local:
             load_path = self.local_models_path / model_name
+
         else:
             load_path = self.models_path / model_name
-        self.agent.value_model = GPQLearning.load(load_path, self.env,
-                                                  self.x_seed, self.y_seed)
+        self.agent.value_model = GPQLearning.load(load_path)
 
     def run(self):
         n_samples = 0
@@ -95,36 +87,41 @@ class PenalizedSimulation(ModelLearningSimulation):
                 old_state = self.agent.state
                 new_state, reward, failed = self.agent.step()
                 action = self.agent.last_action
-                # if n_samples > 300:
-                #     self.agent.greed *= (n_samples - 300) / (n_samples - 299)
+                if self.glie_start is not None and n_samples > self.glie_start:
+                    self.agent.greed *= (n_samples - self.glie_start) / (
+                            n_samples - (self.glie_start - 1)
+                    )
 
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
 
                 if n_samples >= self.max_samples:
                     break
-            self.agent.reset()
+            reset_state = self.agent.get_random_safe_state()
+            self.agent.reset(reset_state)
 
-    def on_run_iteration(self, n_samples, *args, **kwargs):
-        super(PenalizedSimulation, self).on_run_iteration(*args, **kwargs)
+    def on_run_iteration(self, n_samples, old_state, action, new_state,
+                                      reward, failed):
+        # super(PenalizedSimulation, self).on_run_iteration(old_state, action,
+        #                                                   new_state, reward,
+        #                                                   failed)
 
-        print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed}')
+        print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed} | '
+              f'{old_state} -> {action} -> {new_state} ({reward})')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
 
 if __name__ == '__main__':
     sim = PenalizedSimulation(
-        name='2000',
-        max_samples=2000,
+        name='penalized',
+        max_samples=10000,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.9,
         penalty_level=100,
-        x_seed=np.array([1.45, 0.7]),
-        y_seed=np.array([1]),
-        shape=(201, 151),
-        every=50
+        every=1000,
+        glie_start=None
     )
     sim.set_seed(0)
 

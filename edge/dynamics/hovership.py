@@ -64,7 +64,7 @@ class HovershipDynamics(TimestepIntegratedDynamics):
 
 class DiscreteHovershipDynamics(DiscreteTimeDynamics):
     def __init__(self, ground_gravity, gravity_gradient, max_thrust,
-                 max_altitude):
+                 max_altitude, minimum_gravity_altitude):
         stateaction_space = StateActionSpace(
             Discrete(max_altitude + 1),
             Discrete(max_thrust + 1)
@@ -72,7 +72,7 @@ class DiscreteHovershipDynamics(DiscreteTimeDynamics):
         super(DiscreteHovershipDynamics, self).__init__(stateaction_space)
         self.ground_gravity = ground_gravity
         self.gravity_gradient = gravity_gradient
-        self.ceiling_value = stateaction_space.state_space.n
+        self.minimum_gravity_altitude = minimum_gravity_altitude
 
     def is_feasible_state(self, state):
         if state not in self.stateaction_space.state_space:
@@ -86,9 +86,14 @@ class DiscreteHovershipDynamics(DiscreteTimeDynamics):
         if not self.is_feasible_state(state):
             return state, False
 
+        gravity_field = np.max((
+            0,
+            (self.minimum_gravity_altitude - state)
+        )) * self.gravity_gradient
+
         dynamics_step = action + min(
             0,
-            - self.ground_gravity + state * self.gravity_gradient
+            - self.ground_gravity - gravity_field + action
         )
         new_state = self.stateaction_space.state_space.closest_in(
             state + dynamics_step

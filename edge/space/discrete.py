@@ -19,6 +19,8 @@ class Discrete(DiscretizableSpace):
 
         self.__discretization = discretization
         self.n = n
+        self.start = self.__discretization[0,0]
+        self.end = self.__discretization[-1,0]
 
     def __getitem__(self, index):
         if isinstance(index, np.ndarray):
@@ -55,3 +57,7 @@ class Discrete(DiscretizableSpace):
 
     def closest_in(self, x):
         return self[np.argmin(np.abs(self.__discretization - x))]
+
+    @property
+    def limits(self):
+        return (self.start, self.end)

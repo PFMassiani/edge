@@ -1,1 +1,1 @@
-from .simulation import Simulation, GPModelLearningSimulation
+from .simulation import Simulation, ModelLearningSimulation

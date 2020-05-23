@@ -62,9 +62,9 @@ class Simulation:
                 print(f'Error: could not compile {name}.gif. Exception: {e}')
 
 
-class GPModelLearningSimulation(Simulation):
+class ModelLearningSimulation(Simulation):
     def __init__(self, output_directory, name, plotters):
-        super(GPModelLearningSimulation, self).__init__(
+        super(ModelLearningSimulation, self).__init__(
             output_directory, name, plotters
         )
         self.models_path = Path(__file__).parent / 'data' / 'models'

@@ -32,7 +32,7 @@ class QValueSubplotter(Subplotter):
             self.states_grid,
             Q_values,
             cmap=self.colors.cmap_q_values,
-            vmin=-10,  # self.min,
+            vmin=self.min,
             vmax=self.max,
             alpha=0.7
         )

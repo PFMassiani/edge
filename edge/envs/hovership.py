@@ -62,10 +62,11 @@ class DiscreteHovership(Environment):
         if dynamics_parameters is None:
             dynamics_parameters = {}
         default_dynamics_parameters = {
-            'ground_gravity': 4,
+            'ground_gravity': 1,
             'gravity_gradient': 1,
-            'max_thrust': 2,
-            'max_altitude': 3
+            'max_thrust': 3,
+            'max_altitude': 5,
+            'minimum_gravity_altitude': 4
         }
         default_dynamics_parameters.update(dynamics_parameters)
         dynamics = DiscreteHovershipDynamics(**default_dynamics_parameters)

@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 
-from edge import GPModelLearningSimulation
+from edge import ModelLearningSimulation
 from edge.envs import Hovership
 from edge.agent import ConstrainedQLearner
 from edge.reward import AffineReward
@@ -20,7 +20,7 @@ class LowGoalHovership(Hovership):
         self.reward = reward
 
 
-class ConstrainedSimulation(GPModelLearningSimulation):
+class ConstrainedSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
                  x_seed, y_seed,
                  shape, every):

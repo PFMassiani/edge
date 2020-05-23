@@ -11,7 +11,8 @@ class SafetyTruth(GroundTruth):
         super(SafetyTruth, self).__init__()
         self.env = env
 
-        # These attributes are initialized either by compute or from_vibly_file
+        # These attributes are initialized either by compute, load,
+        # or from_vibly_file
         self.stateaction_space = None
         self.viable_set = None
         self.unviable_set = None
