@@ -1,4 +1,4 @@
-from numpy import atleast_1d
+import numpy as np
 
 from .event import EventBased
 from edge import error
@@ -17,6 +17,18 @@ class DiscreteTimeDynamics(EventBased):
 
     def is_feasible_state(self, state):
         raise NotImplementedError
+
+    def compute_map(self):
+        Q_map = np.zeros(self.stateaction_space.shape, dtype=int)
+        for sa_index, stateaction in iter(self.stateaction_space):
+            state, action = self.stateaction_space.get_tuple(stateaction)
+            next_state, failed = self.step(state, action)
+            next_state_index = self.stateaction_space.state_space.get_index_of(
+                next_state
+            )
+            Q_map[sa_index] = next_state_index
+        return Q_map
+
 
 
 class TimestepIntegratedDynamics(DiscreteTimeDynamics):
@@ -40,7 +52,7 @@ class TimestepIntegratedDynamics(DiscreteTimeDynamics):
             return state, False
 
         trajectory = self.get_trajectory(state, action)
-        new_state = atleast_1d(trajectory.y[:, -1])
+        new_state = np.atleast_1d(trajectory.y[:, -1])
         new_state = self.ensure_in_state_space(new_state)
         is_feasible = self.is_feasible_state(new_state)
 

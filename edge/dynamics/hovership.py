@@ -91,10 +91,8 @@ class DiscreteHovershipDynamics(DiscreteTimeDynamics):
             (self.minimum_gravity_altitude - state)
         )) * self.gravity_gradient
 
-        dynamics_step = action + min(
-            0,
-            - self.ground_gravity - gravity_field + action
-        )
+        dynamics_step = action - self.ground_gravity - gravity_field
+
         new_state = self.stateaction_space.state_space.closest_in(
             state + dynamics_step
         )
