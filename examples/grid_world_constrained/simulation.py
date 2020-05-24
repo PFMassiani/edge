@@ -16,7 +16,7 @@ class LowGoalHovership(DiscreteHovership):
             dynamics_parameters=dynamics_parameters
         )
 
-        reward = AffineReward(self.stateaction_space, [(5,-5), (0, 0)])
+        reward = AffineReward(self.stateaction_space, [(10,0), (0, 0)])
         self.reward = reward
 
 
@@ -27,11 +27,12 @@ class ConstrainedSimulation(ModelLearningSimulation):
         super(ConstrainedSimulation, self).__init__(output_directory, name,
                                                     None)
         dynamics_parameters = {
-            'ground_gravity': 10,
-            'gravity_gradient': 5,
-            'max_thrust': 50,
-            'max_altitude': 50,
-            'minimum_gravity_altitude': 40
+            'ground_gravity': 1,
+            'gravity_gradient': 1,
+            'max_thrust': 4,
+            'max_altitude': 10,
+            'minimum_gravity_altitude': 9,
+            'maximum_gravity_altitude': 3
         }
         self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters)
 
@@ -84,6 +85,8 @@ class ConstrainedSimulation(ModelLearningSimulation):
         n_samples = 0
         self.save_figs(prefix='0')
         while n_samples < self.max_samples:
+            reset_state = self.agent.get_random_safe_state()
+            self.agent.reset(reset_state)
             failed = self.agent.failed
             n_steps = 0
             while not failed and n_steps < 50:
@@ -100,10 +103,10 @@ class ConstrainedSimulation(ModelLearningSimulation):
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
 
-                if n_samples >= self.max_samples:
+                if n_samples >= self.max_samples or old_state == new_state:
                     break
-            reset_state = self.agent.get_random_safe_state()
-            self.agent.reset(reset_state)
+
+        self.save_figs(prefix='final')
 
     def on_run_iteration(self, n_samples, old_state, action, new_state,
                                       reward, failed):
@@ -111,8 +114,8 @@ class ConstrainedSimulation(ModelLearningSimulation):
                                                           new_state, reward,
                                                           failed)
 
-        # print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed} | '
-        #       f'{old_state} -> {action} -> {new_state} ({reward})')
+        print(f'Iteration {n_samples}/{self.max_samples}: {self.agent.greed} | '
+              f'{old_state} -> {action} -> {new_state} ({reward})')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -120,12 +123,12 @@ class ConstrainedSimulation(ModelLearningSimulation):
 if __name__ == '__main__':
     sim = ConstrainedSimulation(
         name='constrained',
-        max_samples=10000,
+        max_samples=4000,
         greed=0.1,
         step_size=0.6,
-        discount_rate=0.9,
+        discount_rate=0.1,
         every=1000,
-        glie_start=None
+        glie_start=3000
     )
     sim.set_seed(0)
 

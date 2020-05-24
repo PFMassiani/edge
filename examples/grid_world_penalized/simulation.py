@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 
 from edge import ModelLearningSimulation
 from edge.envs import DiscreteHovership
@@ -16,7 +17,7 @@ class LowGoalHovership(DiscreteHovership):
             dynamics_parameters=dynamics_parameters
         )
 
-        reward = AffineReward(self.stateaction_space, [(5,-5), (0, 0)])
+        reward = AffineReward(self.stateaction_space, [(10,0), (0, 0)])
         self.reward = reward
 
 
@@ -40,11 +41,12 @@ class PenalizedSimulation(ModelLearningSimulation):
         super(PenalizedSimulation, self).__init__(output_directory, name,
                                                     None)
         dynamics_parameters = {
-            'ground_gravity': 10,
-            'gravity_gradient': 5,
-            'max_thrust': 50,
-            'max_altitude': 50,
-            'minimum_gravity_altitude': 40
+            'ground_gravity': 1,
+            'gravity_gradient': 1,
+            'max_thrust': 4,
+            'max_altitude': 10,
+            'minimum_gravity_altitude': 9,
+            'maximum_gravity_altitude': 3
         }
         self.env = PenalizedHovership(penalty_level=penalty_level,
                                       dynamics_parameters=dynamics_parameters)
@@ -77,18 +79,28 @@ class PenalizedSimulation(ModelLearningSimulation):
 
     def get_ground_truth(self):
         self.ground_truth_path = self.local_models_path / 'safety_ground_truth.npz'
-        if not self.ground_truth_path.exists():
+        load = self.ground_truth_path.exists()
+        if load:
+            try:
+                ground_truth = SafetyTruth.load(
+                    self.ground_truth_path, self.env
+                )
+            except ValueError:
+                load = False
+        if not load:
             ground_truth = SafetyTruth(self.env)
             ground_truth.compute()
             ground_truth.save(self.ground_truth_path)
-        else:
-            ground_truth = SafetyTruth.load(self.ground_truth_path, self.env)
+
         return ground_truth
 
     def run(self):
         n_samples = 0
         self.save_figs(prefix='0')
-        while n_samples < self.max_samples:
+        done = False
+        while (not done) and (n_samples < self.max_samples):
+            reset_state = self.agent.get_random_safe_state()
+            self.agent.reset(reset_state)
             failed = self.agent.failed
             n_steps = 0
             while not failed and n_steps < 50:
@@ -105,10 +117,10 @@ class PenalizedSimulation(ModelLearningSimulation):
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
 
-                if n_samples >= self.max_samples:
+                if n_samples >= self.max_samples or old_state == new_state:
                     break
-            reset_state = self.agent.get_random_safe_state()
-            self.agent.reset(reset_state)
+
+        self.save_figs(prefix='final')
 
     def on_run_iteration(self, n_samples, old_state, action, new_state,
                                       reward, failed):
@@ -125,13 +137,13 @@ class PenalizedSimulation(ModelLearningSimulation):
 if __name__ == '__main__':
     sim = PenalizedSimulation(
         name='penalized',
-        max_samples=10000,
+        max_samples=4000,
         greed=0.1,
         step_size=0.6,
-        discount_rate=0.9,
+        discount_rate=0.1,
         penalty_level=100,
         every=1000,
-        glie_start=None
+        glie_start=3000
     )
     sim.set_seed(0)
 
