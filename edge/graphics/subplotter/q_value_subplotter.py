@@ -1,4 +1,4 @@
-from numpy import squeeze
+from numpy import squeeze, around
 import matplotlib as mpl
 
 from . import Subplotter
@@ -42,16 +42,20 @@ class QValueSubplotter(Subplotter):
             # vmax=1,#vmax,
             alpha=0.7
         )
+        for i in range(Q_values.shape[0]):
+            for j in range(Q_values.shape[1]):
+                ax_Q.text(j, i, around(Q_values[i, j]),
+                          ha='center', va='center')
         ax_Q.set_xticks(self.actions)
         ax_Q.set_yticks(self.states)
 
         ax_Q.set_xlabel('action space $A$')
         ax_Q.set_ylabel('state space $S$')
-        frame_width_x = self.actions[-1] * .03
+        frame_width_x = self.actions[-1] * .1
         ax_Q.set_xlim((self.actions[0] - frame_width_x,
                        self.actions[-1] + frame_width_x))
 
-        frame_width_y = self.states[-1] * .03
+        frame_width_y = self.states[-1] * .05
         ax_Q.set_ylim((self.states[0] - frame_width_y,
                        self.states[-1] + frame_width_y))
 

@@ -135,17 +135,21 @@ class PenalizedSimulation(ModelLearningSimulation):
 
 
 if __name__ == '__main__':
-    sim = PenalizedSimulation(
-        name='penalized',
-        max_samples=4000,
-        greed=0.1,
-        step_size=0.6,
-        discount_rate=0.1,
-        penalty_level=100,
-        every=1000,
-        glie_start=3000
-    )
-    sim.set_seed(0)
+    # penalties = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    penalties = [10000]
+    for penalty in penalties:
+        print('Running simulation with penalty', penalty, '...')
+        sim = PenalizedSimulation(
+            name='penalty_' + str(penalty),
+            max_samples=10000,
+            greed=0.1,
+            step_size=0.6,
+            discount_rate=0.1,
+            penalty_level=penalty,
+            every=1000,
+            glie_start=7000
+        )
+        sim.set_seed(0)
 
-    sim.run()
-    sim.save_models()
+        sim.run()
+        sim.save_models()

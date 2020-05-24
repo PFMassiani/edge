@@ -40,7 +40,7 @@ class ConstrainedSimulation(ModelLearningSimulation):
 
         self.agent = DiscreteQLearner(self.env, greed, step_size, discount_rate,
                                       constraint=self.ground_truth,
-                                      safety_threshold=0.05)
+                                      safety_threshold=0)
 
         plotters = {
             'Q-Values': QValuePlotter(self.agent, self.agent.constraint)
@@ -123,12 +123,12 @@ class ConstrainedSimulation(ModelLearningSimulation):
 if __name__ == '__main__':
     sim = ConstrainedSimulation(
         name='constrained',
-        max_samples=4000,
+        max_samples=10000,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.1,
         every=1000,
-        glie_start=3000
+        glie_start=7000
     )
     sim.set_seed(0)
 
