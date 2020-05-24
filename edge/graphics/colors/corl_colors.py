@@ -1,4 +1,5 @@
 from matplotlib import cm
+from matplotlib import colors
 
 dark_blue = [31, 120, 180]
 light_blue = [166, 206, 227]
@@ -21,6 +22,6 @@ cmap_var = cm.cividis
 cmap_meas = cm.seismic
 cmap_proba = cm.seismic
 
-cmap_q_values = cm.seismic
-# cmap_q_values.set_under('gray', alpha=0)
+cmap_q_values = cm.RdBu_r
+cmap_q_values.set_under('gray', alpha=0)
 cmap_q_values.set_over('gray', alpha=0)

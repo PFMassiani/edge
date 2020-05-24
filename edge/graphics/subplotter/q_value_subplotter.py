@@ -1,4 +1,5 @@
 from numpy import squeeze
+import matplotlib as mpl
 
 from . import Subplotter
 
@@ -13,9 +14,6 @@ class QValueSubplotter(Subplotter):
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
 
-        self.min = None
-        self.max = None
-
     @property
     def model(self):
         return self.agent.Q_model
@@ -23,27 +21,29 @@ class QValueSubplotter(Subplotter):
     def __get_min_max(self, Q_values):
         nonzero_Q = Q_values[Q_values.nonzero()]
         if len(nonzero_Q) == 0:
-            return 0.9, 1.1
+            return -1, 1
         else:
             qmin = nonzero_Q.min()
             qmax = nonzero_Q.max()
-        if self.min is None or qmin < self.min:
-            self.min = qmin
-        if self.max is None or qmax > self.max:
-            self.max = qmax
-        return self.min, self.max
+            return qmin, qmax
 
     def draw_on_axs(self, ax_Q, Q_values):
         vmin, vmax = self.__get_min_max(Q_values)
+        self.colors.q_values_norm = mpl.colors.SymLogNorm(
+            linthresh=1, linscale=1, base=10, vmin=vmin, vmax=vmax
+        )
         image = ax_Q.pcolormesh(
             self.actions_grid,
             self.states_grid,
             Q_values,
             cmap=self.colors.cmap_q_values,
-            vmin=vmin,
-            vmax=vmax,
+            norm=self.colors.q_values_norm,
+            # vmin=0,#vmin,
+            # vmax=1,#vmax,
             alpha=0.7
         )
+        ax_Q.set_xticks(self.actions)
+        ax_Q.set_yticks(self.states)
 
         ax_Q.set_xlabel('action space $A$')
         ax_Q.set_ylabel('state space $S$')
