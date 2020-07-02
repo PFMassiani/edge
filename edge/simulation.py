@@ -13,7 +13,7 @@ class Simulation:
         self.set_seed(random=False, value=0)
         self.output_directory = Path(output_directory) / name
         self.name = name
-        self.plotters = plotters
+        self.plotters = plotters if plotters is not None else {}
 
         self.fig_path = self.output_directory / 'figs'
         self.log_path = self.output_directory / 'logs'
