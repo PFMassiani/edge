@@ -107,6 +107,7 @@ class SlipDynamics(DiscreteTimeDynamics):
         if traj.t_events[0].size != 0:  # if empty
             new_state = self.mass*self.gravity*traj.y[1, -1]/self.energy
             new_state = np.atleast_1d(new_state)
+            new_state = self.stateaction_space.state_space.closest_in(new_state)
             return new_state, self.is_feasible_state(new_state)
 
         # * STANCE: simulate till liftoff
@@ -121,6 +122,7 @@ class SlipDynamics(DiscreteTimeDynamics):
         if traj.t_events[0].size != 0:  # if empty
             new_state = self.mass*self.gravity*traj.y[1, -1]/self.energy
             new_state = np.atleast_1d(new_state)
+            new_state = self.stateaction_space.state_space.closest_in(new_state)
             return new_state, self.is_feasible_state(new_state)
 
         # * FLIGHT: simulate till apex
