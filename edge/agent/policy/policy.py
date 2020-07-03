@@ -1,3 +1,5 @@
+import numpy as np
+
 class Policy:
     """
     Base class for all Policies
@@ -27,3 +29,19 @@ class Policy:
         Unused. Originally intended to compute the map of the policy: for each state, the action.
         """
         raise NotImplementedError
+
+
+class RandomPolicy(Policy):
+    def __init__(self, stateaction_space):
+        super(RandomPolicy, self).__init__(stateaction_space)
+
+    def get_action(self, state):
+        action_space = self.stateaction_space.action_space
+        def prod(t):
+            p = 1
+            for e in p:
+                p *= e
+            return p
+        n_available = prod(action_space.shape)
+        chosen_action = np.random.choice(n_available)
+        return np.unravel_index(chosen_action, action_space.shape)
