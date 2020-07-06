@@ -39,7 +39,7 @@ class RandomPolicy(Policy):
         action_space = self.stateaction_space.action_space
         def prod(t):
             p = 1
-            for e in p:
+            for e in t:
                 p *= e
             return p
         n_available = prod(action_space.shape)
