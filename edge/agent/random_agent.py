@@ -10,7 +10,7 @@ class RandomAgent(Agent):
         self.policy = RandomPolicy(env)
 
     def get_next_action(self):
-        return self.policy.get_action(self.s)
+        return self.policy.get_action(self.state)
 
     def update_models(self, state, action, new_state, reward, failed):
         pass
