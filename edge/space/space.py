@@ -116,7 +116,12 @@ class ProductSpace(DiscretizableSpace):
             current_index = end_index
 
     def __getitem__(self, index):
-        squeeze_dim = [False] * self._n_flattened_sets
+        if isinstance(index, np.ndarray):
+            if index in self:
+                return index
+            else:
+                raise IndexError(f'Index {index} is understood as an element '
+                                 'of the Space and does not belong to it')
 
         if not isinstance(index, tuple):
             index = tuple([index])
@@ -126,22 +131,44 @@ class ProductSpace(DiscretizableSpace):
                                for k in range(n_missing_indexes)])
 
         def get_dim(ns):
-            return np.atleast_2d(self._flattened_sets[ns][index[ns]])
+            return np.atleast_1d(self._flattened_sets[ns][index[ns]])
 
         def isnotslice(x):
             return not isinstance(x, slice)
 
-        dims_outputs = list(map(get_dim, list(range(self._n_flattened_sets))))
-        squeeze_dim = list(map(isnotslice, index))
+        list_of_items = list(map(get_dim, list(range(self._n_flattened_sets))))
+        item_is_1d = list(map(isnotslice, index))
 
-        output_meshgrid = np.meshgrid(*dims_outputs, indexing='ij')
-        output = np.stack(output_meshgrid, axis=-1)
+        # NumPy limits the dimension of arrays to 32, so we need to be careful when meshgridding, and only extend
+        # the dimensions along which the user has asked for more than 1 value (i.e., a slice)
+        items_multidimensional = [item for item, is_1d in zip(list_of_items, item_is_1d) if not is_1d]
+        if len(items_multidimensional) > 0:
+            items_multidimensional_meshgrid = np.meshgrid(*items_multidimensional, indexing='ij')
+            items_shape = items_multidimensional_meshgrid[0].shape
+            idx_in_multidim = 0
+            for item_index in range(len(list_of_items)):
+                if not item_is_1d[item_index]:
+                    list_of_items[item_index] = items_multidimensional_meshgrid[idx_in_multidim]
+                    idx_in_multidim += 1
+                else:
+                    assert list_of_items[item_index].shape == (1,)
+                    value = list_of_items[item_index][0]
+                    list_of_items[item_index] = value * np.ones(items_shape)
+            items = np.stack(list_of_items, axis=-1)
+        else:
+            # squeeze returns a np scalar if the input is of shape (1,), so we ensure it is still an array
+            items = np.atleast_1d(np.stack(list_of_items, axis=0).squeeze())
 
-        dims_to_squeeze = tuple([dim
-                                for dim in range(len(squeeze_dim))
-                                if squeeze_dim[dim]])
-        output = np.squeeze(output, axis=dims_to_squeeze)
-        return output
+        # squeeze_dim = list(map(isnotslice, index))
+        #
+        # items_meshgrid = np.meshgrid(*list_of_items, indexing='ij')
+        # items = np.stack(items_meshgrid, axis=-1)
+        #
+        # dims_to_squeeze = tuple([dim
+        #                         for dim in range(len(squeeze_dim))
+        #                         if squeeze_dim[dim]])
+        # items = np.squeeze(items, axis=dims_to_squeeze)
+        return items
 
     def _get_components(self, x, ns):
         return x[self._index_slices[ns]]

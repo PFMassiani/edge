@@ -165,3 +165,7 @@ class TestSpaces(unittest.TestCase):
 
         t = s[np.array([0.15]), :]
         assertClose(t[:, 1], uy)
+
+    def test_indexing_involution(self):
+        b = Box(0, 1, (2, 2))
+        self.assertTrue((b[0,0] == b[b[0,0]]).all())
