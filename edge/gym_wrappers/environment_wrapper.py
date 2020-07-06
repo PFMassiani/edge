@@ -41,22 +41,36 @@ class GymEnvironmentWrapper(Environment):
             random_start=True
         )
 
-        self._info = {}
+        self.info = {}
         self.done = False
         self.failure_critical = False
 
     @property
     def in_failure_state(self):
-        cost = self._info.get('cost')
+        cost = self.info.get('cost')
         return cost is not None and cost != 0
+
+    @property
+    def has_failed(self):
+        # Same as in_failure_state, for compatibility with generic Environment
+        return self.in_failure_state
+
+    def reset(self, s=None):
+        # Usually, Environments take s as a parameter, but this is not supported by safety_gym, so we
+        # raise a meaningful error for the user
+        if s is not None:
+            raise ValueError('Selecting the initial state is not supported for Gym environments')
+        self.gym_env.reset()
+        self.s = self.gym_env.obs()
+        return self.s
 
     def step(self, action):
         gym_action = self.action_space.to_gym(action)
-        if self.failure_critical and not self.has_failed:
+        if not self.failure_critical or not self.has_failed:
             gym_new_state, reward, done, info = self.gym_env.step(gym_action)
             self.s = self.state_space.from_gym(gym_new_state)
             self.done = done
-            self._info = info
+            self.info = info
         else:
             reward = 0
 
