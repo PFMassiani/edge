@@ -216,6 +216,7 @@ class ProductSpace(DiscretizableSpace):
             if index in self:
                 return index
             else:
+                index in self
                 raise IndexError(f'Index {index} is understood as an element '
                                  'of the Space and does not belong to it')
 
