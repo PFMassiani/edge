@@ -2,6 +2,7 @@
 results/
 examples/*/*/**
 examples/*/**/*.zip
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

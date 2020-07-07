@@ -120,6 +120,7 @@ class ProductSpace(DiscretizableSpace):
             if index in self:
                 return index
             else:
+                index in self
                 raise IndexError(f'Index {index} is understood as an element '
                                  'of the Space and does not belong to it')
 
@@ -215,7 +216,7 @@ class ProductSpace(DiscretizableSpace):
     def closest_in(self, x):
         if x in self:
             return x
-        y = np.array_like(x)
+        y = x.copy()
         for ns in range(self.n_sets):
             mask = self._index_slices[ns]
             y[mask] = self.sets[ns].closest_in(x[mask])
