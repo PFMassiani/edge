@@ -183,13 +183,13 @@ class DualitySimulationsGroup(Simulation):
 
 if __name__ == '__main__':
     sim_group = DualitySimulationsGroup(
-        name='test',
-        penalties=[0, 4, 8, 12, 15],
+        name='group_meeting',
+        penalties=[0, 5, 15, 200],
         greed=0.1,
         step_size=0.6,
         discount_rate=0.3,
         max_samples=10000,
-        glie_start=7000
+        glie_start=8000
     )
     sim_group.set_seed(0)
 
