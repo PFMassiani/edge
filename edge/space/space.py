@@ -302,7 +302,7 @@ class ProductSpace(DiscretizableSpace):
     def closest_in(self, x):
         if x in self:
             return x
-        y = np.array_like(x)  # Does not work, fixed in gym_envs branch
+        y = x.copy()
         for ns in range(self.n_sets):
             mask = self._index_slices[ns]
             y[mask] = self.sets[ns].closest_in(x[mask])
