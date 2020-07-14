@@ -2,8 +2,24 @@ from .reward import Reward
 
 
 class ConstantReward(Reward):
+    """
+    Defines a constant reward on the StateActionSpace or a subset of it.
+    Subsets can be defined by explicitly specifying a Space object, or by providing a function that checks whether
+    the step should be rewarded.
+    """
     def __init__(self, stateaction_space, constant, rewarded_set=None,
                  unrewarded_set=None, reward_condition=None):
+        """
+        Initializer. If `rewarded_set`, `unrewarded_set` and `reward_condition` are all None, the whole Space is
+        rewarded.
+        :param stateaction_space: the stateaction_space
+        :param constant: the constant the reward is equal to
+        :param rewarded_set: StateActionSpace (optional): the stateactions that should incur a reward
+        :param unrewarded_set: StateActionSpace (optional): the stateactions that should not incur a reward. Its
+            complementary is rewarded
+        :param reward_condition: function(state, action, new_state, failed) -> boolean. Whether a step should be
+            rewarded
+        """
 
         if rewarded_set is not None and unrewarded_set is not None:
             raise ValueError('`rewarded_set` and `unrewarded_set` cannot be'

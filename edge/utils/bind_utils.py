@@ -1,8 +1,11 @@
 def bind(instance, func, as_name=None):
     """
-    Bind the function *func* to *instance*, with either provided name *as_name*
-    or the existing name of *func*. The provided *func* should accept the
-    instance as the first argument, i.e. "self".
+    Binds the function `func` to `instance`, with name `as_name` if provided, or func.__name__ otherwise.
+    The function `func` should accept the instance as the first argument, i.e. `self`.
+    :param instance: the instance to which the function should be bound
+    :param func: the function to bind
+    :param as_name: the name of the bound function
+    :return: the bound function
     """
     if as_name is None:
         as_name = func.__name__
