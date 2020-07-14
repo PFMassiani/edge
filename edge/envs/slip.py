@@ -16,7 +16,7 @@ class Slip(Environment):
             'mass': 80.0,
             'stiffness': 8200.0,
             'resting_length': 1.0,
-            'energy': 1877.0,
+            'energy': 1877.08,
             'shape': (200, 10)
         }
         default_dynamics_parameters.update(dynamics_parameters)
@@ -26,7 +26,7 @@ class Slip(Environment):
         # this is equivalent to "hop as long as possible"
         reward = ConstantReward(dynamics.stateaction_space, constant=1)
         # now let's incentivize going as fast as possible.
-        reward += AffineReward(self.stateaction_space, [[1, 0], [0, 0]])
+        reward += AffineReward(dynamics.stateaction_space, [[1, 0], [0, 0]])
 
         if default_initial_state is None:
             # TODO change this so it uses stateaction wrappers
