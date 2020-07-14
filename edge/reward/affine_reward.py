@@ -4,7 +4,19 @@ from .reward import Reward
 
 
 class AffineReward(Reward):
+    """
+    Defines an affine reward on the StateActionSpace
+    """
     def __init__(self, stateaction_space, ranges_along_dim):
+        """
+        Initializer
+        Example:
+        ranges_along_dim = [(0,1),(2.71, 3.14)] defines an affine reward ranging between 0 and 1 on the first dimension,
+            and 2.71 and 3.14 on the second one.
+        :param stateaction_space: the stateaction_space
+        :param ranges_along_dim: list of 2-dimensional tuples giving the range along each dimension. Missing dimensions
+            are completed with (0,0).
+        """
         super(AffineReward, self).__init__(stateaction_space)
         n_missing_dims = self.stateaction_space.index_dim - len(
             ranges_along_dim

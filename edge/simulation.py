@@ -5,6 +5,10 @@ from numpy.random import seed as npseed
 
 
 class Simulation:
+    """
+    Base class for a Simulation. Takes care of defining the agent, the main loop, and saving the results and figures in
+    the appropriate locations.
+    """
     def __init__(self, output_directory, name, plotters):
         self.set_seed(random=False, value=0)
         self.output_directory = Path(output_directory) / name
@@ -63,6 +67,9 @@ class Simulation:
 
 
 class ModelLearningSimulation(Simulation):
+    """
+    Adds the notion of Model to the base Simulation, and enables saving these models.
+    """
     def __init__(self, output_directory, name, plotters):
         super(ModelLearningSimulation, self).__init__(
             output_directory, name, plotters

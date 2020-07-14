@@ -10,6 +10,18 @@ def ensure_tensor(x):
 
 
 def tensorwrap(*deco_args):
+    """
+    Method decorator. Preprocesses some of the arguments of the decorated method to cast them to torch.Tensor.
+    Can be called in three fashions:
+        * no parameters: all parameters are cast to torch.Tensor
+        * one integer parameter, k: the first k arguments are cast to torch.Tensor
+        * one or many string parameters: the parameters with the corresponding names are cast to torch.Tensor
+    In the first two cases, the first parameter of the method is systematically left untouched if it is called `self`.
+    In the first case, parentheses must still be used.
+    :param deco_args: either nothing, an integer, or several strings
+    :return: the method with automatic torch.Tensor cast of some of its parameters
+    """
+    # We need to do some parsing of deco_args to figure out what its values represent
     wrap_all = False
     wrap_args = False
     wrap_names = False
@@ -23,6 +35,8 @@ def tensorwrap(*deco_args):
         names_to_wrap = deco_args
         wrap_names = True
 
+    # This decorator indicates that the following function is a decorator, and provides nice tools such as preserving
+    # the name and the docstring of the decorated function
     @decorator
     def numpy_tensor_wrapper(func, *args, **kwargs):
         args = list(args)
@@ -37,9 +51,9 @@ def tensorwrap(*deco_args):
             return func(*args, **kwargs)
 
         elif wrap_args:
-            nonlocal wrap_end
-            wrap_end += wrap_start
-            for argnum in range(wrap_start, wrap_end):
+            local_wrap_end = wrap_end
+            local_wrap_end += wrap_start
+            for argnum in range(wrap_start, local_wrap_end):
                 args[argnum] = ensure_tensor(args[argnum])
             return func(*args, **kwargs)
 

@@ -6,8 +6,24 @@ from .policy import SafetyActiveSampling, SafetyMaximization
 
 
 class SafetyLearner(Agent):
+    """
+    Defines an Agent that learns the safety measure as presented in the paper "A learnable safety measure", by Heim,
+    von Rohr, et al. (2019, CoRL).
+    """
     def __init__(self, env, gamma_optimistic, gamma_cautious, lambda_cautious,
                  x_seed, y_seed, gp_params=None, keep_seed_in_data=True):
+        """
+        Initializer
+        :param env: the environment
+        :param gamma_optimistic: the gamma parameter for Q_optimistic
+        :param gamma_cautious: the gamma parameter for Q_cautious
+        :param lambda_cautious: the lambda parameter for Q_cautious
+        :param x_seed: the seed input of the GP
+        :param y_seed: the seed output of the GP
+        :param gp_params: the parameters of the GP. See edge.models.inference.MaternGP for more information
+        :param keep_seed_in_data: whether to keep the seed data in the GP dataset. Should be True, otherwise GPyTorch
+            fails.
+        """
         safety_model = MaternSafety(env, gamma_optimistic,
                                     x_seed, y_seed, gp_params)
         super(SafetyLearner, self).__init__(env, safety_model)
@@ -15,7 +31,7 @@ class SafetyLearner(Agent):
         self.safety_model = safety_model
 
         self.active_sampling_policy = SafetyActiveSampling(
-            self.safety_model.stateaction_space)
+            self.safety_model.stateaction_space)  # TODO this does not work
         self.safety_maximization_policy = SafetyMaximization(
             self.safety_model.stateaction_space)
 
@@ -26,9 +42,17 @@ class SafetyLearner(Agent):
 
     @property
     def gamma_optimistic(self):
+        """
+        Returns the gamma parameter for Q_optimistic
+        :return: gamma
+        """
         return self.safety_model.gamma_measure
 
     def get_random_safe_state(self):
+        """
+        Returns a random state that is classified as safe by the safety model
+        :return: a safe state
+        """
         measure = self.safety_model.measure(
             state=None,
             lambda_threshold=self.lambda_cautious,
