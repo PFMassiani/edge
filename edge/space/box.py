@@ -6,22 +6,33 @@ from edge import error
 
 
 class Segment(DiscretizableSpace):
+    """The simplest Space. It models a segment.
+    Note that unbounded intervals are not supported.
+    """
     def __init__(self, low, high, n_points):
+        """
+        :param low: the lowest value of the segment
+        :param high: the highest value of the segment
+        :param n_points: the number of points to consider in the discretization
+        """
         if low >= high:
             raise ValueError(f'Bounds {low} and {high} create empty Segment')
         super(Segment, self).__init__(index_shape=(n_points,))
         self.low = low
         self.high = high
         self.n_points = n_points
-        self.tolerance = (high - low) * 1e-7
+        self.tolerance = (high - low) * 1e-7  # For approximate check of whether a point is on the grid
 
     def __getitem__(self, index):
+        """
+        :param index: 1-element tuple, np.ndarray, or slice. If np.ndarray, this method just feeds the value through
+        :return:
+        """
         if isinstance(index, tuple):
             if len(index) == 1:
                 index = index[0]
             else:
-                # This brings us to the else clause of the next if : nothing
-                # needs to be done
+                # This brings us to the else clause of the next if : nothing needs to be done
                 pass
 
         if isinstance(index, np.ndarray):
@@ -32,6 +43,7 @@ class Segment(DiscretizableSpace):
                 raise IndexError(f'Index {index} is understood as an element '
                                  'of the Space and does not belong to it')
         elif isinstance(index, (int, np.integer)):
+            # We allow negative indexing, as when indexing lists or np.ndarrays
             if index < 0:
                 index += self.n_points
             if index < 0 or index > self.n_points - 1:
@@ -90,7 +102,19 @@ class Segment(DiscretizableSpace):
 
 
 class Box(ProductSpace):
+    """A product of segments"""
     def __init__(self, low, high, shape):
+        """
+        Initializer
+        If low (resp. high) is a float, then all Segments have a lower (resp. higher) bound equal to that float.
+        Otherwise, low (resp. high) should be a tuple whose values are the lower (resp. higher) bound on the current
+        dimension.
+        If low and high are tuples, then their length should be equal to the length of the shape argument.
+        Note: the case when only one of low and high is a tuple is not supported. They need to be in the same format.
+        :param low: float or tuple
+        :param high: float or tuple
+        :param shape: The discretization shape.
+        """
         if isinstance(low, Number) and isinstance(high, Number):
             self.dim = len(shape)
             low = np.array([low] * self.dim)

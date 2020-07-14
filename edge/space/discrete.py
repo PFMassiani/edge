@@ -5,6 +5,9 @@ from edge import error
 
 
 class Discrete(DiscretizableSpace):
+    """
+    A collection of linearly spaced points. Similar to np.linspace.
+    """
     def __init__(self, n, start=0, end=None):
         if end is None:
             end = n - 1

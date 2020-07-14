@@ -2,8 +2,19 @@ from edge import error
 
 
 class Environment:
+    """ Puts together a Dynamics and a Reward objects
+    Relevant properties are:
+    :param s: the current state of the environment
+    :param has_failed: whether self.s is a failure state
+    """
     def __init__(self, dynamics, reward, default_initial_state,
                  random_start=False):
+        """ Initializer
+        :param dynamics: the Dynamics object the environment wraps
+        :param reward: the Reward object the environment wraps
+        :param default_initial_state: the default initial state (only used if random_start = False)
+        :param random_start: whether to initalize the agent randomly
+        """
         self.dynamics = dynamics
         self.reward = reward
         self.random_start = random_start
@@ -14,32 +25,62 @@ class Environment:
 
     @property
     def stateaction_space(self):
+        """ Accessor to the stateaction_space
+        :return: stateaction_space
+        """
         return self.dynamics.stateaction_space
 
     @property
     def state_space(self):
+        """ Accessor to the state_space
+        :return: state_space
+        """
         return self.stateaction_space.state_space
 
     @property
     def action_space(self):
+        """ Accessor to the action_space
+        :return: action_space
+        """
         return self.stateaction_space.action_space
 
     @property
     def has_failed(self):
+        """ Whether the state is feasible and the environment has not failed. In general, the state is always
+        feasible, so this is equivalent to self.in_failure_state. However, calling has_failed should be preferred
+        since it enables additional checks on the current state.
+        :return: boolean: has_failed
+        """
         return (not self.feasible) or self.in_failure_state
 
     def is_failure_state(self, state):
+        """ Whether any state is a failure state. Agents should not use this in general.
+        :param state: the state to check
+        :return: boolean
+        """
         raise NotImplementedError
 
     @property
     def in_failure_state(self):
+        """ Whether the current state is a failure state.
+        :return: boolean
+        """
         return self.is_failure_state(self.s)
 
     @property
     def state_index(self):
+        """ The index of the current state
+        :return: int or tuple
+        """
         return self.state_space.get_index_of(self.s)
 
     def reset(self, s=None):
+        """ Resets the internal state of the environment
+        If a parameter is specified, the state is reset to that value. If not, and self.random_start = True, then the
+        internal state is randomly sampled in the state space. Otherwise, the internal state takes the default value.
+        :param s: optional: the state where to initialize
+        :return: the internal state of the environment (after reinitialization)
+        """
         if s is not None:
             self.s = s
         elif self.random_start:
@@ -50,6 +91,14 @@ class Environment:
         return self.s
 
     def step(self, action):
+        """ Take a step.
+        To redefine this function, remember that the actual computations for the dynamics and the reward should be
+        done in the corresponding object.
+        :param action: The action taken
+        :return: s: the new state
+        :return: reward: the reward sampled
+        :return: has_failed: whether the environment has failed
+        """
         old_state = self.s
         if not self.has_failed:
             self.s, self.feasible = self.dynamics.step(old_state, action)
