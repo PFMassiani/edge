@@ -66,7 +66,6 @@ class DualitySimulation(ModelLearningSimulation):
         }
         self.plotters = plotters
 
-
         self.max_samples = max_samples
         self.glie_start = glie_start
 
