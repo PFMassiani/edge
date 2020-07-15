@@ -30,7 +30,7 @@ class QValueSubplotter(Subplotter):
     def draw_on_axs(self, ax_Q, Q_values):
         vmin, vmax = self.__get_min_max(Q_values)
         self.colors.q_values_norm = mpl.colors.SymLogNorm(
-            linthresh=1, linscale=1, vmin=vmin, vmax=vmax
+            linthresh=1, linscale=1, base=10, vmin=vmin, vmax=vmax
         )
         image = ax_Q.pcolormesh(
             self.actions_grid,
