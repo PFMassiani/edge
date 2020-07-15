@@ -5,12 +5,14 @@ cloudpickle==1.2.2
 cycler==0.10.0
 Cython==0.29.20
 decorator==4.4.2
+-e git+git@github.com:PFMassiani/edge.git@ae8f110c5dbf5239eb3a0f9c78f7d2be5575cca6#egg=edge
 entrypoints==0.3
 fasteners==0.15
 flake8==3.7.9
 future==0.18.2
-gast==0.3.3
+gast==0.2.2
 glfw==1.11.2
+google-pasta==0.2.0
 gpytorch==1.1.1
 grpcio==1.30.0
 gym==0.15.7
@@ -29,6 +31,7 @@ monotonic==1.5
 mpi4py==3.0.2
 mujoco-py==2.0.2.7
 numpy==1.18.4
+opt-einsum==3.2.1
 pandas==1.0.5
 Pillow==7.1.2
 protobuf==3.12.2
@@ -44,14 +47,13 @@ pytz==2020.1
 scipy==1.4.1
 seaborn==0.8.1
 six==1.14.0
-tensorboard==1.13.1
+tensorboard==1.15.0
 tensorflow==1.15.2
-tensorflow-estimator==1.13.0
+tensorflow-estimator==1.15.1
 termcolor==1.1.0
 torch==1.5.0
 torchvision==0.6.0
 Werkzeug==1.0.1
+wrapt==1.12.1
 xmltodict==0.12.0
 zipp==3.1.0
-
-setuptools==47.3.1
