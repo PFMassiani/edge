@@ -126,7 +126,7 @@ if __name__ == '__main__':
         max_samples=10000,
         greed=0.1,
         step_size=0.6,
-        discount_rate=0.1,
+        discount_rate=0.9,
         every=1000,
         glie_start=7000
     )

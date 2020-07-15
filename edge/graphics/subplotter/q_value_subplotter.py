@@ -44,7 +44,7 @@ class QValueSubplotter(Subplotter):
         )
         for i in range(Q_values.shape[0]):
             for j in range(Q_values.shape[1]):
-                ax_Q.text(j, i, around(Q_values[i, j]),
+                ax_Q.text(j, i, around(Q_values[i, j], 1),
                           ha='center', va='center')
         ax_Q.set_xticks(self.actions)
         ax_Q.set_yticks(self.states)

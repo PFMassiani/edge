@@ -8,12 +8,21 @@ from edge.utils import get_parameters_lookup_dictionary
 
 
 class SafetyTruth(GroundTruth):
+    """
+    Represents the ground truth about a safety measure. A realistic Agent typically does not have access to that,
+    but instead to a SafetyMeasure model.
+    """
     def __init__(self, env):
+        """
+        Initializer
+        This method DOES NOT initialize all parameters. You should use one of self.compute, self.load, or
+        self.from_vibly_file to finalize the initialization
+        :param env: the environment
+        """
         super(SafetyTruth, self).__init__()
         self.env = env
 
-        # These attributes are initialized either by compute, load,
-        # or from_vibly_file
+        # These attributes are initialized either by compute, load, or from_vibly_file
         self.stateaction_space = None
         self.viable_set = None
         self.unviable_set = None
@@ -23,7 +32,23 @@ class SafetyTruth(GroundTruth):
 
     def get_training_examples(self, n_examples=2000, from_viable=True,
                               from_failure=False, viable_proportion=0.6):
+        """
+        Returns a training dataset that can be used for hyperparameters tuning.
+        :param n_examples: number of training examples
+        :param from_viable: whether to sample from the viable set
+        :param from_failure: whether to sample from the failure set
+        :param viable_proportion: only useful when from_viable and from_failure are True. Sets the ratio between
+            viable and failing examples
+        :return: np.ndarray, np.ndarray : tuple of training examples. The first element is a list of stateactions, and
+            the second one is the list of corresponding measure values.
+        """
         def sample_when_true(n, condition):
+            """
+            Randomly samples n stateactions among those for wich the condition is true.
+            :param n: the number of stateactions to sample
+            :param condition: a list of boolean indicating whether the corresponding index can be sampled
+            :return: a list of n stateactions for which `condition` is true
+            """
             if n > 0:
                 idx_satisfying_condition = np.argwhere(condition)
             else:
@@ -35,7 +60,7 @@ class SafetyTruth(GroundTruth):
             n = min(n, len(idx_satisfying_condition))
             sample = np.random.choice(
                 idx_satisfying_condition.shape[0], n, replace=False
-            )
+            )  # Samples indexes where the condition is true
             sample_idx_list = idx_satisfying_condition[sample]
             sample_idx_tuple = tuple(zip(*sample_idx_list))
             if len(sample_idx_tuple) == 0:
@@ -56,6 +81,7 @@ class SafetyTruth(GroundTruth):
         viable_x, viable_y = sample_when_true(
             n_viable, self.viable_set.astype(bool)
         )
+        # TODO change this so it uses both failure and unviable stateactions instead of failures only
         failure_x, failure_y = sample_when_true(
             n_failure, self.failure_set.astype(bool)
         )
@@ -66,13 +92,20 @@ class SafetyTruth(GroundTruth):
         return train_x, train_y
 
     def measure(self, state, action):
+        """
+        Returns the measure
+        :param state: the state index over the stateaction space on which we want the measure
+        :param action: the action index over the stateaction space on which we want the measure
+        :return: np.ndarray: the value of the measure at the queried indexes
+        """
+        # TODO uniformize the call to this function with SafetyMeasure.measure
         stateactions = self.stateaction_space[state, action]
         if len(stateactions.shape) > 1:
             index = [
                 self.stateaction_space.get_index_of(sa, around_ok=True)
                 for sa in stateactions
             ]
-            # We get a tuple of indexes along each coordinate to index the
+            # We need a tuple of indexes along each coordinate to index the
             # NumPy array
             index = tuple(zip(*index))
         else:
@@ -81,6 +114,13 @@ class SafetyTruth(GroundTruth):
         return self.measure_value[index]
 
     def is_viable(self, state=None, action=None, stateaction=None):
+        """
+        Returns True iff. the state-action pair (resp. the stateaction) is viable
+        :param state: the state
+        :param action: the action
+        :param stateaction: the stateaction
+        :return: boolean: whether the state-action pair (resp. the stateaction) is viable
+        """
         if stateaction is None:
             stateaction = self.stateaction_space[state, action]
         index = self.stateaction_space.get_index_of(
@@ -89,6 +129,13 @@ class SafetyTruth(GroundTruth):
         return self.viable_set[index] == 1
 
     def is_unviable(self, state, action):
+        """
+        Returns True iff. the state-action pair (resp. the stateaction) is unviable
+        :param state: the state
+        :param action: the action
+        :param stateaction: the stateaction
+        :return: boolean: whether the state-action pair (resp. the stateaction) is unviable
+        """
         sa = self.stateaction_space[state, action]
         index = self.stateaction_space.get_index_of(
             sa, around_ok=True
@@ -97,15 +144,29 @@ class SafetyTruth(GroundTruth):
         return out
 
     def is_failure(self, state, action):
+        """
+        Returns True iff. the state-action pair (resp. the stateaction) is a failure
+        :param state: the state
+        :param action: the action
+        :param stateaction: the stateaction
+        :return: boolean: whether the state-action pair (resp. the stateaction) is a failure
+        """
         index = self.stateaction_space.get_index_of(
             (state, action), around_ok=True
         )
         return self.failure_set[index] == 1
 
     def from_vibly_file(self, vibly_file_path):
+        """
+        Loads the ground truth from a vibly file
+        Important note: for this method to work, you need to define the lookup dictionary in
+        utils.vibly_compatibility_utils for your environment, if it is not done by default.
+        :param vibly_file_path: str or Path: the file from where the ground truth should be loaded
+        """
+        vibly_file_path = Path(vibly_file_path)
         with vibly_file_path.open('rb') as f:
             data = pkl.load(f)
-        # dict_keys(['grids', 'Q_map', 'Q_F', 'Q_V', 'Q_M', 'S_M', 'p', 'x0'])
+        # `data` is a dictionary with: data.keys() = ['grids', 'Q_map', 'Q_F', 'Q_V', 'Q_M', 'S_M', 'p', 'x0']
         states = data['grids']['states']
         actions = data['grids']['actions']
 
@@ -124,6 +185,8 @@ class SafetyTruth(GroundTruth):
             product_space = ProductSpace(*segments)
             return product_space
 
+        # Vibly stores grids lazily, by only storing each dimension independently and only doing meshgrids when
+        # required. Our StateActionSpace structure enables us to use an efficient ProductSpace instead
         state_space = get_product_space(states)
         action_space = get_product_space(actions)
         self.stateaction_space = StateActionSpace(state_space, action_space)
@@ -140,8 +203,12 @@ class SafetyTruth(GroundTruth):
         self.failure_set = self.failure_set.astype(float)
         self.unviable_set = self.unviable_set.astype(float)
 
+        # This fails if the lookup dictionary is not defined in utils.vibly_compatibility_utils
         lookup_dictionary = get_parameters_lookup_dictionary(self.env)
 
+        # We refuse to load a SafetyTruth if the parameters that are defined for the current environment and the ones
+        # that were used for the computation of the ground truth are not exactly the same
+        # An alternative is to load it nevertheless, but this behaviour may lead to errors that are very hard to debug.
         for vibly_pname, vibly_value in data['p'].items():
             pname = lookup_dictionary[vibly_pname]
             if pname is not None:
@@ -154,6 +221,12 @@ class SafetyTruth(GroundTruth):
                     )
 
     def compute(self, Q_map_path=None):
+        """
+        Computes the safety ground truth in a brute-force fashion. This is only suitable for low dimensional spaces.
+        This is an adaptation of Steve Heim's code from vibly.
+        This method is computationally intensive.
+        :param Q_map_path: path to the dynamics map. If None, the dynamics map is computed beforehand.
+        """
         self.stateaction_space = self.env.stateaction_space
 
         if Q_map_path is not None:
@@ -169,6 +242,11 @@ class SafetyTruth(GroundTruth):
         ])
 
         def next_state_fails(next_index):
+            """
+            Checks whether the next state is a failure state
+            :param next_index: the index of the next state
+            :return: True iff the next state is a failure state
+            """
             return self.env.is_failure_state(
                 self.stateaction_space.state_space[next_index]
             )
@@ -179,11 +257,12 @@ class SafetyTruth(GroundTruth):
                 Q_map.reshape(-1).tolist()
             ))
         ).reshape(Q_map.shape)
-        viable_set = np.logical_not(failure_set)
+        viable_set = np.logical_not(failure_set)  # The viable set is initialized as the complementary of the failure
         viability_kernel = viable_set.any(axis=action_axes)
-        previous_viability_kernel = np.zeros_like(viability_kernel, dtype=bool)
 
         done = False
+        # We iteratively find the largest positively invariant viability kernel with the policy of picking actions in
+        # the current estimate of the viable set
         while not done:
             for index, _ in iter(self.stateaction_space):
                 is_viable = viable_set[index]
@@ -194,6 +273,8 @@ class SafetyTruth(GroundTruth):
                         viable_set[index] = False
             previous_viability_kernel = viability_kernel
             viability_kernel = viable_set.any(axis=action_axes)
+            # No change in the viability kernel estimation exactly means that the viability kernel is positively
+            # invariant, which is our stopping condition
             done = np.all(viability_kernel == previous_viability_kernel)
 
 

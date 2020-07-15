@@ -107,7 +107,7 @@ class SafetyTruthSubplotter(Subplotter):
                 self.actions_grid,
                 self.states_grid,
                 Q,
-                [.01],
+                [.5],
                 colors='k'
             )
 

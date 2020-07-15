@@ -11,7 +11,6 @@ class Hovership(Environment):
                  dynamics_parameters=None, reward=None):
         if dynamics_parameters is None:
             dynamics_parameters = {}
-        # TODO find reasonable values for these
         default_dynamics_parameters = {
             'ground_gravity': 0.1,
             'gravity_gradient': 1,
@@ -24,7 +23,7 @@ class Hovership(Environment):
         dynamics = HovershipDynamics(**default_dynamics_parameters)
 
         if reward is None:
-            # TODO change this so it uses subspaces
+            # The default reward gives a 1 reward when the agent is above 80% of the ceiling value
             max_altitude = default_dynamics_parameters['max_altitude']
             max_thrust = default_dynamics_parameters['max_thrust']
             rewarded_set = StateActionSpace.from_product(
@@ -40,7 +39,7 @@ class Hovership(Environment):
             )
 
         if default_initial_state is None:
-            # TODO change this so it uses stateaction wrappers
+            # The default initial state is unrewarded with the default reward
             max_altitude = default_dynamics_parameters['max_altitude']
             default_initial_state = atleast_1d(0.75 * max_altitude)
 
@@ -52,7 +51,6 @@ class Hovership(Environment):
         )
 
     def is_failure_state(self, state):
-        # TODO change so it uses stateaction wrappers
         return state == 0
 
 
@@ -73,7 +71,7 @@ class DiscreteHovership(Environment):
         dynamics = DiscreteHovershipDynamics(**default_dynamics_parameters)
 
         if reward is None:
-            # TODO change this so it uses subspaces
+            # The default reward is simply getting to the top
             max_altitude = default_dynamics_parameters['max_altitude']
             max_thrust = default_dynamics_parameters['max_thrust']
             rewarded_set = StateActionSpace(
@@ -87,7 +85,6 @@ class DiscreteHovership(Environment):
             )
 
         if default_initial_state is None:
-            # TODO change this so it uses stateaction wrappers
             max_altitude = default_dynamics_parameters['max_altitude']
             default_initial_state = atleast_1d(max_altitude)
 
@@ -99,4 +96,5 @@ class DiscreteHovership(Environment):
         )
 
     def is_failure_state(self, state):
+        # Remember that states are np.ndarray
         return state[0] == 0

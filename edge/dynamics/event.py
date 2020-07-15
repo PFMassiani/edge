@@ -2,6 +2,11 @@ from numbers import Number
 
 
 def get_terminal_and_direction_from_args(args):
+    """ Parsing helper function
+    :param args: The arguments passed to the `@event` decorator
+    :return: terminal: boolean, whether the event is terminal for the simulation. See scipy.integrate.solve_ivp doc.
+    :return: direction: float, the direction in which the event is considered. See scipy.integrate.solve_ivp doc.
+    """
     if len(args) == 1:
         terminal = False
         direction = 0
@@ -33,6 +38,13 @@ def get_terminal_and_direction_from_args(args):
 
 
 def event(*args):
+    """ Function decorator.
+    Adds the `terminal`, `direction`, and `is_event` attributes to the given function
+    :param terminal: boolean (default=False): whether the event is terminal for the simulation. See
+        scipy.integrate.solve_ivp doc.
+    :param direction: float (default=0): the direction of the event. See scipy.integrate.solve_ivp doc.
+    :return: function: the decorated function
+    """
     called_on_evt_func = False
     if len(args) > 2:
         raise ValueError("Too many parameters: expected at most 2, got "
@@ -62,7 +74,13 @@ def event(*args):
 
 
 class EventBased:
+    """
+    Provides the get_events function to all inheriting classes
+    """
     def get_events(self):
+        """
+        :return: list<method>. The list of methods that are decorated with the `@event` decorator.
+        """
         methods = [getattr(self, f)
                    for f in dir(self)
                    if callable(getattr(self, f)) and not f.startswith("__")

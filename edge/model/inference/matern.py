@@ -6,12 +6,32 @@ from .tensorwrap import tensorwrap
 
 
 class MaternGP(GP):
+    """
+    Specializes the GP class with a Matern covariance kernel, a Zero mean, and some priors on the hyperparameters
+    """
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, nu=2.5,
                  noise_prior=None, noise_constraint=(1e-3, 1e4),
                  lengthscale_prior=None, lengthscale_constraint=None,
                  outputscale_prior=None, outputscale_constraint=None,
                  hyperparameters_initialization=None):
+        """
+        Initializer
+        :param train_x: training input data. Should be 2D, and interpreted as a list of points.
+        :param train_y: np.ndarray: training output data. Should be 1D, or of shape (train_x.shape[0], 1).
+        :param nu: the nu parameter of the Matern kernel. Depends on the desired smoothness
+        :param noise_prior: None or (mu, sigma). If not None, the noise has a prior NormalPrior(mu, sigma)
+        :param noise_constraint: None or (nMin, nMax). If not None, the noise is bounded between nMin and nMax
+        :param lengthscale_prior: None or (mu, sigma). If not None, the lengthscale has a prior NormalPrior(mu, sigma)
+        :param lengthscale_constraint: None or (lMin, lMax). If not None, the lengthscale is bounded between lMin and
+            lMax
+        :param outputscale_prior: None or (mu, sigma). If not None, the outputscale has a prior NormalPrior(mu, sigma)
+        :param outputscale_constraint: None or (oMin, oMax). If not None, the outputscale is bounded between oMin and
+            oMax
+        :param hyperparameters_initialization: None or dict. The hyperparameters are initialized to the values
+            specified. The remaining ones are either initialized as their prior mean, or left uninitialized if no prior
+            is specified.
+        """
         train_x = atleast_2d(train_x)
 
         self.__structure_dict = {
@@ -24,6 +44,7 @@ class MaternGP(GP):
             'outputscale_constraint': outputscale_constraint
         }
 
+        # Using a ConstantMean here performs much worse than a ZeroMean
         mean_module = gpytorch.means.ZeroMean()
 
         if lengthscale_prior is not None:
