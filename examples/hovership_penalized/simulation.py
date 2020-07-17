@@ -13,17 +13,18 @@ from edge.graphics.plotter import QValuePlotter
 class LowGoalHovership(Hovership):
     def __init__(self, dynamics_parameters=None):
         super(LowGoalHovership, self).__init__(
-            dynamics_parameters=dynamics_parameters,
-            random_start=True
+            random_start=True,
+            dynamics_parameters=dynamics_parameters
         )
 
-        reward = AffineReward(self.stateaction_space, [(5,-5), (0, 0)])
+        reward = AffineReward(self.stateaction_space, [(10,0), (0, 0)])
         self.reward = reward
 
 
 class PenalizedHovership(LowGoalHovership):
     def __init__(self, penalty_level=100, dynamics_parameters=None):
         super(PenalizedHovership, self).__init__(dynamics_parameters)
+
         def penalty_condition(state, action, new_state, reward):
             return self.is_failure_state(new_state)
 
@@ -31,6 +32,7 @@ class PenalizedHovership(LowGoalHovership):
                                  reward_condition=penalty_condition)
 
         self.reward += penalty
+
 
 class PenalizedSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
@@ -115,7 +117,7 @@ class PenalizedSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     sim = PenalizedSimulation(
-        name='2000',
+        name='learning_test',
         max_samples=2000,
         greed=0.1,
         step_size=0.6,
@@ -124,7 +126,7 @@ if __name__ == '__main__':
         x_seed=np.array([1.45, 0.7]),
         y_seed=np.array([1]),
         shape=(201, 151),
-        every=50
+        every=200
     )
     sim.set_seed(0)
 
