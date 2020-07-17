@@ -4,4 +4,4 @@ from .safety import SafetyMaximization, SafetyActiveSampling
 try:
     from .multilayer_perceptron import MLPPolicy
 except ImportError:
-    print("Some functionality unavailable (probably AI Gym)")
+    pass
