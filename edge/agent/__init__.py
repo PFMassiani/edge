@@ -5,4 +5,4 @@ from .random_agent import RandomAgent
 try:
     from .policy_learner import PolicyLearner
 except ImportError:
-    print("Some functionality unavailable (probably AI Gym)")
+    pass
