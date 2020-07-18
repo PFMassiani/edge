@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 
 from edge import ModelLearningSimulation
-from edge.envs import Hovership
+from edge.envs import Slip
 from edge.agent import QLearner
 from edge.reward import AffineReward, ConstantReward
 from edge.model.safety_models import SafetyTruth
@@ -10,20 +10,21 @@ from edge.model.value_models import GPQLearning
 from edge.graphics.plotter import QValuePlotter
 
 
-class LowGoalHovership(Hovership):
+class LowGoalSlip(Slip):
+    # * This goal incentivizes the agent to run fast
     def __init__(self, dynamics_parameters=None):
-        super(LowGoalHovership, self).__init__(
-            random_start=True,
-            dynamics_parameters=dynamics_parameters
+        super(LowGoalSlip, self).__init__(
+            dynamics_parameters=dynamics_parameters,
+            random_start=True
         )
 
-        reward = AffineReward(self.stateaction_space, [(10, 0), (0, 0)])
+        reward = AffineReward(self.stateaction_space, [(1, 0), (0, 0)])
         self.reward = reward
 
 
-class PenalizedHovership(LowGoalHovership):
+class PenalizedSlip(LowGoalSlip):
     def __init__(self, penalty_level=100, dynamics_parameters=None):
-        super(PenalizedHovership, self).__init__(dynamics_parameters)
+        super(PenalizedSlip, self).__init__(dynamics_parameters)
 
         def penalty_condition(state, action, new_state, reward):
             return self.is_failure_state(new_state)
@@ -39,20 +40,20 @@ class PenalizedSimulation(ModelLearningSimulation):
                  penalty_level, x_seed, y_seed,
                  shape, every):
         dynamics_parameters = {
-            'shape':shape
+            'shape': shape
         }
-        self.env = PenalizedHovership(penalty_level=penalty_level,
-                                      dynamics_parameters=dynamics_parameters)
+        self.env = PenalizedSlip(penalty_level=penalty_level,
+                                 dynamics_parameters=dynamics_parameters)
 
         self.ground_truth = SafetyTruth(self.env)
         self.ground_truth.from_vibly_file(
             Path(__file__).parent.parent.parent / 'data' / 'ground_truth' /
-                'from_vibly' / 'hover_map.pickle'
+                'from_vibly' / 'slip_map.pickle'
         )
 
         self.hyperparameters = {
             'outputscale_prior': (0.4, 2),
-            'lengthscale_prior': (0.02, 0.02),
+            'lengthscale_prior': (0.02, 0.01),
             'noise_prior': (0.001, 0.002)
         }
         self.x_seed = x_seed
@@ -65,6 +66,8 @@ class PenalizedSimulation(ModelLearningSimulation):
         plotters = {
             'Q-Values': QValuePlotter(self.agent, self.ground_truth)
         }
+
+        # plotters = {}
 
         output_directory = Path(__file__).parent.resolve()
         super(PenalizedSimulation, self).__init__(output_directory, name,
@@ -88,6 +91,10 @@ class PenalizedSimulation(ModelLearningSimulation):
     def run(self):
         n_samples = 0
         self.save_figs(prefix='0')
+
+        # train hyperparameters
+        # train_x, train_y = self.ground_truth.get_training_examples()
+
         while n_samples < self.max_samples:
             failed = self.agent.failed
             n_steps = 0
@@ -117,16 +124,16 @@ class PenalizedSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     sim = PenalizedSimulation(
-        name='learning_test',
+        name='bigPain',
         max_samples=100,
-        greed=0.1,
+        greed=0.9,
         step_size=0.6,
-        discount_rate=0.9,
-        penalty_level=100,
-        x_seed=np.array([1.45, 0.7]),
+        discount_rate=0.5,
+        penalty_level=1000,
+        x_seed=np.array([0.4, 0.6]),
         y_seed=np.array([1]),
         shape=(201, 151),
-        every=20
+        every=10
     )
     sim.set_seed(0)
 

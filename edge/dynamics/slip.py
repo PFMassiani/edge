@@ -14,7 +14,8 @@ class SlipDynamics(DiscreteTimeDynamics):
                  stiffness,
                  resting_length,
                  energy,
-                 state_bounds=(0, 1), action_bounds=(-1/18*np.pi, 9/18*np.pi),
+                 state_bounds=(0.0, 1),
+                 action_bounds=(-1/18*np.pi, 7/18*np.pi),
                  shape=(200, 100)):
         stateaction_space = StateActionSpace.from_product(
             Box([state_bounds[0], action_bounds[0]],

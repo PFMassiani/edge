@@ -37,7 +37,7 @@ class Slip(Environment):
             #                    default_dynamics_parameters['gravity'] /
             #                    default_dynamics_parameters['energy'])
 
-            default_initial_state = atleast_1d(1.0)
+            default_initial_state = atleast_1d(0.4)
 
         super(Slip, self).__init__(
             dynamics=dynamics,
@@ -48,4 +48,5 @@ class Slip(Environment):
 
     def is_failure_state(self, state):
         # TODO change so it uses stateaction wrappers
-        return state == 0
+
+        return state <= 1e-3
