@@ -37,7 +37,7 @@ class Slip(Environment):
             #                    default_dynamics_parameters['gravity'] /
             #                    default_dynamics_parameters['energy'])
 
-            default_initial_state = atleast_1d(0.4)
+            default_initial_state = atleast_1d(1.0)
 
         super(Slip, self).__init__(
             dynamics=dynamics,
@@ -49,4 +49,21 @@ class Slip(Environment):
     def is_failure_state(self, state):
         # TODO change so it uses stateaction wrappers
 
-        return state <= 1e-3
+        return self.dynamics.failed
+
+    def reset(self, s=None):
+        """ Overloading the default reset, to also reset internal variables.
+        :param s: optional: the state where to initialize
+        :return: the internal state of the environment (after reinitialization)
+        """
+
+        self.dynamics.failed = False
+
+        if s is not None:
+            self.s = s
+        elif self.random_start:
+            self.s = self.stateaction_space.state_space.sample()
+        else:
+            self.s = self.default_initial_state
+        self.feasible = self.dynamics.is_feasible_state(self.s)
+        return self.s

@@ -14,6 +14,7 @@ class SlipDynamics(DiscreteTimeDynamics):
                  stiffness,
                  resting_length,
                  energy,
+                 failed=False,
                  state_bounds=(0.0, 1),
                  action_bounds=(-1/18*np.pi, 7/18*np.pi),
                  shape=(200, 100)):
@@ -27,6 +28,7 @@ class SlipDynamics(DiscreteTimeDynamics):
         self.stiffness = stiffness
         self.resting_length = resting_length
         self.energy = energy
+        self.failed = False
 
     def is_feasible_state(self, state):
         if state not in self.stateaction_space.state_space:
@@ -97,44 +99,44 @@ class SlipDynamics(DiscreteTimeDynamics):
             ydotdot = leg_force*np.cos(alpha) - self.gravity
             return np.array([y[2], y[3], xdotdot, ydotdot, 0, 0])
 
+        # TODO: implement jacobian of stance
+
         # * simulate:
 
-        # * FLIGHT: simulate till touchdown
-        events = [fall_event, touchdown_event]
-        traj = solve_ivp(flight, t_span=[0, 0+MAX_TIME],
-                         y0=x0, events=events, max_step=0.01)
+        while True:
+            # while statement is just to allow breaks. It does not loop
 
-        # if you fell, stop now
-        if traj.t_events[0].size != 0:  # if empty
-            new_state = self.mass*self.gravity*traj.y[1, -1]/self.energy
-            new_state = np.atleast_1d(new_state)
-            new_state = self.stateaction_space.state_space.closest_in(new_state)
-            return new_state, self.is_feasible_state(new_state)
+            # * FLIGHT: simulate till touchdown
+            events = [fall_event, touchdown_event]
+            traj = solve_ivp(flight, t_span=[0, 0+MAX_TIME],
+                             y0=x0, events=events, max_step=0.01)
 
-        # * STANCE: simulate till liftoff
-        events = [fall_event, liftoff_event]
-        traj = solve_ivp(stance,
-                         t_span=[traj.t[-1],
-                                 traj.t[-1]+MAX_TIME],
-                         y0=traj.y[:, -1], events=events, max_step=0.001)
+            # if you fell, stop now
+            if traj.t_events[0].size != 0:  # if empty
+                break
 
-        # if you fell, stop now
-        # TODO Return all in one place
-        if traj.t_events[0].size != 0:  # if empty
-            new_state = self.mass*self.gravity*traj.y[1, -1]/self.energy
-            new_state = np.atleast_1d(new_state)
-            new_state = self.stateaction_space.state_space.closest_in(new_state)
-            return new_state, self.is_feasible_state(new_state)
+            # * STANCE: simulate till liftoff
+            events = [fall_event, liftoff_event]
+            traj = solve_ivp(stance, t_span=[traj.t[-1], traj.t[-1]+MAX_TIME],
+                             y0=traj.y[:, -1], events=events, max_step=0.0005)
 
-        # * FLIGHT: simulate till apex
-        events = [fall_event, apex_event]
-        traj = solve_ivp(flight,
-                         t_span=[traj.t[-1],
-                                 traj.t[-1]+MAX_TIME],
-                         y0=traj.y[:, -1], events=events, max_step=0.01)
+            # if you fell, stop now
+            if traj.t_events[0].size != 0:  # if empty
+                break
+
+            # * FLIGHT: simulate till apex
+            events = [fall_event, apex_event]
+            traj = solve_ivp(flight, t_span=[traj.t[-1], traj.t[-1]+MAX_TIME],
+                             y0=traj.y[:, -1], events=events, max_step=0.01)
+
+            break
+
+        # * Check if low-level failured conditions are triggered
+        # point mass touches the ground, or reverses direction
+        if traj.y[1, -1] < 1e-3 or traj.y[2, -1] < 0:
+            self.failed = True
 
         # * map back to high-level state.
-        # TODO: project back into the space...
         new_state = self.mass*self.gravity*traj.y[1, -1]/self.energy
         new_state = np.atleast_1d(new_state)
         new_state = self.stateaction_space.state_space.closest_in(new_state)
