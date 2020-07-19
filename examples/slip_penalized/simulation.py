@@ -94,7 +94,7 @@ class PenalizedSimulation(ModelLearningSimulation):
 
         # train hyperparameters
         # train_x, train_y = self.ground_truth.get_training_examples()
-
+        start_GLIE = round(0.3*self.max_samples)
         while n_samples < self.max_samples:
             failed = self.agent.failed
             n_steps = 0
@@ -104,8 +104,11 @@ class PenalizedSimulation(ModelLearningSimulation):
                 old_state = self.agent.state
                 new_state, reward, failed = self.agent.step()
                 action = self.agent.last_action
-                # if n_samples > 300:
-                #     self.agent.greed *= (n_samples - 300) / (n_samples - 299)
+
+                # * start reducing eps to converge to a greedy policy.
+                if n_samples > start_GLIE:
+                    self.agent.greed *= ((n_samples - start_GLIE) /
+                                         (n_samples - start_GLIE + 1))
 
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
@@ -124,12 +127,12 @@ class PenalizedSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     sim = PenalizedSimulation(
-        name='bigPain',
-        max_samples=100,
-        greed=0.9,
+        name='experiment',
+        max_samples=500,
+        greed=0.8,
         step_size=0.6,
-        discount_rate=0.5,
-        penalty_level=1000,
+        discount_rate=0.2,
+        penalty_level=10,
         x_seed=np.array([0.4, 0.6]),
         y_seed=np.array([1]),
         shape=(201, 151),
