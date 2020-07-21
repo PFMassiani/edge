@@ -49,8 +49,8 @@ class SafetyActiveSampling(Policy):
         # We add some noise so if the covariance is uniform, the sampled
         # action is random
         safety_covariance = safety_covariance + np.random.randn(
-            safety_covariance.shape
-        ) * 0.01
+            *safety_covariance.shape
+        ) * 0.001
         cautious_indexes = np.argwhere(is_cautious)
         most_variance_action = np.argmax(
             safety_covariance[cautious_indexes]
