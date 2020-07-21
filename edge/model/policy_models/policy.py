@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Policy:
     """
     Base class for all Policies
@@ -21,12 +22,6 @@ class Policy:
         it should return None.
         :param state: the current state
         :return: None or next action
-        """
-        raise NotImplementedError
-
-    def get_policy_map(self):
-        """ Abstract method
-        Unused. Originally intended to compute the map of the policy: for each state, the action.
         """
         raise NotImplementedError
 

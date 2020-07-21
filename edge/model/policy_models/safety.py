@@ -1,6 +1,6 @@
 import numpy as np
 
-from .policy import Policy
+from . import Policy
 
 
 class SafetyMaximization(Policy):

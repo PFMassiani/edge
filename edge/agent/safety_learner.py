@@ -2,7 +2,7 @@ import numpy as np
 
 from edge.model.safety_models import MaternSafety
 from . import Agent
-from .policy import SafetyActiveSampling, SafetyMaximization
+from edge.model.policy_models import SafetyActiveSampling, SafetyMaximization
 
 
 class SafetyLearner(Agent):
@@ -31,9 +31,9 @@ class SafetyLearner(Agent):
         self.safety_model = safety_model
 
         self.active_sampling_policy = SafetyActiveSampling(
-            self.safety_model.stateaction_space)  # TODO this does not work
+            self.env.stateaction_space)  # TODO this does not work
         self.safety_maximization_policy = SafetyMaximization(
-            self.safety_model.stateaction_space)
+            self.env.stateaction_space)
 
         self.gamma_cautious = gamma_cautious
         self.lambda_cautious = lambda_cautious

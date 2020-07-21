@@ -2,7 +2,7 @@ import numpy as np
 
 from edge.model.value_models import GPQLearning, QLearning
 from . import Agent
-from .policy import EpsilonGreedy, ConstrainedEpsilonGreedy, SafetyMaximization
+from edge.model.policy_models import EpsilonGreedy, ConstrainedEpsilonGreedy, SafetyMaximization
 from edge.error import NoActionError
 
 

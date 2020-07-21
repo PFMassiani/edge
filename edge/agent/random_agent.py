@@ -1,7 +1,7 @@
 import numpy as np
 
 from . import Agent
-from .policy import RandomPolicy
+from edge.model.policy_models import RandomPolicy
 
 
 class RandomAgent(Agent):
