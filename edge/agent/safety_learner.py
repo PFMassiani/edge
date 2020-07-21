@@ -2,7 +2,7 @@ import numpy as np
 
 from edge.model.safety_models import MaternSafety
 from . import Agent
-from .policy import SafetyActiveSampling, SafetyMaximization
+from edge.model.policy_models import SafetyActiveSampling, SafetyMaximization
 
 
 class SafetyLearner(Agent):

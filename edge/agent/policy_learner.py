@@ -1,7 +1,7 @@
 import numpy as np
 
 from . import Agent
-from .policy import MLPPolicy
+from edge.model.policy_models import MLPPolicy
 from edge.model.policy_models import MultilayerPerceptron
 
 
