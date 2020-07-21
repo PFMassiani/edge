@@ -7,8 +7,8 @@ from edge.model.policy_models import SafetyActiveSampling, SafetyMaximization
 
 class SafetyLearner(Agent):
     """
-    Defines an Agent that learns the safety measure as presented in the paper "A learnable safety measure", by Heim,
-    von Rohr, et al. (2019, CoRL).
+    Defines an Agent that learns the safety measure as presented in the paper
+    "A learnable safety measure", by Heim, von Rohr, et al. (2019, CoRL).
     """
     def __init__(self, env, gamma_optimistic, gamma_cautious, lambda_cautious,
                  x_seed, y_seed, gp_params=None, keep_seed_in_data=True):

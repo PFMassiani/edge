@@ -6,7 +6,8 @@ from . import Policy
 class ConstrainedEpsilonGreedy(Policy):
     """
     Defines a policy that is epsilon-greedy, but with a hard constraint on the state-action space: in a given state,
-    only a subset of the actions may be available
+    only a subset of the actions may be available.
+    The parameter `greed` is the eps: 1 for only exploration, 0 for only greed.
     """
     def __init__(self, stateaction_space, greed):
         super(ConstrainedEpsilonGreedy, self).__init__(stateaction_space)
@@ -65,7 +66,8 @@ class ConstrainedEpsilonGreedy(Policy):
 
 class EpsilonGreedy(ConstrainedEpsilonGreedy):
     """
-    Defines a policy that is epsilon-greedy
+    Defines a policy that is epsilon-greedy.
+    The parameter `greed` is the eps: 1 for only exploration, 0 for only greed.
     """
     def __init__(self, stateaction_space, greed):
         super(EpsilonGreedy, self).__init__(stateaction_space, greed)
