@@ -10,11 +10,11 @@ class SafetyTruthTest(unittest.TestCase):
         env = Hovership()
         truth = SafetyTruth(env)
 
-        vibly_file_path = '../vibly/data/dynamics/hover_map.pickle'
+        vibly_file_path = '../data/ground_truth/from_vibly/hover_map.pickle'
         truth.from_vibly_file(vibly_file_path)
 
         self.assertTrue(isinstance(truth.stateaction_space, StateActionSpace))
-        self.assertEqual(truth.viable_set.shape, truth.measure.shape)
+        self.assertEqual(truth.viable_set.shape, truth.measure_value.shape)
         self.assertEqual(truth.viable_set.shape, truth.unviable_set.shape)
         self.assertEqual(truth.viable_set.shape, truth.failure_set.shape)
 
@@ -22,7 +22,7 @@ class SafetyTruthTest(unittest.TestCase):
         env = Hovership()
         truth = SafetyTruth(env)
 
-        vibly_file_path = '../vibly/data/dynamics/hover_map.pickle'
+        vibly_file_path = '../data/ground_truth/from_vibly/hover_map.pickle'
         truth.from_vibly_file(vibly_file_path)
 
         train_x, train_y = truth.get_training_examples(n_examples=2000)

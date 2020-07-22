@@ -70,7 +70,7 @@ class SafetyTruth(GroundTruth):
                 self.stateaction_space[tuple(idx)]
                 for idx in sample_idx_list
             ]).reshape((-1, self.stateaction_space.index_dim))
-            sample_y = self.measure[sample_idx_tuple].squeeze()
+            sample_y = self.measure_value[sample_idx_tuple].squeeze()
             return sample_x, sample_y
 
         n_viable = 0 if not from_viable\

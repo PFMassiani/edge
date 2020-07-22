@@ -38,7 +38,7 @@ class TestHovership(unittest.TestCase):
     def test_stateaction_space_stability(self):
         hovership = Hovership()
         for t in range(10):
-            s, r, failed = hovership.step(atleast_1d(1.))
+            s, r, failed = hovership.step(atleast_1d(.8))
             self.assertTrue(s in hovership.stateaction_space.state_space)
 
         hovership.reset()
@@ -57,7 +57,7 @@ class TestHovership(unittest.TestCase):
         MAX_ITER = 1e2
         t = 0
         while r == 0 and t < MAX_ITER:
-            s, r, failed = hovership.step(atleast_1d(1))
+            s, r, failed = hovership.step(atleast_1d(0.8))
             t += 1
         self.assertTrue(hovership.s[0] > hovership.default_initial_state[0])
         self.assertTrue(not failed)
@@ -107,9 +107,9 @@ class TestDiscreteHovership(unittest.TestCase):
         self.assertEqual(hovership.s[0], default_initial_state[0])
 
     def test_stateaction_space_stability(self):
-        hovership = Hovership()
+        hovership = DiscreteHovership()
         for t in range(100):
-            s, r, failed = hovership.step(atleast_1d(1.))
+            s, r, failed = hovership.step(atleast_1d(5))
             self.assertTrue(s in hovership.stateaction_space.state_space)
 
         hovership.reset()

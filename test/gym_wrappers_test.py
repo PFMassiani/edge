@@ -80,7 +80,7 @@ class EnvironmentWrappers(unittest.TestCase):
         random_agent = RandomAgent(env)
 
         ep_ret, ep_cost = 0, 0
-        for t in range(10000):
+        for t in range(1000):
             new_state, reward, failed = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)

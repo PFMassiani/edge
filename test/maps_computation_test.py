@@ -12,7 +12,8 @@ class MyDiscreteHovership(DiscreteHovership):
             'gravity_gradient': 1,
             'max_thrust': 3,
             'max_altitude': 5,
-            'minimum_gravity_altitude': 4
+            'minimum_gravity_altitude': 4,
+            'maximum_gravity_altitude': 0
         }
         super(MyDiscreteHovership, self).__init__(
             self, dynamics_parameters=dynamics_parameters

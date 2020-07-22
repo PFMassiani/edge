@@ -128,7 +128,7 @@ class TestHyperparametersLearning(unittest.TestCase):
             gamma_cautious=0.95,
             lambda_cautious=0.,
             shape=(201, 151),
-            ground_truth='./data/ground_truth/from_vibly/hover_map.pickle',
+            ground_truth='../data/ground_truth/from_vibly/hover_map.pickle',
             every=every
         )
 
@@ -173,7 +173,7 @@ class TestHyperparametersLearning(unittest.TestCase):
             gamma_cautious=0.7,
             lambda_cautious=0.1,
             shape=(201, 151),
-            ground_truth='./data/ground_truth/from_vibly/hover_map.pickle',
+            ground_truth='../data/ground_truth/from_vibly/hover_map.pickle',
             random_start=False,
             every=50
         )

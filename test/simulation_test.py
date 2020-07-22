@@ -127,7 +127,7 @@ class TestSimulation(unittest.TestCase):
             lambda_cautious=0.1,
             lengthscale_prior=(0.3, 0.01),
             shape=(101, 101),
-            ground_truth='../vibly/data/dynamics/hover_map.pickle',
+            ground_truth='../data/ground_truth/from_vibly/hover_map.pickle',
             every=50
             # hyperparameters={
             #     'hyperparameters_initialization': {

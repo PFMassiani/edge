@@ -26,7 +26,7 @@ class TestQLearner(unittest.TestCase):
             'lengthscale_prior': (0.2, 0.05),
             'noise_prior': (0.001, 0.001)
         }
-        x_seed = np.array([1., 1.])
+        x_seed = np.array([1.5, .8])
         y_seed = np.array([1.])
 
         agent = QLearner(

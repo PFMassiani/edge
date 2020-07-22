@@ -24,12 +24,12 @@ class OptimisticSimulation(Simulation):
 
         self.ground_truth = SafetyTruth(self.env)
         self.ground_truth.from_vibly_file(
-            './data/ground_truth/from_vibly/hover_map.pickle'
+            '../data/ground_truth/from_vibly/hover_map.pickle'
         )
 
         self.hyperparameters = {
             'outputscale_prior': (0.4, 2),
-            'lengthscale_prior': (0.2, 0.2),
+            'lengthscale_prior': (0.1, 0.1),
             'noise_prior': (0.001, 0.002)
         }
         self.agent = SafetyLearner(
@@ -142,8 +142,8 @@ if __name__ == '__main__':
     sim = OptimisticSimulation(
         max_samples=500,
         gamma_optimistic=0.52,
-        gamma_cautious=0.7,
-        lambda_cautious=0.1,
+        gamma_cautious=0.8,
+        lambda_cautious=0.0,
         shape=(201, 151),
         every=25
     )

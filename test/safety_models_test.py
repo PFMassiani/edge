@@ -12,7 +12,7 @@ class TestHovership(Hovership):
             random_start=True,
             dynamics_parameters={
                 'control_frequency': 0.1,
-                'ground_gravity': 1,
+                'ground_gravity': 0.1,
                 'shape': (2, 2)
             }
         )
@@ -35,7 +35,7 @@ class TestSafetyMeasure(unittest.TestCase):
         tol = 1e-5
         env = TestHovership()
 
-        x_seed = np.array([1., 1.])
+        x_seed = np.array([1.8, 0.8])
         y_seed = np.array([1.])
 
         gamma = 0.1
@@ -63,11 +63,12 @@ class TestSafetyMeasure(unittest.TestCase):
                     most_variance_action = np.argmax(
                         covar_slice[cautious_actions]
                     )
-                    action = cautious_indexes[most_variance_action]
+                    action = tuple(cautious_indexes[most_variance_action])
                     action = env.action_space[action]
                 new_state, reward, failed = env.step(action)
                 measure.update(state, action, new_state, reward, failed)
                 state = new_state
+                failed = env.has_failed
                 n_steps += 1
 
         final_measure = measure[:, :].reshape(

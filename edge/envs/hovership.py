@@ -51,7 +51,7 @@ class Hovership(Environment):
         )
 
     def is_failure_state(self, state):
-        return state == 0
+        return state[0] == 0
 
 
 class DiscreteHovership(Environment):
