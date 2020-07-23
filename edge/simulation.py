@@ -23,7 +23,7 @@ class Simulation:
 
         self.__saved_figures = {}
 
-    def set_seed(self, random=False, value=0):
+    def set_seed(self, value=0, random=False):
         if random:
             npseed(None)
         else:
