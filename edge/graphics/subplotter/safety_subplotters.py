@@ -6,7 +6,7 @@ from . import Subplotter
 
 
 class SafetyMeasureSubplotter(Subplotter):
-    def __init__(self, agent, colors):
+    def __init__(self, agent, colors, fill=True, plot_optimistic=True):
         super(SafetyMeasureSubplotter, self).__init__(colors)
         self.agent = agent
         self.states = squeeze(self.model.env.state_space[:])
@@ -27,6 +27,9 @@ class SafetyMeasureSubplotter(Subplotter):
         stateaction_grid = self.model.env.stateaction_space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
+
+        self.fill = fill
+        self.plot_optimistic = plot_optimistic
 
     @property
     def model(self):
@@ -55,10 +58,13 @@ class SafetyMeasureSubplotter(Subplotter):
                 colors=[color, (0, 0, 0, 0)],
                 alpha=0.7
             )
-        draw_contour(Q_optimistic)
+        if self.plot_optimistic:
+            draw_contour(Q_optimistic)
+            if self.fill:
+                fill_contour(Q_optimistic, self.colors.optimistic)
         draw_contour(Q_cautious)
-        fill_contour(Q_optimistic, self.colors.optimistic)
-        fill_contour(Q_cautious, self.colors.cautious)
+        if self.fill:
+            fill_contour(Q_cautious, self.colors.cautious)
 
         ax_Q.set_xlabel('action space $A$')
         ax_Q.set_ylabel('state space $S$')
