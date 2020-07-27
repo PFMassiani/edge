@@ -71,7 +71,9 @@ class GP(gpytorch.models.ExactGP):
 
     def optimize_hyperparameters(self, epochs, **optimizer_kwargs):
         """
-        Optimizes the hyperparameters of the GP on its current dataset.
+        Optimizes the hyperparameters of the GP on its current dataset. This function can be run several times with
+        different parameterizations for the optimizer, enabling refining of parameters such as the learning rate.
+        If you want a "smart" adaptation of the parameters, you should redefine this method.
         :param epochs: the number of epochs
         :param optimizer_kwargs: the parameters passed to the optimizer. See GPyTorch documentation for more information
         """

@@ -1,8 +1,9 @@
 import gpytorch
+import torch
 
 from edge.utils import atleast_2d, constraint_from_tuple
 from .inference import GP
-from .tensorwrap import tensorwrap
+from .tensorwrap import tensorwrap, ensure_tensor
 
 
 class MaternGP(GP):
@@ -91,6 +92,8 @@ class MaternGP(GP):
 
         if hyperparameters_initialization is not None:
             initialization.update(hyperparameters_initialization)
+
+        initialization = {k: ensure_tensor(v) for k, v in initialization.items()}
 
         self.initialize(**initialization)
 
