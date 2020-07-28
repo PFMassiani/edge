@@ -136,6 +136,6 @@ class ValueAndSafetyLearner(Agent):
         if s_train_x is not None:
             if s_optimizer_kwargs is None:
                 s_optimizer_kwargs = {}
-            self.Q_model.fit(s_train_x, s_train_y, s_epochs, **s_optimizer_kwargs)
+            self.safety_model.fit(s_train_x, s_train_y, s_epochs, **s_optimizer_kwargs)
             if not self.keep_seed_in_data:
                 self.safety_model.empty_data()

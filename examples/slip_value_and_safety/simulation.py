@@ -62,7 +62,7 @@ class ValueAndSafetyLearningSimulation(ModelLearningSimulation):
         }
         self.s_hyperparameters = {
             'outputscale_prior': (0.4, 2),
-            'lengthscale_prior': (0.2, 0.01),
+            'lengthscale_prior': (0.2, 0.1),
             'noise_prior': (0.001, 0.002)
         }
         self.q_x_seed = q_x_seed
@@ -149,7 +149,21 @@ class ValueAndSafetyLearningSimulation(ModelLearningSimulation):
         self.save_figs(prefix='0')
 
         # train hyperparameters
-        # train_x, train_y = self.ground_truth.get_training_examples()
+        print('Optimizing hyperparameters...')
+        s_train_x, s_train_y = self.ground_truth.get_training_examples()
+        self.agent.fit_models(
+            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
+        )
+        self.agent.fit_models(
+            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
+        )
+        self.agent.fit_models(
+            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
+        )
+        print('Lengthscale:',self.agent.safety_model.gp.covar_module.base_kernel.lengthscale)
+        print('Outputscale:',self.agent.safety_model.gp.covar_module.outputscale)
+        print('Done.')
+        print('Training...')
         while n_samples < self.max_samples:
             reset_state = self.agent.get_random_safe_state()
             self.agent.reset(reset_state)
@@ -188,6 +202,7 @@ class ValueAndSafetyLearningSimulation(ModelLearningSimulation):
                 if n_samples >= self.max_samples:
                     break
             self.agent.reset()
+        print('Done.')
 
         self.save_figs(prefix=f'{self.name}_final')
         self.compile_gif()
@@ -202,8 +217,8 @@ class ValueAndSafetyLearningSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     sim = ValueAndSafetyLearningSimulation(
-        name='long_time_large_lengths',
-        max_samples=1000,
+        name='with_hyper_opt',
+        max_samples=100,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.8,
@@ -215,7 +230,7 @@ if __name__ == '__main__':
         s_x_seed=np.array([[0.4, 0.6], [0.8, 0.4]]),
         s_y_seed=np.array([1, 0.8]),
         shape=(201,201),
-        every=50,
+        every=10,
         glie_start=0.9
     )
     sim.set_seed(0)
