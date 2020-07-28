@@ -3,11 +3,14 @@ import numpy as np
 from . import Policy
 from ..inference import GaussianDensity
 
+
 class GaussianPolicy(Policy):
     def __init__(self, stateaction_space, discount_rate, step_size,
-                 features_function=None, n_features=None, initial_mean=0, initial_var=1):
+                 features_function=None, n_features=None, initial_weight=0, initial_var=1):
         super(GaussianPolicy, self).__init__(stateaction_space)
-        self.actions_density = GaussianDensity(features_function, n_features, initial_mean, initial_var)
+        self.actions_density = GaussianDensity(
+            stateaction_space.action_space.index_dim, features_function, n_features, initial_weight, initial_var
+        )
 
         self.discount_rate = discount_rate
         self.step_size = step_size
@@ -31,3 +34,9 @@ class GaussianPolicy(Policy):
             grad_of_log_function = self.actions_density.gradient_of_log(state)
             gradient_step = self.step_size * discounts[t] * g * grad_of_log_function(action)
             self.actions_density.update(gradient_step)
+
+    def __str__(self):
+        return f'GaussianPolicy(discount_rate={self.discount_rate}, step_size={self.step_size})'
+
+    def __repr__(self):
+        return str(self)

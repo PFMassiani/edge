@@ -15,6 +15,10 @@ class SampleSubplotter(Subplotter):
         else:
             self.unfailed_samples.append((state[0], action[0]))
 
+    def flush_samples(self):
+        self.failed_samples = []
+        self.unfailed_samples = []
+
     def draw_on_axs(self, ax_Q):
         def scatter_stateactions(stateactions, marker):
             states, actions = zip(*stateactions)
