@@ -86,6 +86,15 @@ class SafetyMeasureSubplotter(Subplotter):
         ax_S.set_xlabel('$\Lambda$')
 
 
+class SoftHardSubplotter(SafetyMeasureSubplotter):
+    def __init__(self, agent, colors, fill=True):
+        super(SoftHardSubplotter, self).__init__(agent, colors, fill, True)
+
+    def draw_on_axs(self, ax_Q, ax_S, Q_hard, Q_soft, S_optimistic):
+        self.draw_on_Q(ax_Q, Q_hard, Q_soft)
+        self.draw_on_S(ax_S, S_optimistic)
+
+
 class SafetyTruthSubplotter(Subplotter):
     def __init__(self, ground_truth, colors):
         super(SafetyTruthSubplotter, self).__init__(colors)
