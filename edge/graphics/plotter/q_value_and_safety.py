@@ -10,7 +10,7 @@ class QValueAndSafetyPlotter(Plotter):
         super(QValueAndSafetyPlotter, self).__init__(agent)
 
         self.q_value_subplotter = QValueSubplotter(agent, corl_colors, write_values=False)
-        self.safety_subplotter = SafetyMeasureSubplotter(agent, corl_colors, fill=False, plot_optimistic=False)
+        self.safety_subplotter = SafetyMeasureSubplotter(agent, corl_colors, fill=False, plot_optimistic=True)
         self.sample_subplotter = SampleSubplotter(corl_colors)
         if safety_truth is not None:
             self.safety_truth_subplotter = SafetyTruthSubplotter(safety_truth,
@@ -28,13 +28,13 @@ class QValueAndSafetyPlotter(Plotter):
         ax_Q.tick_params(direction='in', top=True, right=True)
         ax_S.tick_params(direction='in', left=False)
 
-        Q_values, Q_optimistic, Q_cautious, S_cautious = self.get_subplotters_params()
+        Q_values, Q_optimistic, Q_cautious, S_optimistic = self.get_subplotters_params()
 
         if self.safety_truth_subplotter is not None:
             self.safety_truth_subplotter.draw_on_axs(ax_Q, ax_S)
         q_values_image = self.q_value_subplotter.draw_on_axs(ax_Q, Q_values)
         self.safety_subplotter.draw_on_axs(ax_Q, ax_S, Q_optimistic,
-                                           Q_cautious, S_cautious)
+                                           Q_cautious, S_optimistic)
         self.sample_subplotter.draw_on_axs(ax_Q)
 
         figure.colorbar(q_values_image, ax=ax_S, location='right')
@@ -66,9 +66,9 @@ class QValueAndSafetyPlotter(Plotter):
             self.agent.env.stateaction_space.shape
         ).astype(float)
         # The action axis is 1 because we can only plot 2D Stateaction spaces
-        S_cautious = Q_cautious.mean(axis=1)
+        S_optimistic = Q_optimistic.mean(axis=1)
 
-        return Q_values, Q_optimistic, Q_cautious, S_cautious
+        return Q_values, Q_optimistic, Q_cautious, S_optimistic
 
-    def on_run_iteration(self, state, action, new_state, reward, failed):
-        self.sample_subplotter.incur_sample(state, action, failed)
+    def on_run_iteration(self, state, action, new_state, reward, failed, color=None):
+        self.sample_subplotter.incur_sample(state, action, failed, color)
