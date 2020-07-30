@@ -292,6 +292,22 @@ class TestGP(unittest.TestCase):
         tmp_pred = tmp.predict(x_).mean.numpy()
         self.assertTrue(np.all(np.abs(tmp_pred - y_) < tol))
 
+    def test_timeforgetting_dataset(self):
+        x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 1))
+        y = np.exp(-x**2).reshape(-1)
+
+        gp = MaternGP(
+            x, y, noise_constraint=(0,1e-3), dataset_type='timeforgetting', dataset_params={'keep': 50}
+        )
+        self.assertTrue((gp.train_x.numpy() == x[-50:]).all())
+        self.assertTrue((gp.train_y.numpy() == y[-50:]).all())
+        gp.append_data(x[:10], y[:10])
+        self.assertTrue((gp.train_x.numpy() == np.vstack((x[-40:], x[:10]))).all())
+        self.assertTrue((gp.train_y.numpy() == np.hstack((y[-40:], y[:10]))).all())
+        gp.set_data(x[:75], y[:75])
+        self.assertTrue((gp.train_x.numpy() == x[25:75]).all())
+        self.assertTrue((gp.train_y.numpy() == y[25:75]).all())
+
     def test_multi_dim_input(self):
         tol = 0.1
         lin = np.linspace(0, 1, 101)

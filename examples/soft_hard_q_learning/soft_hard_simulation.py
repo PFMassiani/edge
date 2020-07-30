@@ -22,7 +22,7 @@ def identity_or_duplicated_value(possible_tuple):
 class SoftHardSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
                  gamma_optimistic, gamma_hard, lambda_hard, gamma_soft,
-                 q_x_seed, q_y_seed, s_x_seed, s_y_seed,
+                 q_x_seed, q_y_seed, s_x_seed, s_y_seed, dataset_type, dataset_params,
                  shape, every, glie_start):
         dynamics_parameters = {
             'shape': shape
@@ -32,12 +32,16 @@ class SoftHardSimulation(ModelLearningSimulation):
         self.q_hyperparameters = {
             'outputscale_prior': (0.4, 2),
             'lengthscale_prior': (0.05, 0.1),
-            'noise_prior': (0.001, 0.002)
+            'noise_prior': (0.001, 0.002),
+            'dataset_type': dataset_type,
+            'dataset_params': dataset_params,
         }
         self.s_hyperparameters = {
             'outputscale_prior': (0.4, 2),
             'lengthscale_prior': (0.2, 0.1),
-            'noise_prior': (0.001, 0.002)
+            'noise_prior': (0.001, 0.002),
+            'dataset_type': dataset_type,
+            'dataset_params': dataset_params,
         }
         self.q_x_seed = q_x_seed
         self.q_y_seed = q_y_seed
@@ -198,7 +202,7 @@ class SoftHardSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     sim = SoftHardSimulation(
-        name='test',
+        name='timeforgetting_test',
         max_samples=1000,
         greed=0.1,
         step_size=0.6,
@@ -211,6 +215,8 @@ if __name__ == '__main__':
         q_y_seed=np.array([1]),
         s_x_seed=np.array([[0.4, 0.6], [0.8, 0.4]]),
         s_y_seed=np.array([1, 0.8]),
+        dataset_type='timeforgetting',
+        dataset_params={'keep': 200},
         shape=(201,201),
         every=100,
         glie_start=0.9

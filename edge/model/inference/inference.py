@@ -11,7 +11,7 @@ class GP(gpytorch.models.ExactGP):
     """
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, mean_module, covar_module,
-                 likelihood):
+                 likelihood, dataset_type=None, dataset_params=None):
         """
         Initializer
         :param train_x: np.ndarray: training input data. Should be 2D, and interpreted as a list of points.
@@ -19,11 +19,20 @@ class GP(gpytorch.models.ExactGP):
         :param mean_module: the mean of the GP. See GPyTorch tutorial
         :param covar_module: the covariance of the GP. See GPyTorch tutorial
         :param likelihood: the likelihood of the GP. See GPyTorch tutorial
+        :param dataset_type: If 'timeforgetting', use a TimeForgettingDataset. Otherwise, a default Dataset is used
+        :param dataset_params: dictionary or None. The entries are passed as keyword arguments to the constructor of
+            the chosen dataset.
         """
         # The @tensorwrap decorator automatically transforms train_x and train_y into torch.Tensors.
         # Hence, we only deal with tensors inside the methods
-        self.train_x = atleast_2d(train_x)
-        self.train_y = train_y
+        train_x = atleast_2d(train_x)
+        train_y = train_y
+        if dataset_type == 'timeforgetting':
+            create_dataset = TimeForgettingDataset
+        else:
+            dataset_params = {}
+            create_dataset = Dataset
+        self.dataset = create_dataset(train_x, train_y, **dataset_params)
 
         super(GP, self).__init__(train_x, train_y, likelihood)
 
@@ -32,6 +41,22 @@ class GP(gpytorch.models.ExactGP):
 
         self.optimizer = torch.optim.Adam
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood
+
+    @property
+    def train_x(self):
+        return self.dataset.train_x
+
+    @train_x.setter
+    def train_x(self, new_train_x):
+        self.dataset.train_x = new_train_x
+
+    @property
+    def train_y(self):
+        return self.dataset.train_y
+
+    @train_y.setter
+    def train_y(self, new_train_y):
+        self.dataset.train_y = new_train_y
 
     @property
     def structure_dict(self):
@@ -201,3 +226,51 @@ class GP(gpytorch.models.ExactGP):
         )
         model.load_state_dict(save_dict['state_dict'])
         return model
+
+
+class Dataset:
+    """
+    Base class to handle datasets seamlessly in a GP. The properties `train_x` and `train_y` of a GP actually call the
+    getters/setters of this class or a subclass of it, and the processing of the dataset is totally transparent from
+    the GP class.
+    Defining a custom way of handling GP data means inheriting from this class and redefining its getters and setters
+    """
+    def __init__(self, train_x, train_y):
+        self._train_x = train_x
+        self._train_y = train_y
+
+    @property
+    def train_x(self):
+        return self._train_x
+
+    @train_x.setter
+    def train_x(self, new_train_x):
+        self._train_x = new_train_x
+
+    @property
+    def train_y(self):
+        return self._train_y
+
+    @train_y.setter
+    def train_y(self, new_train_y):
+        self._train_y = new_train_y
+
+
+class TimeForgettingDataset(Dataset):
+    """
+    This Dataset only keeps the last `keep` data points in the dataset, by simple assignment of the train_x and train_y
+    attributes
+    """
+    def __init__(self, train_x, train_y, keep):
+        super(TimeForgettingDataset, self).__init__(train_x, train_y)
+        self.keep = keep
+        self._train_x = train_x[-self.keep:]
+        self._train_y = train_y[-self.keep:]
+
+    @Dataset.train_x.setter
+    def train_x(self, new_train_x):
+        self._train_x = new_train_x[-self.keep:]
+
+    @Dataset.train_y.setter
+    def train_y(self, new_train_y):
+        self._train_y = new_train_y[-self.keep:]
