@@ -36,7 +36,7 @@ class Simulation:
         for plotter in self.plotters.values():
             try:
                 plotter.on_run_iteration(*args, **kwargs)
-            except Exception:
+            except Exception as e:
                 pass
 
     def save_figs(self, prefix):

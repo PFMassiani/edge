@@ -81,7 +81,7 @@ class SoftHardSimulation(ModelLearningSimulation):
         )
 
         plotters = {
-            'Q-Values_Safety': SoftHardPlotter(self.agent, self.ground_truth)
+            'Q-Values_Safety': SoftHardPlotter(self.agent, self.ground_truth, ensure_in_dataset=True)
         }
 
         output_directory = Path(__file__).parent.resolve()
