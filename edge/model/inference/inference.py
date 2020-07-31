@@ -1,5 +1,6 @@
 import gpytorch
 import torch
+from sklearn.neighbors import KDTree
 
 from edge.utils import atleast_2d, dynamically_import
 from .tensorwrap import tensorwrap
@@ -262,6 +263,12 @@ class TimeForgettingDataset(Dataset):
     attributes
     """
     def __init__(self, train_x, train_y, keep):
+        """
+        Initializer
+        :param train_x: torch.Tensor, the training input data
+        :param train_y: torch.Tensor, the training output data
+        :param keep: int, how many points to keep in
+        """
         super(TimeForgettingDataset, self).__init__(train_x, train_y)
         self.keep = keep
         self._train_x = train_x[-self.keep:]
@@ -274,3 +281,75 @@ class TimeForgettingDataset(Dataset):
     @Dataset.train_y.setter
     def train_y(self, new_train_y):
         self._train_y = new_train_y[-self.keep:]
+
+
+class NeighborErasingDataset(Dataset):
+    """
+    When receiving a new point, this dataset removes the neighbors of that point that are close enough to it
+    """
+    def __init__(self, train_x, train_y, radius):
+        """
+        Initializer
+        :param train_x: torch.Tensor, the training input data
+        :param train_y: torch.Tensor the training output data
+        :param radius: float, the maximal distance at which old points will be removed when sampling a new point
+        """
+        super(NeighborErasingDataset, self).__init__(train_x, train_y)
+        self.radius = radius
+        self._kdtree = self._create_kdtree()
+
+        self.keeping_filter = None
+        self.new_elements_mask = None
+        self.waiting_for_y_update = False
+
+    @Dataset.train_x.setter
+    def train_x(self, new_train_x):
+        """
+        Sets the train_x attribute of the dataset to the given value, and removes the points in the previous
+        train_x that are closer than self.radius to the new points.
+        Note that this method does NOT ensure that the points that are already present in the dataset are spaced by
+        at least self.radius.
+        Important: the distances are only considered in X-space, so you need to update the train_x attribute BEFORE
+        updating the train_y attribute.
+        :param new_train_x: torch.tensor: the new dataset
+        :return:
+        """
+        self.new_elements_mask = torch.tensor([new_ex not in self.train_x for new_ex in new_train_x])
+
+        new_elements = new_train_x[self.new_elements_mask]
+        _, lists_indices_to_forget = self._kdtree.query_radius(new_elements.numpy(), r=self.radius)
+        lists_indices_to_forget = list(map(torch.tensor, lists_indices_to_forget))
+        indices_to_forget = torch.cat(lists_indices_to_forget)
+
+        self.keeping_filter = torch.ones_like(self.train_x, dtype=bool)
+        self.keeping_filter[indices_to_forget] = False
+
+        train_x_without_neighbors = self.train_x[self.keeping_filter]
+        self._train_x = torch.cat((train_x_without_neighbors, new_elements))
+
+        self._kdtree = self._create_kdtree()
+        self.waiting_for_y_update = True
+
+    @Dataset.train_y.setter
+    def train_y(self, new_train_y):
+        """
+        Sets the train_y attribute of the dataset to the given value, and removes the points in the previous
+        train_y whose corresponding train_x values are closer than self.radius to the new ones.
+        Note that this method does NOT ensure that the points that are already present in the dataset are spaced by
+        at least self.radius in X-space.
+        Important: the distances are only considered in X-space, so you need to update the train_x attribute BEFORE
+        updating the train_y attribute. This method raises an AttributeError otherwise.
+        :param new_train_y: the new dataset
+        :return:
+        """
+        if not self.waiting_for_y_update:
+            raise AttributeError("You must set the NeighborErasingDataset's `train_x` attribute before setting its"
+                                 "`train_y`.")
+        new_elements = new_train_y[self.new_elements_mask]
+        train_y_without_neighbors = self._train_y[self.keeping_filter]
+        self._train_y = torch.cat((train_y_without_neighbors, new_elements))
+        self.waiting_for_y_update = False
+
+    def _create_kdtree(self):
+        kdtree = KDTree(self.train_x.numpy(), leaf_size=40)  # This is expensive
+        return kdtree
