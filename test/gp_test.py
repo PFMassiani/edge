@@ -8,7 +8,9 @@ import gpytorch
 import matplotlib.pyplot as plt
 
 from edge.model.inference import tensorwrap
+from edge.model.inference.tensorwrap import ensure_tensor
 from edge.model.inference import MaternGP, GP
+from edge.model.inference.inference import NeighborErasingDataset
 from edge.utils import constraint_from_tuple
 
 
@@ -220,7 +222,7 @@ class TestGP(unittest.TestCase):
                 self.initialize(**init_dict)
 
         period_length = 2
-        tol = 1e-4
+        tol = 2e-4
         x = np.linspace(0,4,500).reshape((-1,1))
         y = np.cos(x * np.pi / period_length).reshape(-1)
         x_train = x[:250]
@@ -307,6 +309,71 @@ class TestGP(unittest.TestCase):
         gp.set_data(x[:75], y[:75])
         self.assertTrue((gp.train_x.numpy() == x[25:75]).all())
         self.assertTrue((gp.train_y.numpy() == y[25:75]).all())
+
+    def test_neighbor_erasing_dataset_0(self):
+        x = np.linspace(0, 1, 10).reshape((-1, 1))
+        y = np.sin(x).squeeze()
+
+        x_ = np.linspace(0, 1, 5).reshape((-1, 1))
+        y_ = np.sin(x_).squeeze()
+
+        distances = np.abs(x - x_.reshape(-1)).min(axis=1)
+
+        radius = 1.1 * np.min(distances[np.nonzero(distances)])
+
+        x_are_close = [(np.abs(xx - x_) < radius).any() for xx in x.squeeze()]
+        x_kept = x[np.logical_not(x_are_close)]
+        y_kept = y[np.logical_not(x_are_close)]
+        x_final = np.concatenate((x_kept, x_), axis=0)
+        y_final = np.concatenate((y_kept, y_), axis=-1)
+
+        x = ensure_tensor(x)
+        y = ensure_tensor(y)
+        x_ = ensure_tensor(x_)
+        y_ = ensure_tensor(y_)
+
+        ds = NeighborErasingDataset(x, y, radius)
+
+        ds.append(x_, y_)
+
+        self.assertTrue(np.isclose(ds.train_x.numpy(), x_final).all())
+        self.assertTrue(np.isclose(ds.train_y.numpy(), y_final).all())
+
+    def test_neighbor_erasing_dataset_1(self):
+        x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 1))
+        y = np.exp(-x ** 2).reshape(-1)
+
+        r = 0.0125
+
+        gp = MaternGP(
+            x, y, noise_constraint=(0, 1e-3), dataset_type='neighborerasing',
+            dataset_params={'radius': r}
+        )
+        x_ = np.linspace(0, 1, 20, dtype=np.float32).reshape((-1, 1))
+        y_ = np.exp(-x_ ** 2).reshape(-1)
+
+        gp.append_data(x_, y_)
+        distances = np.abs(gp.train_x.numpy().reshape((-1, 1)) - x_.squeeze())
+
+        self.assertTrue(np.all(
+            distances[:-len(x_), :] >= r
+        ))
+        self.assertTrue((gp.train_x.numpy()[-len(x_):, :] == x_).all())
+        # Set to True to plot
+        if False:
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.scatter(
+                gp.train_x.numpy()[-len(x_):],
+                gp.train_x.numpy()[-len(x_):],
+                color='r',
+            )
+            plt.scatter(
+                gp.train_x.numpy()[:-len(x_)],
+                gp.train_x.numpy()[:-len(x_)],
+                color='b'
+            )
+            plt.show()
 
     def test_multi_dim_input(self):
         tol = 0.1
