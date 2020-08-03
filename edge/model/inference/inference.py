@@ -20,7 +20,10 @@ class GP(gpytorch.models.ExactGP):
         :param mean_module: the mean of the GP. See GPyTorch tutorial
         :param covar_module: the covariance of the GP. See GPyTorch tutorial
         :param likelihood: the likelihood of the GP. See GPyTorch tutorial
-        :param dataset_type: If 'timeforgetting', use a TimeForgettingDataset. Otherwise, a default Dataset is used
+        :param dataset_type: Possible values:
+            * 'timeforgetting': use a TimeForgettingDataset
+            * 'neighborerasing': use a NeighborErasingDataset
+            * anything else: use a standard Dataset
         :param dataset_params: dictionary or None. The entries are passed as keyword arguments to the constructor of
             the chosen dataset.
         """
@@ -30,6 +33,8 @@ class GP(gpytorch.models.ExactGP):
         train_y = train_y
         if dataset_type == 'timeforgetting':
             create_dataset = TimeForgettingDataset
+        elif dataset_type == 'neighborerasing':
+            create_dataset = NeighborErasingDataset
         else:
             dataset_params = {}
             create_dataset = Dataset
@@ -131,6 +136,14 @@ class GP(gpytorch.models.ExactGP):
             else:
                 return self.likelihood(self(x))
 
+    def _set_gp_data_to_dataset(self):
+        self.set_train_data(
+            inputs=self.train_x,
+            targets=self.train_y,
+            strict=False
+            # If True, the new dataset should have the same shape as the old one
+        )
+
     def empty_data(self):
         """
         Empties the dataset of the GP
@@ -138,10 +151,12 @@ class GP(gpytorch.models.ExactGP):
         """
         outputs_shape = (0,) if len(self.train_y.shape) == 1 else \
                         (0, self.train_y.shape[1])
-        return self.set_data(
-            x=torch.empty((0, self.train_x.shape[1])),
-            y=torch.empty(outputs_shape)
-        )
+        empty_x = torch.empty((0, self.train_x.shape[1]))
+        empty_y = torch.empty(outputs_shape)
+        self.train_x = empty_x
+        self.train_y = empty_y
+        self._set_gp_data_to_dataset()
+        return self
 
     @tensorwrap('x', 'y')
     def set_data(self, x, y):
@@ -150,15 +165,9 @@ class GP(gpytorch.models.ExactGP):
         :param x: np.ndarray: the new training input data. Subject to the same constraints as train_x in __init__
         :param y: np.ndarray: the new training output data. Subject to the same constraints as train_y in __init__
         """
-        x = atleast_2d(x)
-
-        self.train_x = x
+        self.train_x = atleast_2d(x)
         self.train_y = y
-        self.set_train_data(
-            inputs=self.train_x,
-            targets=self.train_y,
-            strict=False  # If True, the new dataset should have the same shape as the old one
-        )
+        self._set_gp_data_to_dataset()
         return self
 
     @tensorwrap('x', 'y')
@@ -171,9 +180,8 @@ class GP(gpytorch.models.ExactGP):
         """
         # GPyTorch provides an additional, more efficient way of adding data with the ExactGP.get_fantasy_model method,
         # but it seems to require that the model is called at least once before it can be used
-        new_x = torch.cat((self.train_x, atleast_2d(x)), dim=0)
-        new_y = torch.cat((self.train_y, y), dim=0)
-        self.set_data(new_x, new_y)
+        self.dataset.append(atleast_2d(x), y)
+        self._set_gp_data_to_dataset()
         return self
 
     def save(self, save_path):
@@ -256,6 +264,10 @@ class Dataset:
     def train_y(self, new_train_y):
         self._train_y = new_train_y
 
+    def append(self, append_x, append_y):
+        self.train_x = torch.cat((self.train_x, atleast_2d(append_x)), dim=0)
+        self.train_y = torch.cat((self.train_y, append_y), dim=0)
+
 
 class TimeForgettingDataset(Dataset):
     """
@@ -274,6 +286,9 @@ class TimeForgettingDataset(Dataset):
         self._train_x = train_x[-self.keep:]
         self._train_y = train_y[-self.keep:]
 
+    # These redefine the setters of train_x and train_y
+    # Hence, we do NOT need to redefine TimeForgettingDataset.append, because
+    # the setters already make sure that there is at most self.keep points
     @Dataset.train_x.setter
     def train_x(self, new_train_x):
         self._train_x = new_train_x[-self.keep:]
@@ -286,6 +301,9 @@ class TimeForgettingDataset(Dataset):
 class NeighborErasingDataset(Dataset):
     """
     When receiving a new point, this dataset removes the neighbors of that point that are close enough to it
+    Note: this dataset does NOT ensure any condition when assigning a new set
+    of points to train_x/train_y. The non-neighboring condition is only enforced
+    when using the `append` method.
     """
     def __init__(self, train_x, train_y, radius):
         """
@@ -298,57 +316,25 @@ class NeighborErasingDataset(Dataset):
         self.radius = radius
         self._kdtree = self._create_kdtree()
 
-        self.keeping_filter = None
-        self.new_elements_mask = None
-        self.waiting_for_y_update = False
-
-    @Dataset.train_x.setter
-    def train_x(self, new_train_x):
-        """
-        Sets the train_x attribute of the dataset to the given value, and removes the points in the previous
-        train_x that are closer than self.radius to the new points.
-        Note that this method does NOT ensure that the points that are already present in the dataset are spaced by
-        at least self.radius.
-        Important: the distances are only considered in X-space, so you need to update the train_x attribute BEFORE
-        updating the train_y attribute.
-        :param new_train_x: torch.tensor: the new dataset
-        :return:
-        """
-        self.new_elements_mask = torch.tensor([new_ex not in self.train_x for new_ex in new_train_x])
-
-        new_elements = new_train_x[self.new_elements_mask]
-        _, lists_indices_to_forget = self._kdtree.query_radius(new_elements.numpy(), r=self.radius)
-        lists_indices_to_forget = list(map(torch.tensor, lists_indices_to_forget))
+    def append(self, append_x, append_y):
+        lists_indices_to_forget = self._kdtree.query_radius(append_x.numpy(),
+                                                            r=self.radius)
+        lists_indices_to_forget = list(map(
+            torch.tensor,
+            lists_indices_to_forget
+        ))
         indices_to_forget = torch.cat(lists_indices_to_forget)
 
-        self.keeping_filter = torch.ones_like(self.train_x, dtype=bool)
-        self.keeping_filter[indices_to_forget] = False
+        keeping_filter = torch.ones_like(self.train_x, dtype=bool).squeeze()
+        keeping_filter[indices_to_forget] = False
 
-        train_x_without_neighbors = self.train_x[self.keeping_filter]
-        self._train_x = torch.cat((train_x_without_neighbors, new_elements))
+        train_x_without_neighbors = self.train_x[keeping_filter]
+        self.train_x = torch.cat((train_x_without_neighbors, append_x))
+
+        train_y_without_neighbors = self._train_y[keeping_filter]
+        self.train_y = torch.cat((train_y_without_neighbors, append_y))
 
         self._kdtree = self._create_kdtree()
-        self.waiting_for_y_update = True
-
-    @Dataset.train_y.setter
-    def train_y(self, new_train_y):
-        """
-        Sets the train_y attribute of the dataset to the given value, and removes the points in the previous
-        train_y whose corresponding train_x values are closer than self.radius to the new ones.
-        Note that this method does NOT ensure that the points that are already present in the dataset are spaced by
-        at least self.radius in X-space.
-        Important: the distances are only considered in X-space, so you need to update the train_x attribute BEFORE
-        updating the train_y attribute. This method raises an AttributeError otherwise.
-        :param new_train_y: the new dataset
-        :return:
-        """
-        if not self.waiting_for_y_update:
-            raise AttributeError("You must set the NeighborErasingDataset's `train_x` attribute before setting its"
-                                 "`train_y`.")
-        new_elements = new_train_y[self.new_elements_mask]
-        train_y_without_neighbors = self._train_y[self.keeping_filter]
-        self._train_y = torch.cat((train_y_without_neighbors, new_elements))
-        self.waiting_for_y_update = False
 
     def _create_kdtree(self):
         kdtree = KDTree(self.train_x.numpy(), leaf_size=40)  # This is expensive
