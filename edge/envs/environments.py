@@ -109,3 +109,6 @@ class Environment:
                                         self.has_failed
                                         )
         return self.s, reward, self.has_failed
+
+    def render(self):
+        pass
