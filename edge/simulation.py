@@ -1,7 +1,10 @@
 from pathlib import Path
 import os
+import logging
 from matplotlib.pyplot import close as plt_close
 from numpy.random import seed as npseed
+
+from edge.utils.logging import ConfigFilter
 
 
 class Simulation:
@@ -22,6 +25,8 @@ class Simulation:
         self.log_path.mkdir(parents=False, exist_ok=True)
 
         self.__saved_figures = {}
+
+        self.setup_default_logging_configuration()
 
     def set_seed(self, value=0, random=False):
         if random:
@@ -64,6 +69,23 @@ class Simulation:
                 os.system(gif_command)
             except Exception as e:
                 print(f'Error: could not compile {name}.gif. Exception: {e}')
+
+    def setup_default_logging_configuration(self):
+        training_handler = logging.FileHandler(
+            self.log_path / 'training.log'
+        )
+        training_handler.addFilter(ConfigFilter(log_if_match=False))
+        training_handler.setLevel(logging.INFO)
+        config_handler = logging.FileHandler(
+            self.log_path / 'config.log'
+        )
+        config_handler.addFilter(ConfigFilter(log_if_match=True))
+        config_handler.setLevel(logging.INFO)
+
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.INFO)
+        root_logger.addHandler(training_handler)
+        root_logger.addHandler(config_handler)
 
 
 class ModelLearningSimulation(Simulation):

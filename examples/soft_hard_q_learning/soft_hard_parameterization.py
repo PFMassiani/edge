@@ -1,11 +1,14 @@
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 
-from edge.envs import Slip
+from edge.envs import Slip, Hovership
 from edge.reward import AffineReward, ConstantReward
 from edge.agent import Agent
 from edge.model.value_models import GPQLearning
 from edge.model.safety_models import MaternSafety
-from edge.model.policy_models import ConstrainedEpsilonGreedy, SafetyMaximization, SafetyActiveSampling
+from edge.model.policy_models import ConstrainedEpsilonGreedy, \
+    SafetyMaximization, SafetyActiveSampling
 
 
 class LowGoalSlip(Slip):
@@ -23,6 +26,30 @@ class LowGoalSlip(Slip):
 class PenalizedSlip(LowGoalSlip):
     def __init__(self, penalty_level=100, dynamics_parameters=None):
         super(PenalizedSlip, self).__init__(dynamics_parameters)
+
+        def penalty_condition(state, action, new_state, reward):
+            return self.is_failure_state(new_state)
+
+        penalty = ConstantReward(self.reward.stateaction_space, -penalty_level,
+                                 reward_condition=penalty_condition)
+
+        self.reward += penalty
+
+
+class LowGoalHovership(Hovership):
+    def __init__(self, dynamics_parameters=None):
+        super(LowGoalHovership, self).__init__(
+            random_start=True,
+            dynamics_parameters=dynamics_parameters
+        )
+
+        reward = AffineReward(self.stateaction_space, [(10, 0), (0, 0)])
+        self.reward = reward
+
+
+class PenalizedHovership(LowGoalHovership):
+    def __init__(self, penalty_level=100, dynamics_parameters=None):
+        super(PenalizedHovership, self).__init__(dynamics_parameters)
 
         def penalty_condition(state, action, new_state, reward):
             return self.is_failure_state(new_state)
@@ -111,6 +138,21 @@ class SoftHardLearner(Agent):
         self.constrained_value_policy.greed = new_greed
 
     @property
+    def step_size(self):
+        """
+        Returns the step_size parameter of the Q-Learning model
+        :return: step_size parameter
+        """
+        return self.Q_model.step_size
+
+    @step_size.setter
+    def step_size(self, new_step_size):
+        """
+        Sets the epsilon parameter of the ConstrainedEpsilonGreedy policy
+        """
+        self.Q_model.step_size = new_step_size
+
+    @property
     def gamma_optimistic(self):
         return self._gamma_optimistic
 
@@ -136,7 +178,7 @@ class SoftHardLearner(Agent):
         )
 
         if action is None:
-            print('No viable action, taking the safest...')
+            logger.info('No viable action, taking the safest...')
             action = self.safety_maximization_policy.get_action(proba_slice_hard)
             self.violated_soft_constraint = True
         else:
@@ -159,7 +201,7 @@ class SoftHardLearner(Agent):
         try:
             state_index = viable_indexes[np.random.choice(len(viable_indexes))]
         except Exception as e:
-            print('ERROR:', str(e))
+            logger.error('ERROR:', str(e))
             return None
         state = self.env.stateaction_space.state_space[state_index]
         return state

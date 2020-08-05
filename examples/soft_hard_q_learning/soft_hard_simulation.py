@@ -1,11 +1,14 @@
 from pathlib import Path
 import numpy as np
+import logging
 
 from edge import ModelLearningSimulation
 from edge.graphics.plotter import SoftHardPlotter
 from edge.model.safety_models import SafetyTruth
+from edge.utils.logging import config_msg
 
-from soft_hard_parameterization import LowGoalSlip, SoftHardLearner
+from soft_hard_parameterization import LowGoalSlip, LowGoalHovership, \
+    SoftHardLearner
 
 
 def affine_interpolation(t, start, end):
@@ -20,25 +23,50 @@ def identity_or_duplicated_value(possible_tuple):
 
 
 class SoftHardSimulation(ModelLearningSimulation):
-    def __init__(self, name, max_samples, greed, step_size, discount_rate,
+    def __init__(self, name, env_name, max_samples, greed, step_size, discount_rate,
                  gamma_optimistic, gamma_hard, lambda_hard, gamma_soft,
-                 q_x_seed, q_y_seed, s_x_seed, s_y_seed, dataset_type, dataset_params,
+                 q_x_seed, q_y_seed, s_x_seed, s_y_seed,
+                 optimize_hyperparameters, dataset_type, dataset_params,
                  shape, every, glie_start):
+        parameterization = {
+            'env_name':env_name,
+            'max_samples':max_samples,
+            'greed':greed,
+            'step_size':step_size,
+            'discount_rate':discount_rate,
+            'gamma_optimistic':gamma_optimistic,
+            'gamma_hard':gamma_hard,
+            'lambda_hard':lambda_hard,
+            'gamma_soft':gamma_soft,
+            'q_x_seed':q_x_seed,
+            'q_y_seed':q_y_seed,
+            's_x_seed':s_x_seed,
+            's_y_seed':s_y_seed,
+            'optimize_hyperparameters':optimize_hyperparameters,
+            'dataset_type':dataset_type,
+            'dataset_params':dataset_params,
+            'shape':shape,
+            'every':every,
+            'glie_start':glie_start
+        }
         dynamics_parameters = {
             'shape': shape
         }
-        self.env = LowGoalSlip(dynamics_parameters=dynamics_parameters)
+        if env_name == 'slip':
+            self.env = LowGoalSlip(dynamics_parameters=dynamics_parameters)
+        elif env_name == 'hovership':
+            self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters)
 
         self.q_hyperparameters = {
-            'outputscale_prior': (0.4, 2),
-            'lengthscale_prior': (0.05, 0.1),
+            'outputscale_prior': (0.12, 0.01),
+            'lengthscale_prior': (0.15, 0.05),
             'noise_prior': (0.001, 0.002),
             'dataset_type': dataset_type,
             'dataset_params': dataset_params,
         }
         self.s_hyperparameters = {
-            'outputscale_prior': (0.4, 2),
-            'lengthscale_prior': (0.2, 0.1),
+            'outputscale_prior': (0.12, 0.01),
+            'lengthscale_prior': (0.15, 0.05),
             'noise_prior': (0.001, 0.002),
             'dataset_type': dataset_type,
             'dataset_params': dataset_params,
@@ -47,6 +75,7 @@ class SoftHardSimulation(ModelLearningSimulation):
         self.q_y_seed = q_y_seed
         self.s_x_seed = s_x_seed
         self.s_y_seed = s_y_seed
+        self.optimize_hyperparameters = optimize_hyperparameters
 
         self.gamma_optimistic_start, self.gamma_optimistic_end = identity_or_duplicated_value(gamma_optimistic)
         self.gamma_hard_start, self.gamma_hard_end = identity_or_duplicated_value(gamma_hard)
@@ -75,10 +104,13 @@ class SoftHardSimulation(ModelLearningSimulation):
         )
 
         self.ground_truth = SafetyTruth(self.env)
-        self.ground_truth.from_vibly_file(
-            Path(__file__).parent.parent.parent / 'data' / 'ground_truth' /
-            'from_vibly' / 'slip_map.pickle'
-        )
+        if env_name == 'slip':
+            truth_path = Path(__file__).parent.parent.parent / 'data' / \
+                         'ground_truth' / 'from_vibly' / 'slip_map.pickle'
+        elif env_name == 'hovership':
+            truth_path = Path(__file__).parent.parent.parent / 'data' / \
+                         'ground_truth' / 'from_vibly' / 'hover_map.pickle'
+        self.ground_truth.from_vibly_file(truth_path)
 
         plotters = {
             'Q-Values_Safety': SoftHardPlotter(self.agent, self.ground_truth, ensure_in_dataset=True)
@@ -94,6 +126,13 @@ class SoftHardSimulation(ModelLearningSimulation):
             self.glie_start = int(glie_start * self.max_samples)
         else:
             self.glie_start = glie_start
+
+
+        msg = ''
+        for pname, pval in parameterization.items():
+            msg += pname + ' = ' + str(pval) + ', '
+        msg = msg[:-2]
+        logging.info(config_msg(f'Simulation started with parameters: {msg}'))
 
     def get_models_to_save(self):
         # The keys must be the same as the actual names of the attributes, this is used in load_models.
@@ -127,22 +166,30 @@ class SoftHardSimulation(ModelLearningSimulation):
         n_samples = 0
         self.save_figs(prefix='0')
 
-        # train hyperparameters
-        print('Optimizing hyperparameters...')
-        s_train_x, s_train_y = self.ground_truth.get_training_examples()
-        self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
-        )
-        self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
-        )
-        self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
-        )
-        print('Lengthscale:',self.agent.safety_model.gp.covar_module.base_kernel.lengthscale)
-        print('Outputscale:',self.agent.safety_model.gp.covar_module.outputscale)
-        print('Done.')
-        print('Training...')
+        if self.optimize_hyperparameters:
+            logging.info('Optimizing hyperparameters...')
+            s_train_x, s_train_y = self.ground_truth.get_training_examples()
+            self.agent.fit_models(
+                s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
+            )
+            self.agent.fit_models(
+                s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
+            )
+            self.agent.fit_models(
+                s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
+            )
+            logging.info('Done.')
+        else:
+            logging.info('Hyperparameters were NOT optimized.')
+        logging.info(config_msg(
+            'Lengthscale:'
+            f'{self.agent.safety_model.gp.covar_module.base_kernel.lengthscale}'
+        ))
+        logging.info(config_msg(
+            'Outputscale:'
+            f'{self.agent.safety_model.gp.covar_module.outputscale}'
+        ))
+        logging.info('Training...')
         while n_samples < self.max_samples:
             reset_state = self.agent.get_random_safe_state()
             self.agent.reset(reset_state)
@@ -157,7 +204,7 @@ class SoftHardSimulation(ModelLearningSimulation):
 
                 # * start reducing eps to converge to a greedy policy.
                 if self.glie_start is not None and n_samples > self.glie_start:
-                    self.agent.greed *= (n_samples - self.glie_start) / (
+                    self.agent.step_size *= (n_samples - self.glie_start) / (
                                         (n_samples - self.glie_start + 1))
                 self.agent.gamma_optimistic = affine_interpolation(
                     n_samples / self.max_samples,
@@ -187,7 +234,7 @@ class SoftHardSimulation(ModelLearningSimulation):
                 if n_samples >= self.max_samples:
                     break
             self.agent.reset()
-        print('Done.')
+        logging.info('Done.')
 
         self.save_figs(prefix=f'{self.name}_final')
         self.compile_gif()
@@ -195,33 +242,61 @@ class SoftHardSimulation(ModelLearningSimulation):
     def on_run_iteration(self, n_samples, *args, **kwargs):
         super(SoftHardSimulation, self).on_run_iteration(*args, **kwargs)
 
-        print(f'Iteration {n_samples}/{self.max_samples}')
+        logging.info(f'Iteration {n_samples}/{self.max_samples}')
+        logging.info(f'# of Q-values training examples: '
+              f'{len(self.agent.Q_model.gp.train_x)}')
+        logging.info(f'# of safety measure training examples: '
+              f'{len(self.agent.safety_model.gp.train_x)}')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
 
 if __name__ == '__main__':
+    import time
+
+    env_dependent_params = {
+        'slip': {
+            'q_x_seed': np.array([0.4, 0.6]),
+            'q_y_seed': np.array([1]),
+            's_x_seed': np.array([[0.4, 0.6], [0.8, 0.4]]),
+            's_y_seed': np.array([1, 0.8]),
+        },
+        'hovership': {
+            'q_x_seed': np.array([[1.3, 0.6], [2, 0]]),
+            'q_y_seed': np.array([1, 1]),
+            's_x_seed': np.array([[1.3, 0.6], [1.8, 0.2]]),
+            's_y_seed': np.array([1, 1]),
+        }
+    }
+
+    ENV_NAME = 'slip'
     sim = SoftHardSimulation(
-        name='timeforgetting_test',
+        name='timeforgetting_dataset_slip',
+        env_name=ENV_NAME,
         max_samples=1000,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.9,
-        gamma_optimistic=(0.7, 0.9),
-        gamma_hard=(0.71, 0.9),
+        gamma_optimistic=(0.6, 0.9),
+        gamma_hard=(0.61, 0.9),
         lambda_hard=(0, 0.05),
-        gamma_soft=(0.8, 0.95),
-        q_x_seed=np.array([0.4, 0.6]),
-        q_y_seed=np.array([1]),
-        s_x_seed=np.array([[0.4, 0.6], [0.8, 0.4]]),
-        s_y_seed=np.array([1, 0.8]),
+        gamma_soft=(0.7, 0.95),
+        q_x_seed=env_dependent_params[ENV_NAME]['q_x_seed'],
+        q_y_seed=env_dependent_params[ENV_NAME]['q_y_seed'],
+        s_x_seed=env_dependent_params[ENV_NAME]['s_x_seed'],
+        s_y_seed=env_dependent_params[ENV_NAME]['s_y_seed'],
+        optimize_hyperparameters=False,
         dataset_type='timeforgetting',
-        dataset_params={'keep': 200},
+        dataset_params={'keep': 200},  # {'radius': 0.01},
         shape=(201,201),
         every=100,
         glie_start=0.9
     )
     sim.set_seed(0)
 
+    t0 = time.time()
     sim.run()
+    t1 = time.time()
+    dt = t1 - t0
+    logging.info(f'Simulation duration: {dt:.2f} s')
     sim.save_models()
