@@ -49,8 +49,8 @@ class SpaceWrappers(unittest.TestCase):
         self.assertEqual(ed.from_gym(g), g)
 
 
-class EnvironmentWrappers(unittest.TestCase):
-    def test_environment_creation(self):
+class SafetyGymEnvironmentWrappers(unittest.TestCase):
+    def test_safety_gym_environment_creation(self):
         senv = gym.make('Safexp-PointGoal1-v0')
         env = GymEnvironmentWrapper(senv)
 
@@ -74,7 +74,7 @@ class EnvironmentWrappers(unittest.TestCase):
                  kwargs={'config': config})
         env = GymEnvironmentWrapper(senv, failure_critical=True)
 
-    def test_random_agent(self):
+    def test_safety_gym_random_agent(self):
         senv = gym.make('Safexp-PointGoal1-v0')
         env = GymEnvironmentWrapper(senv)
         random_agent = RandomAgent(env)
@@ -90,6 +90,30 @@ class EnvironmentWrappers(unittest.TestCase):
                 ep_ret, ep_cost = 0, 0
                 random_agent.reset()
 
+
+class GymEnvironmentWrappers(unittest.TestCase):
+    def test_gym_environment_creation(self):
+        gymenv = gym.make('LunarLander-v2')
+        env = GymEnvironmentWrapper(gymenv)
+
+        env = GymEnvironmentWrapper(gymenv, failure_critical=True)
+        self.assertTrue(True)
+
+    def test_gym_random_agent(self):
+        gymenv = gym.make('LunarLander-v2')
+        env = GymEnvironmentWrapper(gymenv)
+        random_agent = RandomAgent(env)
+
+        ep_ret, ep_cost = 0, 0
+        for t in range(1000):
+            new_state, reward, failed = random_agent.step()
+            ep_ret += reward
+            ep_cost += env.info.get('cost', 0)
+            env.gym_env.render()
+            if env.done:
+                print('Episode Return: %.3f \t Episode Cost: %.3f' % (ep_ret, ep_cost))
+                ep_ret, ep_cost = 0, 0
+                random_agent.reset()
 
 
 if __name__ == '__main__':
