@@ -117,11 +117,13 @@ class SafetyMeasure(GPModel):
             gamma_threshold_list = gamma_threshold
 
         if state is None:
-            state = slice(None, None, None)  # Unspecfied state means the whole state space
+            # Unspecfied state means the whole state space
+            state = slice(None, None, None)
         action = slice(None, None, None)
 
         measure_slice, covar_slice = self.query(
-            (state, action), return_covar=True
+            tuple(self.env.stateaction_space.get_stateaction(state, action)),
+            return_covar=True
         )
 
         # The following prints a user-friendly warning if a runtime warning is encountered in the computation of
