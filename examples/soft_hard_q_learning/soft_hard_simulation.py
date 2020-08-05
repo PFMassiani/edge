@@ -8,7 +8,7 @@ from edge.model.safety_models import SafetyTruth
 from edge.utils.logging import config_msg
 
 from soft_hard_parameterization import LowGoalSlip, LowGoalHovership, \
-    SoftHardLearner
+    CartPole, SoftHardLearner
 
 
 def affine_interpolation(t, start, end):
@@ -56,6 +56,8 @@ class SoftHardSimulation(ModelLearningSimulation):
             self.env = LowGoalSlip(dynamics_parameters=dynamics_parameters)
         elif env_name == 'hovership':
             self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters)
+        elif env_name == 'cartpole':
+            self.env = CartPole(discretization_shape=shape)
 
         self.q_hyperparameters = {
             'outputscale_prior': (0.12, 0.01),
@@ -110,11 +112,21 @@ class SoftHardSimulation(ModelLearningSimulation):
         elif env_name == 'hovership':
             truth_path = Path(__file__).parent.parent.parent / 'data' / \
                          'ground_truth' / 'from_vibly' / 'hover_map.pickle'
-        self.ground_truth.from_vibly_file(truth_path)
+        else:
+            truth_path = None
+        if truth_path is not None:
+            self.ground_truth = SafetyTruth(self.env)
+            self.ground_truth.from_vibly_file(truth_path)
+        else:
+            self.ground_truth = None
 
-        plotters = {
-            'Q-Values_Safety': SoftHardPlotter(self.agent, self.ground_truth, ensure_in_dataset=True)
-        }
+        plottable_envs = ['slip', 'hovership']
+        if env_name in plottable_envs:
+            plotters = {
+                'Q-Values_Safety': SoftHardPlotter(self.agent, self.ground_truth, ensure_in_dataset=True)
+            }
+        else:
+            plotters = {}
 
         output_directory = Path(__file__).parent.resolve()
         super(SoftHardSimulation, self).__init__(output_directory, name,
@@ -250,6 +262,8 @@ class SoftHardSimulation(ModelLearningSimulation):
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
+        self.env.render()
+
 
 if __name__ == '__main__':
     import time
@@ -266,12 +280,18 @@ if __name__ == '__main__':
             'q_y_seed': np.array([1, 1]),
             's_x_seed': np.array([[1.3, 0.6], [1.8, 0.2]]),
             's_y_seed': np.array([1, 1]),
+        },
+        'cartpole': {
+            'q_x_seed': np.array([[0, 0, 0, 0, 0]]),
+            'q_y_seed': np.array([200]),
+            's_x_seed': np.array([[0, 0, 0, 0, 0], [0, 0, -0.4, 0, 0], [0, 0, 0.4, 0, 0]]),
+            's_y_seed': np.array([10, 0.1, 0.1]),
         }
     }
 
-    ENV_NAME = 'slip'
+    ENV_NAME = 'cartpole'
     sim = SoftHardSimulation(
-        name='timeforgetting_dataset_slip',
+        name='cartpole_test',
         env_name=ENV_NAME,
         max_samples=1000,
         greed=0.1,
@@ -288,8 +308,8 @@ if __name__ == '__main__':
         optimize_hyperparameters=False,
         dataset_type='timeforgetting',
         dataset_params={'keep': 200},  # {'radius': 0.01},
-        shape=(201,201),
-        every=100,
+        shape=(100,100,100,10),
+        every=1000,
         glie_start=0.9
     )
     sim.set_seed(0)

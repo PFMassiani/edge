@@ -1,8 +1,10 @@
 import numpy as np
 import logging
 logger = logging.getLogger(__name__)
+import gym
 
 from edge.envs import Slip, Hovership
+from edge.gym_wrappers import GymEnvironmentWrapper
 from edge.reward import AffineReward, ConstantReward
 from edge.agent import Agent
 from edge.model.value_models import GPQLearning
@@ -58,6 +60,12 @@ class PenalizedHovership(LowGoalHovership):
                                  reward_condition=penalty_condition)
 
         self.reward += penalty
+
+
+class CartPole(GymEnvironmentWrapper):
+    def __init__(self, discretization_shape):
+        gym_env = gym.make('CartPole-v1')
+        super(CartPole, self).__init__(gym_env, discretization_shape)
 
 
 class SoftHardLearner(Agent):

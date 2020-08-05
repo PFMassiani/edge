@@ -81,11 +81,14 @@ class Simulation:
         )
         config_handler.addFilter(ConfigFilter(log_if_match=True))
         config_handler.setLevel(logging.INFO)
+        stdout_handler = logging.StreamHandler()
+        stdout_handler.setLevel(logging.INFO)
 
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.INFO)
         root_logger.addHandler(training_handler)
         root_logger.addHandler(config_handler)
+        root_logger.addHandler(stdout_handler)
 
 
 class ModelLearningSimulation(Simulation):
