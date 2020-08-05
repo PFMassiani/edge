@@ -19,7 +19,7 @@ class BoxWrapper(Box):
         super(BoxWrapper, self).__init__(lows, highs, discretization_shape)
 
     def _clip_inf(self, a):
-        return np.nan_to_num(a, posinf = self.inf_ceiling, neginf= - self.inf_ceiling)
+        return np.clip(a, a_min=-self.inf_ceiling, a_max=self.inf_ceiling)
 
     def to_gym(self, index):
         return self[index].reshape(self.gym_shape)
