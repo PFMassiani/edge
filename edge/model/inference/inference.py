@@ -325,7 +325,7 @@ class NeighborErasingDataset(Dataset):
         ))
         indices_to_forget = torch.cat(lists_indices_to_forget)
 
-        keeping_filter = torch.ones_like(self.train_x, dtype=bool).squeeze()
+        keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool)
         keeping_filter[indices_to_forget] = False
 
         train_x_without_neighbors = self.train_x[keeping_filter]
