@@ -8,7 +8,7 @@ from edge.model.safety_models import SafetyTruth
 from edge.utils.logging import config_msg
 
 from soft_hard_parameterization import LowGoalSlip, LowGoalHovership, \
-    CartPole, SoftHardLearner
+    CartPole, LunarLander, SoftHardLearner
 
 
 def affine_interpolation(t, start, end):
@@ -23,11 +23,11 @@ def identity_or_duplicated_value(possible_tuple):
 
 
 class SoftHardSimulation(ModelLearningSimulation):
-    def __init__(self, name, env_name, max_samples, greed, step_size, discount_rate,
-                 gamma_optimistic, gamma_hard, lambda_hard, gamma_soft,
-                 q_x_seed, q_y_seed, s_x_seed, s_y_seed,
+    def __init__(self, name, env_name, max_samples, max_steps, greed, step_size,
+                 discount_rate, gamma_optimistic, gamma_hard, lambda_hard,
+                 gamma_soft, q_x_seed, q_y_seed, s_x_seed, s_y_seed,
                  optimize_hyperparameters, dataset_type, dataset_params,
-                 shape, every, glie_start):
+                 shape, every, glie_start, reset_in_safe_state):
         parameterization = {
             'env_name':env_name,
             'max_samples':max_samples,
@@ -47,7 +47,8 @@ class SoftHardSimulation(ModelLearningSimulation):
             'dataset_params':dataset_params,
             'shape':shape,
             'every':every,
-            'glie_start':glie_start
+            'glie_start':glie_start,
+            'reset_in_safe_state':reset_in_safe_state
         }
         dynamics_parameters = {
             'shape': shape
@@ -58,6 +59,8 @@ class SoftHardSimulation(ModelLearningSimulation):
             self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters)
         elif env_name == 'cartpole':
             self.env = CartPole(discretization_shape=shape)
+        elif env_name == 'lander':
+            self.env = LunarLander(discretization_shape=shape)
 
         self.q_hyperparameters = {
             'outputscale_prior': (0.12, 0.01),
@@ -133,12 +136,13 @@ class SoftHardSimulation(ModelLearningSimulation):
                                                  plotters)
 
         self.max_samples = max_samples
+        self.max_steps = max_steps
         self.every = every
         if isinstance(glie_start, float):
             self.glie_start = int(glie_start * self.max_samples)
         else:
             self.glie_start = glie_start
-
+        self.reset_in_safe_state = reset_in_safe_state
 
         msg = ''
         for pname, pval in parameterization.items():
@@ -203,18 +207,21 @@ class SoftHardSimulation(ModelLearningSimulation):
         ))
         logging.info('Training...')
         while n_samples < self.max_samples:
-            reset_state = self.agent.get_random_safe_state()
+            if self.reset_in_safe_state:
+                reset_state = self.agent.get_random_safe_state()
+            else:
+                reset_state = None
             self.agent.reset(reset_state)
             failed = self.agent.failed
             n_steps = 0
-            while not failed and n_steps < 50:
+            while not self.env.done and n_steps < self.max_steps:
                 n_samples += 1
                 n_steps += 1
                 old_state = self.agent.state
                 new_state, reward, failed = self.agent.step()
                 action = self.agent.last_action
 
-                # * start reducing eps to converge to a greedy policy.
+                # * start reducing step size so Q-Learning converges
                 if self.glie_start is not None and n_samples > self.glie_start:
                     self.agent.step_size *= (n_samples - self.glie_start) / (
                                         (n_samples - self.glie_start + 1))
@@ -245,7 +252,6 @@ class SoftHardSimulation(ModelLearningSimulation):
 
                 if n_samples >= self.max_samples:
                     break
-            self.agent.reset()
         logging.info('Done.')
 
         self.save_figs(prefix=f'{self.name}_final')
@@ -259,6 +265,8 @@ class SoftHardSimulation(ModelLearningSimulation):
               f'{len(self.agent.Q_model.gp.train_x)}')
         logging.info(f'# of safety measure training examples: '
               f'{len(self.agent.safety_model.gp.train_x)}')
+        if args[4]:
+            logging.info('Failed!')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -274,26 +282,49 @@ if __name__ == '__main__':
             'q_y_seed': np.array([1]),
             's_x_seed': np.array([[0.4, 0.6], [0.8, 0.4]]),
             's_y_seed': np.array([1, 0.8]),
+            'shape': (101, 101)
         },
         'hovership': {
             'q_x_seed': np.array([[1.3, 0.6], [2, 0]]),
             'q_y_seed': np.array([1, 1]),
             's_x_seed': np.array([[1.3, 0.6], [1.8, 0.2]]),
             's_y_seed': np.array([1, 1]),
+            'shape': (101, 101)
         },
         'cartpole': {
             'q_x_seed': np.array([[0, 0, 0, 0, 0]]),
             'q_y_seed': np.array([200]),
-            's_x_seed': np.array([[0, 0, 0, 0, 0], [0, 0, -0.4, 0, 0], [0, 0, 0.4, 0, 0]]),
+            's_x_seed': np.array([
+                                    [0, 0,    0, 0, 0],
+                                    [0, 0, -0.4, 0, 0],
+                                    [0, 0,  0.4, 0, 0]
+                                 ]),
             's_y_seed': np.array([10, 0.1, 0.1]),
-        }
+            'shape': (10, 10, 10, 10, 10)
+        },
+        # State is: [x, y, vx, vy, theta, omega, left_contact, right_contact]
+        # Action is: [main, left_right]
+        # Number of dims: 8 + 2
+        'lander': {
+            'q_x_seed': np.array([
+                [0,   0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1.4, 0, 0, 0, 0, 0, 0, 1, 0]
+            ]),
+            'q_y_seed': np.array([200, 100]),
+            's_x_seed': np.array([
+                [0, 1.4, 0, 0, 0, 0, 0, 0, 1, 0]
+            ]),
+            's_y_seed': np.array([1]),
+            'shape': (10, 10, 10, 10, 10, 10, 10, 10, 10, 10)
+        },
     }
 
     ENV_NAME = 'cartpole'
     sim = SoftHardSimulation(
-        name='cartpole_test',
+        name=f'{ENV_NAME}_test',
         env_name=ENV_NAME,
         max_samples=1000,
+        max_steps=np.inf,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.9,
@@ -307,10 +338,11 @@ if __name__ == '__main__':
         s_y_seed=env_dependent_params[ENV_NAME]['s_y_seed'],
         optimize_hyperparameters=False,
         dataset_type='timeforgetting',
-        dataset_params={'keep': 200},  # {'radius': 0.01},
-        shape=(100,100,100,10),
-        every=1000,
-        glie_start=0.9
+        dataset_params={'keep': 200},  # {'keep': 200},  # {'radius': 0.01},
+        shape=env_dependent_params[ENV_NAME]['shape'],
+        every=100,
+        glie_start=0.9,
+        reset_in_safe_state=False  # True is expensive, and useless for Gym
     )
     sim.set_seed(0)
 

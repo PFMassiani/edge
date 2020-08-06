@@ -67,6 +67,19 @@ class CartPole(GymEnvironmentWrapper):
         gym_env = gym.make('CartPole-v1')
         super(CartPole, self).__init__(gym_env, discretization_shape)
 
+    @property
+    def in_failure_state(self):
+        # This condition is taken from OpenAI Gym documentation
+        failed = np.abs(self.s[0]) > 2.4  # Linear position
+        failed |= np.abs(self.s[2]) > 12 * np.pi / 180  # Angular position
+        return failed
+
+
+class LunarLander(GymEnvironmentWrapper):
+    def __init__(self, discretization_shape):
+        gym_env = gym.make('LunarLanderContinuous-v2')
+        super(LunarLander, self).__init__(gym_env, discretization_shape)
+
 
 class SoftHardLearner(Agent):
     """
@@ -178,7 +191,9 @@ class SoftHardLearner(Agent):
             return_covar=False
         )
         is_cautious_hard, is_cautious_soft = is_cautious_list
-        proba_slice_hard = proba_slice_list[0]
+        is_cautious_hard = is_cautious_hard.squeeze()
+        is_cautious_soft = is_cautious_soft.squeeze()
+        proba_slice_hard = proba_slice_list[0].squeeze()
 
         q_values = self.Q_model[self.state, :]
         action = self.constrained_value_policy.get_action(
