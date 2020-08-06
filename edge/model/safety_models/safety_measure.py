@@ -120,11 +120,14 @@ class SafetyMeasure(GPModel):
             # Unspecfied state means the whole state space
             state = slice(None, None, None)
         action = slice(None, None, None)
+        output_shape = (-1, ) + self.env.action_space.shape
 
         measure_slice, covar_slice = self.query(
             tuple(self.env.stateaction_space.get_stateaction(state, action)),
             return_covar=True
         )
+        measure_slice = measure_slice.reshape(output_shape)
+        covar_slice = covar_slice.reshape(output_shape)
 
         # The following prints a user-friendly warning if a runtime warning is encountered in the computation of
         # level_value_list

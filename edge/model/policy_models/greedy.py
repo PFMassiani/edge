@@ -36,8 +36,9 @@ class ConstrainedEpsilonGreedy(Policy):
             probabilities[best_value] += 1 - self.greed
             return np.random.choice(n, p=probabilities)
 
-        n_available = sum(constraint)
-        if n_available > 0:
+        # Check whether there is one action available along each dimension
+        n_available = constraint.sum(axis=-1)
+        if (n_available > 0).all(axis=-1):
             available_to_all_lookup = np.atleast_1d(
                 np.argwhere(constraint).squeeze()
             )  # lookup table to find the indexes of available actions among all the actions

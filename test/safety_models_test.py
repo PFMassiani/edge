@@ -1,8 +1,10 @@
 import unittest
 import numpy as np
 import tempfile
+import gym
 
 from edge.envs import Hovership
+from edge.gym_wrappers import GymEnvironmentWrapper
 from edge.model.safety_models import MaternSafety
 
 
@@ -30,6 +32,12 @@ class TestMeasure(MaternSafety):
                                           gp_params=hyperparameters)
 
 
+class LunarLander(GymEnvironmentWrapper):
+    def __init__(self, discretization_shape):
+        gym_env = gym.make('LunarLanderContinuous-v2')
+        super(LunarLander, self).__init__(gym_env, discretization_shape)
+
+
 class TestSafetyMeasure(unittest.TestCase):
     def test_convergence(self):
         tol = 1e-5
@@ -55,6 +63,8 @@ class TestSafetyMeasure(unittest.TestCase):
                 cautious_actions, covar_slice = measure.level_set(
                     state, 0.05, gamma, return_covar=True
                 )
+                cautious_actions = cautious_actions.squeeze()
+                covar_slice = covar_slice.squeeze()
                 if not cautious_actions.any():
                     raise NotImplementedError('Please implement the case where'
                                               ' no cautious action exists')
@@ -81,7 +91,7 @@ class TestSafetyMeasure(unittest.TestCase):
             f'{final_measure}\nExpected final measure:\n{expected_final}'
         )
 
-    def test_level_set_shape(self):
+    def test_level_set_shape_0(self):
         env = TestHovership()
 
         x_seed = np.array([1., 1.])
@@ -92,21 +102,73 @@ class TestSafetyMeasure(unittest.TestCase):
         measure = TestMeasure(env=env, gamma_optimistic=gamma, x_seed=x_seed,
                               y_seed=y_seed)
 
-        level_set = measure.level_set(None, 0, gamma)
-        self.assertEqual(
-            level_set.shape[0],
-            np.prod(env.stateaction_space.shape),
-            'The level set does not have the right number of elements. '
-            f'Expected number: {np.prod(env.stateaction_space.shape)} - '
-            f'Actual shape: {level_set.shape}')
+        def check_level_set_on_query(query, query_len):
+            output_level_shape = (query_len, ) + env.action_space.shape
+            output_measure_shape = (query_len,)
+            level_set = measure.level_set(query, 0, gamma)
+            self.assertEqual(
+                level_set.shape,
+                output_level_shape,
+                'The level set does not have the right shape. '
+                f'Expected shape: {output_level_shape} - '
+                f'Actual shape: {level_set.shape}')
 
-        meas = measure.measure(None, 0, gamma)
-        self.assertEqual(
-            meas.shape[0],
-            np.prod(env.state_space.shape),
-            'The measure does not have the expected number of elements. '
-            f'Expected number: {np.prod(env.state_space.shape)} - '
-            f'Actual shape: {meas.shape}')
+            meas = measure.measure(query, 0, gamma)
+            self.assertEqual(
+                meas.shape,
+                output_measure_shape,
+                'The measure does not have the expected shape. '
+                f'Expected shape: {output_measure_shape} - '
+                f'Actual shape: {meas.shape}')
+
+        s_query = np.array([0.5])
+        check_level_set_on_query(s_query, 1)
+        s_query = slice(None, None, None)
+        check_level_set_on_query(s_query, np.prod(env.state_space.shape))
+
+    def test_level_set_shape_1(self):
+        env = LunarLander(discretization_shape=tuple(10 for _ in range(8)))
+
+        x_seed = np.array([0, 1.4, 0, 0, 0, 0, 0, 0, 1, 0])
+        y_seed = np.array([1.])
+
+        gamma = 0.1
+
+        measure = TestMeasure(env=env, gamma_optimistic=gamma, x_seed=x_seed,
+                              y_seed=y_seed)
+
+        def check_level_set_on_query(query, query_len):
+            output_level_shape = (query_len, ) + env.action_space.shape
+            output_measure_shape = (query_len,)
+            level_set = measure.level_set(query, 0, gamma)
+            self.assertEqual(
+                level_set.shape,
+                output_level_shape,
+                'The level set does not have the right shape. '
+                f'Expected shape: {output_level_shape} - '
+                f'Actual shape: {level_set.shape}')
+
+            meas = measure.measure(query, 0, gamma)
+            self.assertEqual(
+                meas.shape,
+                output_measure_shape,
+                'The measure does not have the expected shape. '
+                f'Expected shape: {output_measure_shape} - '
+                f'Actual shape: {meas.shape}')
+
+        s_query = np.array([0, 1.4, 0, 0, 0, 0, 0, 0])
+        check_level_set_on_query(s_query, 1)
+        s_query = (
+            slice(0, 5, 1),
+            np.array([1.4]),
+            np.array([0]),
+            np.array([0]),
+            np.array([0]),
+            np.array([0]),
+            np.array([0]),
+            np.array([0]),
+        )
+        check_level_set_on_query(s_query, 5)
 
     def test_save_load(self):
         env = Hovership()
