@@ -68,6 +68,16 @@ class Environment:
         return self.is_failure_state(self.s)
 
     @property
+    def done(self):
+        """ Whether the environment is done and `reset` should be called.
+        This is more general than failing: an environment might be done
+        whereas the agent has not failed (terminal state reached, number of
+        steps...).
+        You should specify this method for your custom environments. By default,
+        an environment is done iff it has failed. """
+        return self.in_failure_state
+
+    @property
     def state_index(self):
         """ The index of the current state
         :return: int or tuple

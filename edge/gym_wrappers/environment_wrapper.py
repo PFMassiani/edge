@@ -50,6 +50,10 @@ class GymEnvironmentWrapper(Environment):
             raise TypeError(f'Gym environment observation_space is of type {type(gym_env.observation_space)}, but only '
                             'Box and Discrete are currently supported')
 
+        self.info = {}
+        self._done = False
+        self.failure_critical = False
+
         dynamics = DummyDynamics(StateActionSpace(state_space, action_space))
 
         super(GymEnvironmentWrapper, self).__init__(
@@ -59,14 +63,14 @@ class GymEnvironmentWrapper(Environment):
             random_start=True
         )
 
-        self.info = {}
-        self.done = False
-        self.failure_critical = False
-
     @property
     def in_failure_state(self):
         cost = self.info.get('cost')
         return cost is not None and cost != 0
+
+    @property
+    def done(self):
+        return self._done
 
     @property
     def has_failed(self):
@@ -85,6 +89,7 @@ class GymEnvironmentWrapper(Environment):
             self.s = self.gym_env.obs()
         else:
             self.s = reset_output
+        self._done = self.in_failure_state
         return self.s
 
     def step(self, action):
@@ -96,7 +101,7 @@ class GymEnvironmentWrapper(Environment):
             # stays in the limit of the Box. Edge crashes if this happens, so
             # we project the resulting state in state-space
             self.s = self.state_space.closest_in(s)
-            self.done = done
+            self._done = done
             self.info = info
         else:
             reward = 0
