@@ -41,7 +41,9 @@ class Simulation:
         for plotter in self.plotters.values():
             try:
                 plotter.on_run_iteration(*args, **kwargs)
-            except Exception as e:
+            except AttributeError as e:
+                # The plotter does not have a on_run_iteration routine:
+                #  this is not a problem.
                 pass
 
     def save_figs(self, prefix):

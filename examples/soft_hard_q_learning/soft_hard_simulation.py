@@ -3,7 +3,7 @@ import numpy as np
 import logging
 
 from edge import ModelLearningSimulation
-from edge.graphics.plotter import SoftHardPlotter
+from edge.graphics.plotter import SoftHardPlotter, RewardFailurePlotter
 from edge.model.safety_models import SafetyTruth
 from edge.utils.logging import config_msg
 
@@ -23,11 +23,11 @@ def identity_or_duplicated_value(possible_tuple):
 
 
 class SoftHardSimulation(ModelLearningSimulation):
-    def __init__(self, name, env_name, max_samples, max_steps, greed, step_size,
-                 discount_rate, gamma_optimistic, gamma_hard, lambda_hard,
-                 gamma_soft, q_x_seed, q_y_seed, s_x_seed, s_y_seed,
-                 optimize_hyperparameters, dataset_type, dataset_params,
-                 shape, every, glie_start, reset_in_safe_state):
+    def __init__(self, name, env_name, reward_threshold, max_samples, max_steps,
+                 greed, step_size, discount_rate, gamma_optimistic, gamma_hard,
+                 lambda_hard, gamma_soft, q_x_seed, q_y_seed, s_x_seed,
+                 s_y_seed, optimize_hyperparameters, dataset_type,
+                 dataset_params, shape, every, glie_start, reset_in_safe_state):
         parameterization = {
             'env_name':env_name,
             'max_samples':max_samples,
@@ -54,9 +54,11 @@ class SoftHardSimulation(ModelLearningSimulation):
             'shape': shape
         }
         if env_name == 'slip':
-            self.env = LowGoalSlip(dynamics_parameters=dynamics_parameters)
+            self.env = LowGoalSlip(dynamics_parameters=dynamics_parameters,
+                                   reward_done_threshold=reward_threshold)
         elif env_name == 'hovership':
-            self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters)
+            self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters,
+                                        reward_done_threshold=reward_threshold)
         elif env_name == 'cartpole':
             self.env = CartPole(discretization_shape=shape)
         elif env_name == 'lander':
@@ -122,13 +124,20 @@ class SoftHardSimulation(ModelLearningSimulation):
         else:
             self.ground_truth = None
 
-        plottable_envs = ['slip', 'hovership']
-        if env_name in plottable_envs:
+        plottable_Q = ['slip', 'hovership']
+        if env_name in plottable_Q:
             plotters = {
                 'Q-Values_Safety': SoftHardPlotter(self.agent, self.ground_truth, ensure_in_dataset=True)
             }
         else:
             plotters = {}
+        plotters.update({
+            'RewardFailure': RewardFailurePlotter(
+                agents_names=['Soft-hard'],
+                window_size=10,
+                padding_value=1
+            )
+        })
 
         output_directory = Path(__file__).parent.resolve()
         super(SoftHardSimulation, self).__init__(output_directory, name,
@@ -178,6 +187,7 @@ class SoftHardSimulation(ModelLearningSimulation):
             )
 
     def run(self):
+        CV_SETS = 1000
         n_samples = 0
         self.save_figs(prefix='0')
 
@@ -226,29 +236,38 @@ class SoftHardSimulation(ModelLearningSimulation):
                     self.agent.step_size *= (n_samples - self.glie_start) / (
                                         (n_samples - self.glie_start + 1))
                 self.agent.gamma_optimistic = affine_interpolation(
-                    n_samples / self.max_samples,
+                    min(n_samples / CV_SETS, 1),
                     self.gamma_optimistic_start,
                     self.gamma_optimistic_end
                 )
                 self.agent.gamma_hard = affine_interpolation(
-                    n_samples / self.max_samples,
+                    min(n_samples / CV_SETS, 1),  # n_samples / self.max_samples,
                     self.gamma_hard_start,
                     self.gamma_hard_end
                 )
                 self.agent.lambda_hard = affine_interpolation(
-                    n_samples / self.max_samples,
+                    min(n_samples / CV_SETS, 1),  # n_samples / self.max_samples,
                     self.lambda_hard_start,
                     self.lambda_hard_end
                 )
                 self.agent.gamma_soft = affine_interpolation(
-                    n_samples / self.max_samples,
+                    min(n_samples / CV_SETS, 1),  # n_samples / self.max_samples,
                     self.gamma_soft_start,
                     self.gamma_soft_end
                 )
 
                 color = None if not self.agent.updated_safety else [0.3, 0.3, 0.9]
-                self.on_run_iteration(n_samples, old_state, action, new_state,
-                                      reward, failed, color=color)
+                self.on_run_iteration(
+                    n_samples=n_samples,
+                    state=old_state,
+                    action=action,
+                    new_state=new_state,
+                    reward=reward,
+                    failed=failed,
+                    done=done,
+                    color=color,
+                    aname='Soft-hard'
+                )
 
                 if n_samples >= self.max_samples:
                     break
@@ -265,8 +284,12 @@ class SoftHardSimulation(ModelLearningSimulation):
               f'{len(self.agent.Q_model.gp.train_x)}')
         logging.info(f'# of safety measure training examples: '
               f'{len(self.agent.safety_model.gp.train_x)}')
-        if args[4]:
+        if kwargs['failed']:
             logging.info('Failed!')
+        elif kwargs['done']:
+            logging.info('Solved!')
+        if kwargs['failed'] and n_samples > 900:
+            print('pause')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -282,14 +305,16 @@ if __name__ == '__main__':
             'q_y_seed': np.array([1]),
             's_x_seed': np.array([[0.4, 0.6], [0.8, 0.4]]),
             's_y_seed': np.array([1, 0.8]),
-            'shape': (101, 101)
+            'shape': (101, 101),
+            'reward_threshold': 10,
         },
         'hovership': {
             'q_x_seed': np.array([[1.3, 0.6], [2, 0]]),
             'q_y_seed': np.array([1, 1]),
             's_x_seed': np.array([[1.3, 0.6], [1.8, 0.2]]),
             's_y_seed': np.array([1, 1]),
-            'shape': (101, 101)
+            'shape': (101, 101),
+            'reward_threshold': 100,
         },
         'cartpole': {
             'q_x_seed': np.array([[0, 0, 0, 0, 0]]),
@@ -300,7 +325,8 @@ if __name__ == '__main__':
                                     [0, 0,  0.4, 0, 0]
                                  ]),
             's_y_seed': np.array([10, 0.1, 0.1]),
-            'shape': (10, 10, 10, 10, 10)
+            'shape': (10, 10, 10, 10, 10),
+            'reward_threshold': None,
         },
         # State is: [x, y, vx, vy, theta, omega, left_contact, right_contact]
         # Action is: [main, left_right]
@@ -315,14 +341,16 @@ if __name__ == '__main__':
                 [0, 1.4, 0, 0, 0, 0, 0, 0, 1, 0]
             ]),
             's_y_seed': np.array([1]),
-            'shape': (10, 10, 10, 10, 10, 10, 10, 10, 10, 10)
+            'shape': (10, 10, 10, 10, 10, 10, 10, 10, 10, 10),
+            'reward_threshold': None,
         },
     }
 
-    ENV_NAME = 'cartpole'
+    ENV_NAME = 'hovership'
     sim = SoftHardSimulation(
-        name=f'{ENV_NAME}_test',
+        name=f'{ENV_NAME}_failure_exploration',
         env_name=ENV_NAME,
+        reward_threshold=env_dependent_params[ENV_NAME]['reward_threshold'],
         max_samples=1000,
         max_steps=np.inf,
         greed=0.1,
@@ -330,21 +358,21 @@ if __name__ == '__main__':
         discount_rate=0.9,
         gamma_optimistic=(0.6, 0.9),
         gamma_hard=(0.61, 0.9),
-        lambda_hard=(0, 0.05),
+        lambda_hard=(0, 0),
         gamma_soft=(0.7, 0.95),
         q_x_seed=env_dependent_params[ENV_NAME]['q_x_seed'],
         q_y_seed=env_dependent_params[ENV_NAME]['q_y_seed'],
         s_x_seed=env_dependent_params[ENV_NAME]['s_x_seed'],
         s_y_seed=env_dependent_params[ENV_NAME]['s_y_seed'],
         optimize_hyperparameters=False,
-        dataset_type='timeforgetting',
-        dataset_params={'keep': 200},  # {'keep': 200},  # {'radius': 0.01},
+        dataset_type='neighborerasing',
+        dataset_params={'radius': 0.01},  # {'keep': 200},  # {'radius': 0.01},
         shape=env_dependent_params[ENV_NAME]['shape'],
         every=100,
         glie_start=0.9,
-        reset_in_safe_state=False  # True is expensive, and useless for Gym
+        reset_in_safe_state=True  # True is expensive, and useless for Gym
     )
-    sim.set_seed(0)
+    sim.set_seed(value=0)
 
     t0 = time.time()
     sim.run()
