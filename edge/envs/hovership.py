@@ -8,7 +8,8 @@ from edge.reward import ConstantReward
 
 class Hovership(Environment):
     def __init__(self, random_start=False, default_initial_state=None,
-                 dynamics_parameters=None, reward=None):
+                 dynamics_parameters=None, reward=None,
+                 reward_done_threshold=None):
         if dynamics_parameters is None:
             dynamics_parameters = {}
         default_dynamics_parameters = {
@@ -47,7 +48,8 @@ class Hovership(Environment):
             dynamics=dynamics,
             reward=reward,
             default_initial_state=default_initial_state,
-            random_start=random_start
+            random_start=random_start,
+            reward_done_threshold=reward_done_threshold
         )
 
     def is_failure_state(self, state):
@@ -56,7 +58,8 @@ class Hovership(Environment):
 
 class DiscreteHovership(Environment):
     def __init__(self, random_start=False, default_initial_state=None,
-                 dynamics_parameters=None, reward=None):
+                 dynamics_parameters=None, reward=None,
+                 reward_done_threshold=None):
         if dynamics_parameters is None:
             dynamics_parameters = {}
         default_dynamics_parameters = {
@@ -92,7 +95,8 @@ class DiscreteHovership(Environment):
             dynamics=dynamics,
             reward=reward,
             default_initial_state=default_initial_state,
-            random_start=random_start
+            random_start=random_start,
+            reward_done_threshold=reward_done_threshold
         )
 
     def is_failure_state(self, state):

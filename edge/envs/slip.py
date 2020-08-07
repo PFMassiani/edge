@@ -7,7 +7,7 @@ from edge.reward import ConstantReward, AffineReward
 
 class Slip(Environment):
     def __init__(self, random_start=False, default_initial_state=None,
-                 dynamics_parameters=None):
+                 dynamics_parameters=None, reward_done_threshold=None):
         if dynamics_parameters is None:
             dynamics_parameters = {}
 
@@ -43,7 +43,8 @@ class Slip(Environment):
             dynamics=dynamics,
             reward=reward,
             default_initial_state=default_initial_state,
-            random_start=random_start
+            random_start=random_start,
+            reward_done_threshold=reward_done_threshold
         )
 
     def is_failure_state(self, state):
@@ -66,4 +67,5 @@ class Slip(Environment):
         else:
             self.s = self.default_initial_state
         self.feasible = self.dynamics.is_feasible_state(self.s)
+        self.reward_accumulator = 0
         return self.s

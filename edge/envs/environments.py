@@ -8,12 +8,14 @@ class Environment:
     :param has_failed: whether self.s is a failure state
     """
     def __init__(self, dynamics, reward, default_initial_state,
-                 random_start=False):
+                 random_start=False, reward_done_threshold=None):
         """ Initializer
         :param dynamics: the Dynamics object the environment wraps
         :param reward: the Reward object the environment wraps
         :param default_initial_state: the default initial state (only used if random_start = False)
         :param random_start: whether to initalize the agent randomly
+        :param reward_done_threshold: at what reward threshold the environment
+            is considered done.
         """
         self.dynamics = dynamics
         self.reward = reward
@@ -21,6 +23,8 @@ class Environment:
         if default_initial_state not in dynamics.stateaction_space.state_space:
             raise error.OutOfSpace('Default initial state is out of space')
         self.default_initial_state = default_initial_state
+        self.reward_done_threshold = reward_done_threshold
+        self.reward_accumulator = 0
         self.reset()
 
     @property
@@ -71,11 +75,15 @@ class Environment:
     def done(self):
         """ Whether the environment is done and `reset` should be called.
         This is more general than failing: an environment might be done
-        whereas the agent has not failed (terminal state reached, number of
-        steps...).
-        You should specify this method for your custom environments. By default,
-        an environment is done iff it has failed. """
-        return self.in_failure_state
+        whereas the agent has not failed, for example because the reward
+        limit is exceeded.
+        By default, an environment is done iff it has failed or has exceeded the
+        reward thresholde (if it is specified). """
+        if self.reward_done_threshold is not None:
+            reward_done = self.reward_accumulator >= self.reward_done_threshold
+        else:
+            reward_done = False
+        return reward_done or self.in_failure_state
 
     @property
     def state_index(self):
@@ -98,6 +106,7 @@ class Environment:
         else:
             self.s = self.default_initial_state
         self.feasible = self.dynamics.is_feasible_state(self.s)
+        self.reward_accumulator = 0
         return self.s
 
     def step(self, action):
@@ -118,7 +127,11 @@ class Environment:
                                         self.s,
                                         self.has_failed
                                         )
+        self.reward_accumulator += reward
         return self.s, reward, self.has_failed
 
     def render(self):
         pass
+
+    def compute_dynamics_map(self):
+        return self.dynamics.compute_map()

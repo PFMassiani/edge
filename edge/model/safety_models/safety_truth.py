@@ -235,7 +235,7 @@ class SafetyTruth(GroundTruth):
                 raise ValueError('Loaded map shape and stateaction space shape '
                                  'don\'t match')
         else:
-            Q_map = self.env.dynamics.compute_map()
+            Q_map = self.env.compute_dynamics_map()
         action_axes = tuple([
             self.stateaction_space.state_space.index_dim + k
             for k in range(self.stateaction_space.action_space.index_dim)
