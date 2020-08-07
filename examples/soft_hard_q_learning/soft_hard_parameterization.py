@@ -267,4 +267,4 @@ class SoftHardLearner(Agent):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed
+        return new_state, reward, failed, self.env.done

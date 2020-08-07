@@ -108,7 +108,6 @@ class SoftHardSimulation(ModelLearningSimulation):
             s_gp_params=self.s_hyperparameters,
         )
 
-        self.ground_truth = SafetyTruth(self.env)
         if env_name == 'slip':
             truth_path = Path(__file__).parent.parent.parent / 'data' / \
                          'ground_truth' / 'from_vibly' / 'slip_map.pickle'
@@ -213,12 +212,13 @@ class SoftHardSimulation(ModelLearningSimulation):
                 reset_state = None
             self.agent.reset(reset_state)
             failed = self.agent.failed
+            done = self.env.done
             n_steps = 0
-            while not self.env.done and n_steps < self.max_steps:
+            while not done and n_steps < self.max_steps:
                 n_samples += 1
                 n_steps += 1
                 old_state = self.agent.state
-                new_state, reward, failed = self.agent.step()
+                new_state, reward, failed, done = self.agent.step()
                 action = self.agent.last_action
 
                 # * start reducing step size so Q-Learning converges
