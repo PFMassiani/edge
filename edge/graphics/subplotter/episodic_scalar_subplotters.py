@@ -56,7 +56,7 @@ class EpisodicRewardSubplotter(EpisodicScalarSubplotter):
         return reward
 
     def _aggregate_scalars(self, episode_scalars):
-        return np.mean(episode_scalars)
+        return np.sum(episode_scalars)
 
 
 class SmoothedEpisodicFailureSubplotter(EpisodicScalarSubplotter):

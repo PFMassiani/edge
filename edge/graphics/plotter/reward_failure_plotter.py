@@ -51,7 +51,9 @@ class RewardFailurePlotter(Plotter):
                 self.reward_subplotter[aname].draw_on_axs(ax_R)
                 self.failure_subplotter[aname].draw_on_axs(ax_F)
 
-        ax_R.legend()
-        ax_F.legend()
+        ax_F.set_ylim((-0.1, 1.1))
+
+        ax_R.legend(loc='upper left')
+        ax_F.legend(loc='lower left')
 
         return figure

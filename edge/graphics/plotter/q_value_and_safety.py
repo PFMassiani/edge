@@ -144,7 +144,8 @@ class SoftHardPlotter(Plotter):
         S_optimistic = Q_optimistic.mean(axis=1)
         return Q_values, Q_optimistic, Q_hard, Q_soft, S_optimistic
 
-    def on_run_iteration(self, state, action, new_state, reward, failed, color=None):
+    def on_run_iteration(self, state, action, new_state, reward, failed,
+                         *args, color=None, **kwargs):
         self.sample_subplotter.incur_sample(state, action, failed, color)
         if self.ensure_in_dataset:
             self.sample_subplotter.ensure_samples_in_at_least_one(

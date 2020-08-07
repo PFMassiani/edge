@@ -8,5 +8,5 @@ class Plotter:
     def get_figure(self):
         raise NotImplementedError
 
-    def on_run_iteration(self):
+    def on_run_iteration(self, *args, **kwargs):
         raise NotImplementedError
