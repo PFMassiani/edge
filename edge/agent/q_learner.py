@@ -8,8 +8,8 @@ from edge.error import NoActionError
 
 class QLearner(Agent):
     """
-    Defines an Agent modelling the Q-Values with a MaternGP updated with the Q-Learning update and acting with an
-    EpsilonGreedy policy.
+    Defines an Agent modelling the Q-Values with a MaternGP updated with the
+    Q-Learning update and acting with an EpsilonGreedy policy.
     """
     def __init__(self, env, greed, step_size, discount_rate, x_seed, y_seed,
                  gp_params=None, keep_seed_in_data=True):
