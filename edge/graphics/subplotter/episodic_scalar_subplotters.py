@@ -31,8 +31,8 @@ class EpisodicScalarSubplotter(Subplotter):
             state, action, new_state, reward, failed, done, *args, **kwargs
         ))
         if done:
-            average_reward = self._aggregate_scalars(self.episode_scalars)
-            self.aggregated_scalars.append(average_reward)
+            aggregated_scalar = self._aggregate_scalars(self.episode_scalars)
+            self.aggregated_scalars.append(aggregated_scalar)
             self.episode_scalars = []
 
     def _extract_scalar(self, state, action, new_state, reward, failed, done,
@@ -68,6 +68,7 @@ class SmoothedEpisodicFailureSubplotter(EpisodicScalarSubplotter):
         )
         self.window_size = window_size
         self.padding_value = padding_value
+        self._failure_history = []
 
     def _extract_scalar(self, state, action, new_state, reward, failed, done,
                          *args, **kwargs):
@@ -75,7 +76,8 @@ class SmoothedEpisodicFailureSubplotter(EpisodicScalarSubplotter):
 
     def _aggregate_scalars(self, episode_scalars):
         has_failed = max(self.episode_scalars)
-        history = self.aggregated_scalars[-self.window_size:]
+        self._failure_history.append(has_failed)
+        history = self._failure_history[-self.window_size:]
         padding_length = self.window_size - len(history)
         padding = [self.padding_value for _ in range(padding_length)]
         values_to_average = np.concatenate((history, padding, [has_failed]))
