@@ -117,7 +117,8 @@ class GymEnvironmentWrapper(Environment):
             self.s, reward, self._done, _ = do_one_gym_step()
             n_gym_steps += 1
             step_done = (self.control_frequency is None) or \
-                        (n_gym_steps >= self.control_frequency)
+                        (n_gym_steps >= self.control_frequency) or \
+                        (self._done)
 
         return self.s, reward, self.has_failed
 
