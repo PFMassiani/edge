@@ -112,9 +112,19 @@ class GymEnvironmentWrapper(Environment):
         self.gym_env.render()
 
     def compute_dynamics_map(self):
+        # General note: Q_map stores the index of the next state. This
+        # approximates the dynamics by projecting the state we end up in, and
+        # may lead to errors. A more precise implementation would keep the
+        # exact value of the next state instead of its index. So far, this
+        # method is only used for the computation of the viability sets, and
+        # this requires the index of the next state: implementing the more
+        # precise method is useless for this.
+        # However, the following implementation may need to change if this
+        # method is used for something else.
+
         import numpy as np
         unwrapped_gym_env = self.gym_env.unwrapped
-        Q_map = np.zeros(self.stateaction_space.shape, dtype=int)
+        Q_map = np.zeros(self.stateaction_space.shape, dtype=tuple)
         for sa_index, stateaction in iter(self.stateaction_space):
             state, action = self.stateaction_space.get_tuple(stateaction)
             state = self.state_space.to_gym(state)
@@ -122,8 +132,12 @@ class GymEnvironmentWrapper(Environment):
             unwrapped_gym_env.state = state
             next_state, reward, failed, _ = unwrapped_gym_env.step(action)
             next_state = self.state_space.from_gym(next_state)
+            # Gym does not ensure the stability of the stateaction space under
+            # the dynamics, so we enforce it.
+            # This may lead to edge effects.
+            next_state = self.state_space.closest_in(next_state)
             next_state_index = self.state_space.get_index_of(
-                next_state
+                next_state, around_ok=True
             )
             Q_map[sa_index] = next_state_index
         return Q_map

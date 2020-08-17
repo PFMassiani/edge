@@ -27,28 +27,30 @@ class SoftHardSimulation(ModelLearningSimulation):
                  greed, step_size, discount_rate, gamma_optimistic, gamma_hard,
                  lambda_hard, gamma_soft, q_x_seed, q_y_seed, s_x_seed,
                  s_y_seed, optimize_hyperparameters, dataset_type,
-                 dataset_params, shape, every, glie_start, reset_in_safe_state):
+                 dataset_params, shape, every, glie_start, reset_in_safe_state,
+                 plotter_smoothing_window_size):
         parameterization = {
-            'env_name':env_name,
-            'max_samples':max_samples,
-            'greed':greed,
-            'step_size':step_size,
-            'discount_rate':discount_rate,
-            'gamma_optimistic':gamma_optimistic,
-            'gamma_hard':gamma_hard,
-            'lambda_hard':lambda_hard,
-            'gamma_soft':gamma_soft,
-            'q_x_seed':q_x_seed,
-            'q_y_seed':q_y_seed,
-            's_x_seed':s_x_seed,
-            's_y_seed':s_y_seed,
-            'optimize_hyperparameters':optimize_hyperparameters,
-            'dataset_type':dataset_type,
-            'dataset_params':dataset_params,
-            'shape':shape,
-            'every':every,
-            'glie_start':glie_start,
-            'reset_in_safe_state':reset_in_safe_state
+            'env_name': env_name,
+            'max_samples': max_samples,
+            'greed': greed,
+            'step_size': step_size,
+            'discount_rate': discount_rate,
+            'gamma_optimistic': gamma_optimistic,
+            'gamma_hard': gamma_hard,
+            'lambda_hard': lambda_hard,
+            'gamma_soft': gamma_soft,
+            'q_x_seed': q_x_seed,
+            'q_y_seed': q_y_seed,
+            's_x_seed': s_x_seed,
+            's_y_seed': s_y_seed,
+            'optimize_hyperparameters': optimize_hyperparameters,
+            'dataset_type': dataset_type,
+            'dataset_params': dataset_params,
+            'shape': shape,
+            'every': every,
+            'glie_start': glie_start,
+            'reset_in_safe_state': reset_in_safe_state,
+            'plotter_smoothing_window_size': plotter_smoothing_window_size
         }
         dynamics_parameters = {
             'shape': shape
@@ -134,7 +136,7 @@ class SoftHardSimulation(ModelLearningSimulation):
         plotters.update({
             'RewardFailure': RewardFailurePlotter(
                 agents_names=['Soft-hard'],
-                window_size=10,
+                window_size=plotter_smoothing_window_size,
                 padding_value=1
             )
         })
@@ -187,7 +189,6 @@ class SoftHardSimulation(ModelLearningSimulation):
             )
 
     def run(self):
-        CV_SETS = 1000
         n_samples = 0
         self.save_figs(prefix='0')
 
@@ -236,22 +237,22 @@ class SoftHardSimulation(ModelLearningSimulation):
                     self.agent.step_size *= (n_samples - self.glie_start) / (
                                         (n_samples - self.glie_start + 1))
                 self.agent.gamma_optimistic = affine_interpolation(
-                    min(n_samples / CV_SETS, 1),
+                    n_samples / self.max_samples,
                     self.gamma_optimistic_start,
                     self.gamma_optimistic_end
                 )
                 self.agent.gamma_hard = affine_interpolation(
-                    min(n_samples / CV_SETS, 1),  # n_samples / self.max_samples,
+                    n_samples / self.max_samples,
                     self.gamma_hard_start,
                     self.gamma_hard_end
                 )
                 self.agent.lambda_hard = affine_interpolation(
-                    min(n_samples / CV_SETS, 1),  # n_samples / self.max_samples,
+                    n_samples / self.max_samples,
                     self.lambda_hard_start,
                     self.lambda_hard_end
                 )
                 self.agent.gamma_soft = affine_interpolation(
-                    min(n_samples / CV_SETS, 1),  # n_samples / self.max_samples,
+                    n_samples / self.max_samples,
                     self.gamma_soft_start,
                     self.gamma_soft_end
                 )
@@ -288,8 +289,6 @@ class SoftHardSimulation(ModelLearningSimulation):
             logging.info('Failed!')
         elif kwargs['done']:
             logging.info('Solved!')
-        if kwargs['failed'] and n_samples > 900:
-            print('pause')
         if n_samples % self.every == 0:
             self.save_figs(prefix=f'{n_samples}')
 
@@ -346,9 +345,9 @@ if __name__ == '__main__':
         },
     }
 
-    ENV_NAME = 'hovership'
+    ENV_NAME = 'cartpole'
     sim = SoftHardSimulation(
-        name=f'{ENV_NAME}_failure_exploration',
+        name=f'{ENV_NAME}_test',
         env_name=ENV_NAME,
         reward_threshold=env_dependent_params[ENV_NAME]['reward_threshold'],
         max_samples=1000,
@@ -370,7 +369,8 @@ if __name__ == '__main__':
         shape=env_dependent_params[ENV_NAME]['shape'],
         every=100,
         glie_start=0.9,
-        reset_in_safe_state=True  # True is expensive, and useless for Gym
+        reset_in_safe_state=True,  # True is expensive, and useless for Gym
+        plotter_smoothing_window_size=10,
     )
     sim.set_seed(value=0)
 

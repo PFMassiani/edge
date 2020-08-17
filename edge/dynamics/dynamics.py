@@ -44,6 +44,16 @@ class DiscreteTimeDynamics(EventBased):
         :return: np.ndarray. The dynamics map. The array has n_s + n_a dimensions, and the values are the indexes in
             self.stateaction_space
         """
+        # General note: Q_map stores the index of the next state. This
+        # approximates the dynamics by projecting the state we end up in, and
+        # may lead to errors. A more precise implementation would keep the
+        # exact value of the next state instead of its index. So far, this
+        # method is only used for the computation of the viability sets, and
+        # this requires the index of the next state: implementing the more
+        # precise method is useless for this.
+        # However, the following implementation may need to change if this
+        # method is used for something else.
+
         # This probably breaks when self.stateaction_space.state_space.ndim > 1: then, indexes are tuples, not ints
         Q_map = np.zeros(self.stateaction_space.shape, dtype=int)
         for sa_index, stateaction in iter(self.stateaction_space):
