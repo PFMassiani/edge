@@ -144,7 +144,7 @@ class GymEnvironmentWrapper(Environment):
             state = self.state_space.to_gym(state)
             action = self.action_space.to_gym(action)
             unwrapped_gym_env.state = state
-            next_state, reward, failed, _ = unwrapped_gym_env.step(action)
+            next_state, reward, failed = self.step(action)
             next_state = self.state_space.from_gym(next_state)
             # Gym does not ensure the stability of the stateaction space under
             # the dynamics, so we enforce it.
