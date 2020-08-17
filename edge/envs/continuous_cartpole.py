@@ -82,10 +82,7 @@ class ContinuousCartPoleEnv(gym.Env):
         force = self.force_mag * float(action)
         self.state = self.stepPhysics(force)
         x, x_dot, theta, theta_dot = self.state
-        done = x < -self.x_threshold \
-            or x > self.x_threshold \
-            or theta < -self.theta_threshold_radians \
-            or theta > self.theta_threshold_radians
+        done = self.is_failure_state(x, theta)
         done = bool(done)
 
         if not done:
@@ -158,6 +155,12 @@ Any further steps are undefined behavior.
 
         return self.viewer.render(return_rgb_array=(mode == 'rgb_array'))
 
+    def is_failure_state(self, x, theta):
+        return x < -self.x_threshold \
+            or x > self.x_threshold \
+            or theta < -self.theta_threshold_radians \
+            or theta > self.theta_threshold_radians
+
     def close(self):
         if self.viewer:
             self.viewer.close()
@@ -170,12 +173,14 @@ class ContinuousCartPole(GymEnvironmentWrapper):
             gym_env, discretization_shape, control_frequency=control_frequency
         )
 
+    def is_failure_state(self, state):
+        x = state[0]
+        theta = state[2]
+        return self.gym_env.is_failure_state(x, theta)
+
     @property
     def in_failure_state(self):
-        # This condition is taken from OpenAI Gym documentation
-        failed = np.abs(self.s[0]) > 2.4  # Linear position
-        failed |= np.abs(self.s[2]) > 12 * np.pi / 180  # Angular position
-        return failed
+        return self.is_failure_state(self.s)
 
     @property
     def done(self):
