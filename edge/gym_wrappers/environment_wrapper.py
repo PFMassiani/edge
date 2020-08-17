@@ -18,7 +18,8 @@ def get_index_length(gym_box):
 
 
 class GymEnvironmentWrapper(Environment):
-    def __init__(self, gym_env, shape=None, failure_critical = False):
+    def __init__(self, gym_env, shape=None, failure_critical=False,
+                 control_frequency=None):
         self.gym_env = gym_env
         if shape is None:
             obs_shape = None
@@ -52,7 +53,8 @@ class GymEnvironmentWrapper(Environment):
 
         self.info = {}
         self._done = False
-        self.failure_critical = False
+        self.failure_critical = failure_critical
+        self.control_frequency = control_frequency
 
         dynamics = DummyDynamics(StateActionSpace(state_space, action_space))
 
@@ -94,17 +96,28 @@ class GymEnvironmentWrapper(Environment):
 
     def step(self, action):
         gym_action = self.action_space.to_gym(action)
-        if not self.failure_critical or not self.has_failed:
-            gym_new_state, reward, done, info = self.gym_env.step(gym_action)
-            s = self.state_space.from_gym(gym_new_state)
-            # Gym does not put a hard constraint on the fact that the state
-            # stays in the limit of the Box. Edge crashes if this happens, so
-            # we project the resulting state in state-space
-            self.s = self.state_space.closest_in(s)
-            self._done = done
-            self.info = info
-        else:
-            reward = 0
+
+        def do_one_gym_step():
+            if not self.failure_critical or not self.has_failed:
+                gym_new_state, reward, done, info = self.gym_env.step(
+                    gym_action
+                )
+                s = self.state_space.from_gym(gym_new_state)
+                # Gym does not put a hard constraint on the fact that the state
+                # stays in the limit of the Box. Edge crashes if this happens,
+                # so we project the resulting state in state-space
+                s = self.state_space.closest_in(s)
+            else:
+                reward = 0
+            return s, reward, done, info
+
+        step_done = False
+        n_gym_steps = 0
+        while not step_done:
+            self.s, reward, self._done, _ = do_one_gym_step()
+            n_gym_steps += 1
+            step_done = (self.control_frequency is None) or \
+                        (n_gym_steps >= self.control_frequency)
 
         return self.s, reward, self.has_failed
 

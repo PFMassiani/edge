@@ -111,6 +111,23 @@ class GymEnvironmentWrappers(unittest.TestCase):
             ep_cost += env.info.get('cost', 0)
             env.gym_env.render()
             if env.done:
+                print('Episode Return: %.3f \t Episode Cost: %.3f' % (
+                ep_ret, ep_cost))
+                ep_ret, ep_cost = 0, 0
+                random_agent.reset()
+
+    def test_gym_control_frequency(self):
+        gymenv = gym.make('CartPole-v1')
+        env = GymEnvironmentWrapper(gymenv, control_frequency=2)
+        random_agent = RandomAgent(env)
+
+        ep_ret, ep_cost = 0, 0
+        for t in range(1000):
+            new_state, reward, failed = random_agent.step()
+            ep_ret += reward
+            ep_cost += env.info.get('cost', 0)
+            env.gym_env.render()
+            if env.done:
                 print('Episode Return: %.3f \t Episode Cost: %.3f' % (ep_ret, ep_cost))
                 ep_ret, ep_cost = 0, 0
                 random_agent.reset()
