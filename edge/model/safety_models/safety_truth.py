@@ -230,7 +230,7 @@ class SafetyTruth(GroundTruth):
         self.stateaction_space = self.env.stateaction_space
 
         if Q_map_path is not None:
-            Q_map = np.load(Q_map_path)
+            Q_map = np.load(Q_map_path, allow_pickle=True)
             if Q_map.shape != self.stateaction_space.shape:
                 raise ValueError('Loaded map shape and stateaction space shape '
                                  'don\'t match')
