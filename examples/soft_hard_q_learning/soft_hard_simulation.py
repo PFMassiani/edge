@@ -23,14 +23,17 @@ def identity_or_duplicated_value(possible_tuple):
 
 
 class SoftHardSimulation(ModelLearningSimulation):
-    def __init__(self, name, env_name, reward_threshold, max_samples, max_steps,
-                 greed, step_size, discount_rate, gamma_optimistic, gamma_hard,
-                 lambda_hard, gamma_soft, q_x_seed, q_y_seed, s_x_seed,
-                 s_y_seed, optimize_hyperparameters, dataset_type,
-                 dataset_params, shape, every, glie_start, reset_in_safe_state,
+    def __init__(self, name, env_name, reward_threshold, control_frequency,
+                 max_samples, max_steps, greed, step_size, discount_rate,
+                 gamma_optimistic, gamma_hard, lambda_hard, gamma_soft,
+                 q_x_seed, q_y_seed, s_x_seed, s_y_seed,
+                 optimize_hyperparameters, dataset_type, dataset_params, shape,
+                 every, glie_start, reset_in_safe_state,
                  plotter_smoothing_window_size):
         parameterization = {
             'env_name': env_name,
+            'reward_threshold': reward_threshold,
+            'control_frequency': control_frequency,
             'max_samples': max_samples,
             'greed': greed,
             'step_size': step_size,
@@ -62,7 +65,8 @@ class SoftHardSimulation(ModelLearningSimulation):
             self.env = LowGoalHovership(dynamics_parameters=dynamics_parameters,
                                         reward_done_threshold=reward_threshold)
         elif env_name == 'cartpole':
-            self.env = CartPole(discretization_shape=shape)
+            self.env = CartPole(discretization_shape=shape,
+                                control_frequency=control_frequency)
         elif env_name == 'lander':
             self.env = LunarLander(discretization_shape=shape)
 
@@ -306,6 +310,7 @@ if __name__ == '__main__':
             's_y_seed': np.array([1, 0.8]),
             'shape': (101, 101),
             'reward_threshold': 10,
+            'control_frequency': None,
         },
         'hovership': {
             'q_x_seed': np.array([[1.3, 0.6], [2, 0]]),
@@ -314,6 +319,7 @@ if __name__ == '__main__':
             's_y_seed': np.array([1, 1]),
             'shape': (101, 101),
             'reward_threshold': 100,
+            'control_frequency': None,
         },
         'cartpole': {
             'q_x_seed': np.array([[0, 0, 0, 0, 0]]),
@@ -326,6 +332,7 @@ if __name__ == '__main__':
             's_y_seed': np.array([10, 0.1, 0.1]),
             'shape': (10, 10, 10, 10, 10),
             'reward_threshold': None,
+            'control_frequency': 2,
         },
         # State is: [x, y, vx, vy, theta, omega, left_contact, right_contact]
         # Action is: [main, left_right]
@@ -342,6 +349,7 @@ if __name__ == '__main__':
             's_y_seed': np.array([1]),
             'shape': (10, 10, 10, 10, 10, 10, 10, 10, 10, 10),
             'reward_threshold': None,
+            'control_frequency': None,
         },
     }
 

@@ -135,3 +135,12 @@ class Environment:
 
     def compute_dynamics_map(self):
         return self.dynamics.compute_map()
+
+    def linearization(self):
+        """
+        Returns the linearization matrices of the environment.
+        If the linearized dynamics are given by dx/dt = Ax + Bu, this returns
+        matrices A and B.
+        :return: the linearized dynamics
+        """
+        raise NotImplementedError
