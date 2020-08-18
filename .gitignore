@@ -2,6 +2,8 @@
 results/
 examples/*/*/**
 examples/*/**/*.zip
+experiments/*/*/**
+experiments/*/**/*.zip
 data/models/
 
 # Byte-compiled / optimized / DLL files
