@@ -19,6 +19,8 @@ class Agent:
         self.last_action = None
         self.models = models
 
+        self._training_mode = True
+
     def get_next_action(self):
         """ Abstract method
         Returns the next action taken by the Agent.
@@ -60,6 +62,14 @@ class Agent:
         """
         return self.env.has_failed
 
+    @property
+    def training_mode(self):
+        return self._training_mode
+
+    @training_mode.setter
+    def training_mode(self, new_training_mode):
+        self._training_mode = new_training_mode
+
     def step(self):
         """
         Chooses an action according to the policy, takes a step in the Environment, and updates the models. The action
@@ -69,7 +79,8 @@ class Agent:
         old_state = self.state
         action = self.get_next_action()
         new_state, reward, failed = self.env.step(action)
-        self.update_models(old_state, action, new_state, reward, failed)
+        if self.training_mode:
+            self.update_models(old_state, action, new_state, reward, failed)
         self.state = new_state
         self.last_action = action
         return new_state, reward, failed
