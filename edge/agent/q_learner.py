@@ -36,6 +36,8 @@ class QLearner(Agent):
         if not keep_seed_in_data:
             self.Q_model.empty_data()
 
+        self._step_size_decrease_index = 1
+
     @property
     def greed(self):
         """
@@ -50,6 +52,26 @@ class QLearner(Agent):
         Sets the epsilon parameter of the EpsilonGreedy policy
         """
         self.policy.greed = new_greed
+
+    @property
+    def step_size(self):
+        """
+        Returns the step_size parameter of the Q-Learning model
+        :return: step_size parameter
+        """
+        return self.Q_model.step_size
+
+    @step_size.setter
+    def step_size(self, new_step_size):
+        """
+        Sets the epsilon parameter of the ConstrainedEpsilonGreedy policy
+        """
+        self.Q_model.step_size = new_step_size
+
+    def decrease_step_size(self):
+        self.step_size *= self._step_size_decrease_index / \
+                          (self._step_size_decrease_index + 1)
+        self._step_size_decrease_index += 1
 
     def get_next_action(self):
         q_values = self.Q_model[self.state, :]  # This is expensive: calls the GP on the whole action space
