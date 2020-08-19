@@ -30,6 +30,12 @@ class SafetyTruth(GroundTruth):
         self.state_measure = None
         self.measure_value = None
 
+    @property
+    def viability_kernel(self):
+        action_axes = tuple([1 + k
+                          for k in range(self.env.action_space.index_dim)])
+        return self.viable_set.any(axis=action_axes)
+
     def get_training_examples(self, n_examples=2000, from_viable=True,
                               from_failure=False, viable_proportion=0.6):
         """
@@ -155,6 +161,24 @@ class SafetyTruth(GroundTruth):
             (state, action), around_ok=True
         )
         return self.failure_set[index] == 1
+
+    def viable_set_like(self, stateaction_space):
+        """
+        Returns the viable set as an array of shape `output_shape`. This method
+        is approximate: it only projects indexes on the closest point of the
+        viable set's true grid. Note that if `output_shape` exceeds the shape of
+        the viable set along a dimension, this method will NOT fail. You
+        should make sure you are actually undersampling the viable set for this
+        method to give accurate outputs.
+        :param output_shape: the desired output shape
+        :return: the viable set as an array of shape output_shape
+        """
+        resampled_viable_set = np.array([
+            self.viable_set[
+                self.stateaction_space.get_index_of(sa, around_ok=True)
+            ] for _, sa in iter(stateaction_space)
+        ]).reshape(stateaction_space.shape)
+        return resampled_viable_set
 
     def from_vibly_file(self, vibly_file_path):
         """
