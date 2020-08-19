@@ -170,7 +170,7 @@ class ValuesAndSafetyCombinator(QLearner):
 class SoftHardLearner(ValuesAndSafetyCombinator):
     def __init__(self, env,
                  greed, step_size, discount_rate, q_x_seed, q_y_seed,
-                 gamma_optimistic, gamma_hard, lambda_hard, gamma_soft,
+                 gamma_optimistic, gamma_cautious, lambda_cautious, gamma_soft,
                  s_x_seed, s_y_seed, q_gp_params=None, s_gp_params=None,
                  keep_seed_in_data=True):
         super(SoftHardLearner, self).__init__(
@@ -181,8 +181,8 @@ class SoftHardLearner(ValuesAndSafetyCombinator):
             q_x_seed=q_x_seed,
             q_y_seed=q_y_seed,
             gamma_optimistic=gamma_optimistic,
-            gamma_cautious=gamma_hard,
-            lambda_cautious=lambda_hard,
+            gamma_cautious=gamma_cautious,
+            lambda_cautious=lambda_cautious,
             s_x_seed=s_x_seed,
             s_y_seed=s_y_seed,
             q_gp_params=q_gp_params,

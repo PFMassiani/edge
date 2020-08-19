@@ -10,33 +10,37 @@ from benchmark_environments import LowGoalSlip, PenalizedSlip, \
 from benchmark_agents import SoftHardLearner, EpsilonSafety, \
     SafetyQLearningSwitcher
 from edge.graphics.plotter import QValueAndSafetyPlotter, QValuePlotter
+from benchmark_parameterizations import LOW_GOAL_SLIP, PENALIZED_SLIP, \
+    LOW_GOAL_HOVERSHIP, PENALIZED_HOVERSHIP, Q_LEARNER, SOFT_HARD_LEARNER, \
+    EPSILON_SAFETY_LEARNER, SAFETY_VALUES_SWITCHER
 
 logger = logging.getLogger(__name__)
 
 ENV_CONSTRUCTOR = {
-    'low_goal_slip': LowGoalSlip,
-    'penalized_slip': PenalizedSlip,
-    'low_goal_hovership': LowGoalHovership,
-    'penalized_hovership': PenalizedHovership,
+    LOW_GOAL_SLIP: LowGoalSlip,
+    PENALIZED_SLIP: PenalizedSlip,
+    LOW_GOAL_HOVERSHIP: LowGoalHovership,
+    PENALIZED_HOVERSHIP: PenalizedHovership,
 }
 AGENT_CONSTRUCTOR = {
-    'q_learner': QLearner,
-    'soft_hard_learner': SoftHardLearner,
-    'epsilon_safety': EpsilonSafety,
-    'switcher': SafetyQLearningSwitcher,
+    Q_LEARNER: QLearner,
+    SOFT_HARD_LEARNER: SoftHardLearner,
+    EPSILON_SAFETY_LEARNER: EpsilonSafety,
+    SAFETY_VALUES_SWITCHER: SafetyQLearningSwitcher,
 }
 VIBLY_DATA_PATH = Path('../../data/ground_truth/from_vibly')
 SAFETY_TRUTH_PATH = {
-    'low_goal_slip': VIBLY_DATA_PATH / 'slip_map.pickle',
-    'penalized_slip': VIBLY_DATA_PATH / 'slip_map.pickle',
-    'low_goal_hovership': VIBLY_DATA_PATH / 'hover_map.pickle',
-    'penalized_hovership': VIBLY_DATA_PATH / 'hover_map.pickle',
+    LOW_GOAL_SLIP: VIBLY_DATA_PATH / 'slip_map.pickle',
+    PENALIZED_SLIP: VIBLY_DATA_PATH / 'slip_map.pickle',
+    LOW_GOAL_HOVERSHIP: VIBLY_DATA_PATH / 'hover_map.pickle',
+    PENALIZED_HOVERSHIP: VIBLY_DATA_PATH / 'hover_map.pickle',
 }
-SAFETY_TRUTH_FROM_VIBLY = ['low_goal_slip', 'penalized_slip',
-                           'low_goal_hovership', 'penalized_hovership']
-PLOTTABLE_Q = ['low_goal_slip', 'penalized_slip',
-               'low_goal_hovership', 'penalized_hovership']
-HAS_SAFETY_MODEL = ['soft_hard_learner', 'epsilon_safety', 'switcher']
+SAFETY_TRUTH_FROM_VIBLY = [LOW_GOAL_SLIP, PENALIZED_SLIP,
+                           LOW_GOAL_HOVERSHIP, PENALIZED_HOVERSHIP]
+PLOTTABLE_Q = [LOW_GOAL_SLIP, PENALIZED_SLIP,
+               LOW_GOAL_HOVERSHIP, PENALIZED_HOVERSHIP]
+HAS_SAFETY_MODEL = [SOFT_HARD_LEARNER, EPSILON_SAFETY_LEARNER,
+                    SAFETY_VALUES_SWITCHER]
 
 FAILURE_SAMPLE_COLOR = [0.3, 0.3, 0.9]  # should be in edge.graphics
 
@@ -344,8 +348,8 @@ if __name__ == '__main__':
         'q_x_seed': np.array([[1.3, 0.6], [2, 0]]),
         'q_y_seed': np.array([1, 1]),
         'gamma_optimistic': (0.6, 0.6),
-        'gamma_hard': (0.61, 0.61),
-        'lambda_hard': (0., 0.),
+        'gamma_cautious': (0.61, 0.61),
+        'lambda_cautious': (0., 0.),
         'gamma_soft': (0.7, 0.7),
         's_x_seed': np.array([[1.3, 0.6], [1.8, 0.2]]),
         's_y_seed': np.array([1, 1]),
@@ -357,8 +361,8 @@ if __name__ == '__main__':
     sim = BenchmarkSingleSimulation(
         output_directory=Path('.').absolute().resolve(),
         name='test_2',
-        envname='penalized_hovership',
-        aname='switcher',
+        envname=PENALIZED_HOVERSHIP,
+        aname=SAFETY_VALUES_SWITCHER,
         envparams=envparams,
         aparams=aparams_1,
         n_episodes=5,
