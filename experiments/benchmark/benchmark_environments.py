@@ -38,7 +38,7 @@ class LowGoalHovership(Hovership):
             reward_done_threshold=reward_done_threshold,
         )
 
-        reward = AffineReward(self.stateaction_space, [(10, 0), (0, 0)])
+        reward = AffineReward(self.stateaction_space, [(11, 1), (1, 0)])
         self.reward = reward
 
 

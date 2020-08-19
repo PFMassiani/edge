@@ -68,6 +68,7 @@ class ValuesAndSafetyCombinator(QLearner):
                                     gp_params=s_gp_params)
         super(ValuesAndSafetyCombinator, self).__init__(
             env=env,
+            greed=greed,  # Unused: we define another policy
             step_size=step_size,
             discount_rate=discount_rate,
             x_seed=q_x_seed,
@@ -255,7 +256,7 @@ class SoftHardLearner(ValuesAndSafetyCombinator):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed, self.env.done
+        return new_state, reward, failed
 
 
 class EpsilonSafety(ValuesAndSafetyCombinator):
@@ -344,7 +345,7 @@ class EpsilonSafety(ValuesAndSafetyCombinator):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed, self.env.done
+        return new_state, reward, failed
 
 
 class SafetyQLearningSwitcher(ValuesAndSafetyCombinator):
@@ -427,4 +428,4 @@ class SafetyQLearningSwitcher(ValuesAndSafetyCombinator):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed, self.env.done
+        return new_state, reward, failed
