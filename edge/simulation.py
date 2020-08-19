@@ -10,7 +10,7 @@ class Simulation:
     the appropriate locations.
     """
     def __init__(self, output_directory, name, plotters):
-        self.set_seed(random=False, value=0)
+        self.set_seed()
         self.output_directory = Path(output_directory) / name
         self.name = name
         self.plotters = plotters if plotters is not None else {}
@@ -23,11 +23,8 @@ class Simulation:
 
         self.__saved_figures = {}
 
-    def set_seed(self, value=0, random=False):
-        if random:
-            npseed(None)
-        else:
-            npseed(value)
+    def set_seed(self, value=None):
+        npseed(value)
 
     def run(self):
         raise NotImplementedError
