@@ -6,7 +6,7 @@ from ..colors import corl_colors
 
 
 class QValueAndSafetyPlotter(Plotter):
-    def __init__(self, agent, safety_truth=None):
+    def __init__(self, agent, safety_truth=None, ensure_in_dataset=False):
         super(QValueAndSafetyPlotter, self).__init__(agent)
 
         self.q_value_subplotter = QValueSubplotter(agent, corl_colors, write_values=False)
@@ -17,6 +17,8 @@ class QValueAndSafetyPlotter(Plotter):
                                                                  corl_colors)
         else:
             self.safety_truth_subplotter = None
+
+        self.ensure_in_dataset = ensure_in_dataset
 
     def get_figure(self):
         figure = plt.figure(constrained_layout=True, figsize=(5.5, 4.8))
@@ -70,8 +72,16 @@ class QValueAndSafetyPlotter(Plotter):
 
         return Q_values, Q_optimistic, Q_cautious, S_optimistic
 
-    def on_run_iteration(self, state, action, new_state, reward, failed, color=None):
+    # def on_run_iteration(self, state, action, new_state, reward, failed, color=None):
+    #     self.sample_subplotter.incur_sample(state, action, failed, color)
+    def on_run_iteration(self, state, action, new_state, reward, failed,
+                         *args, color=None, **kwargs):
         self.sample_subplotter.incur_sample(state, action, failed, color)
+        if self.ensure_in_dataset:
+            self.sample_subplotter.ensure_samples_in_at_least_one(
+                self.agent.safety_model.gp.train_x.numpy(),
+                self.agent.Q_model.gp.train_x.numpy()
+            )
 
 
 class SoftHardPlotter(Plotter):
