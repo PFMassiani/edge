@@ -57,13 +57,13 @@ AGENT_BASE_PARAMS = {
     'keep_seed_in_data': True,
 }
 SAFETY_AGENT_BASE_PARAMS = {
-    'gamma_optimistic': (0.6, 0.85),
-    'gamma_cautious': (0.61, 0.85),
-    'lambda_cautious': (0., 0.05),
+    'gamma_optimistic': (0.6, 0.8),
+    'gamma_cautious': (0.7, 0.81),
+    'lambda_cautious': (0., 0.),
 }
 Q_LEARNER_PARAMS = AGENT_BASE_PARAMS.copy()
 SOFT_HARD_LEARNER_PARAMS = {
-    'gamma_soft': (0.7, 0.85)
+    'gamma_soft': (0.75, 0.81)
 }
 SOFT_HARD_LEARNER_PARAMS.update(AGENT_BASE_PARAMS)
 SOFT_HARD_LEARNER_PARAMS.update(SAFETY_AGENT_BASE_PARAMS)
@@ -92,11 +92,11 @@ SLIP_GP_PARAMS = {
     'dataset_params': {'radius': 0.1},
 }
 SLIP_Q_SEED_PARAMS = {
-    'q_x_seed': nparray([0.4, 0.6]),
+    'q_x_seed': nparray([.45, 0.6632]),  # .45, 38 / 180 * np.pi
     'q_y_seed': nparray([1]),
 }
 SLIP_S_SEED_PARAMS = {
-    's_x_seed': nparray([[0.4, 0.6], [0.8, 0.4]]),
+    's_x_seed': nparray([[.45, 0.6632], [0.8, 0.4]]),
     's_y_seed': nparray([1, 0.8]),
 }
 
@@ -129,7 +129,7 @@ ENV_DEP_APARAMS = {
 
 APARAMS_DICT = {
     aname: {
-        envname: ENV_INDEP_APARAMS[aname] for envname in ENVIRONMENTS
+        envname: deepcopy(ENV_INDEP_APARAMS[aname]) for envname in ENVIRONMENTS
     } for aname in AGENTS
 }
 for aname in AGENTS:

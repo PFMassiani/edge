@@ -175,7 +175,10 @@ class SafetyTruth(GroundTruth):
         """
         resampled_viable_set = np.array([
             self.viable_set[
-                self.stateaction_space.get_index_of(sa, around_ok=True)
+                self.stateaction_space.get_index_of(
+                    self.stateaction_space.closest_in(sa),
+                    around_ok=True
+                )
             ] for _, sa in iter(stateaction_space)
         ]).reshape(stateaction_space.shape)
         return resampled_viable_set

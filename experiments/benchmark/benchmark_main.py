@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('rid', type=int)
+    parser.add_argument('rid')
     parser.add_argument('environment')
     parser.add_argument('agent')
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         'aparams': APARAMS_DICT[args.agent][args.environment],
     })
 
-    sim = BenchmarkSingleSimulation(**simulation_parameters)
+    sim = BenchmarkSingleSimulation(seed=int(args.rid), **simulation_parameters)
     logger.info(config_msg(f'Benchmark script called with arguments: {args}'))
     logger.info(config_msg('Simulation created with parameterization:'))
     logger.info(config_msg(f'{simulation_parameters}'))

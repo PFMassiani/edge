@@ -82,7 +82,7 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
                  envname, aname, envparams, aparams,
                  n_episodes, glie_start, safety_parameters_update_end,
                  reset_in_safe_state, metrics_sampling_frequency,
-                 n_episodes_in_measurement, plot_every):
+                 n_episodes_in_measurement, plot_every, seed):
         self.env = ENV_CONSTRUCTOR[envname](**envparams)
         self.agent = AGENT_CONSTRUCTOR[aname](env=self.env, **aparams)
         safety_truth_path = SAFETY_TRUTH_PATH[envname]
@@ -136,6 +136,7 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
 
         super(BenchmarkSingleSimulation, self).__init__(output_directory, name,
                                                         plotters)
+        self.set_seed(value=seed)
 
         self.metrics_path = self.output_directory / 'metrics'
         self.metrics = AgentMetrics(*self.METRICS_NAMES)
@@ -224,6 +225,7 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
         return episode
 
     def run(self):
+        self.save_figs(prefix=f'init')
         training_episodes = [None] * self.n_episodes
         for n_ep in range(self.n_episodes):
             self.agent.training_mode = True
