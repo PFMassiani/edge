@@ -171,7 +171,7 @@ class GP(gpytorch.models.ExactGP):
         return self
 
     @tensorwrap('x', 'y')
-    def append_data(self, x, y):
+    def append_data(self, x, y, **kwargs):
         """
         Appends data to the GP dataset
         :param x: np.ndarray: the additional training input data. Should be 2D, with the same number of columns than
@@ -180,7 +180,7 @@ class GP(gpytorch.models.ExactGP):
         """
         # GPyTorch provides an additional, more efficient way of adding data with the ExactGP.get_fantasy_model method,
         # but it seems to require that the model is called at least once before it can be used
-        self.dataset.append(atleast_2d(x), y)
+        self.dataset.append(atleast_2d(x), y, **kwargs)
         self._set_gp_data_to_dataset()
         return self
 
@@ -264,7 +264,7 @@ class Dataset:
     def train_y(self, new_train_y):
         self._train_y = new_train_y
 
-    def append(self, append_x, append_y):
+    def append(self, append_x, append_y, **kwargs):
         self.train_x = torch.cat((self.train_x, atleast_2d(append_x)), dim=0)
         self.train_y = torch.cat((self.train_y, append_y), dim=0)
 
@@ -314,9 +314,16 @@ class NeighborErasingDataset(Dataset):
         """
         super(NeighborErasingDataset, self).__init__(train_x, train_y)
         self.radius = radius
+        self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool)
         self._kdtree = self._create_kdtree()
 
-    def append(self, append_x, append_y):
+    def append(self, append_x, append_y, **kwargs):
+        forgettable = kwargs.get('forgettable')
+        if forgettable is None:
+            forgettable = torch.ones(append_x.shape[0], dtype=bool)
+        else:
+            forgettable = torch.tensor(forgettable, dtype=bool)
+
         lists_indices_to_forget = self._kdtree.query_radius(append_x.numpy(),
                                                             r=self.radius)
         lists_indices_to_forget = list(map(
@@ -324,6 +331,8 @@ class NeighborErasingDataset(Dataset):
             lists_indices_to_forget
         ))
         indices_to_forget = torch.cat(lists_indices_to_forget)
+        to_forget_is_forgettable = self.forgettable[indices_to_forget]
+        indices_to_forget = indices_to_forget[to_forget_is_forgettable]
 
         keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool)
         keeping_filter[indices_to_forget] = False
@@ -333,6 +342,10 @@ class NeighborErasingDataset(Dataset):
 
         train_y_without_neighbors = self._train_y[keeping_filter]
         self.train_y = torch.cat((train_y_without_neighbors, append_y))
+
+        forgettable_without_neighbors = self.forgettable[keeping_filter]
+        self.forgettable = torch.cat((forgettable_without_neighbors,
+                                      forgettable))
 
         self._kdtree = self._create_kdtree()
 
