@@ -44,7 +44,8 @@ class SafetyMeasure(GPModel):
             update_value = np.array([0.])
 
         stateaction = self.env.stateaction_space[state, action]
-        self.gp.append_data(stateaction, update_value, forgettable=[not failed])
+        self.gp.append_data(stateaction, update_value, forgettable=[not failed],
+                            make_forget=[not failed])
 
     def _query(self, x, return_covar=False):
         """

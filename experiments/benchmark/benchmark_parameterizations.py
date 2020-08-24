@@ -58,7 +58,7 @@ AGENT_BASE_PARAMS = {
 }
 SAFETY_AGENT_BASE_PARAMS = {
     'gamma_optimistic': (0.6, 0.8),
-    'gamma_cautious': (0.7, 0.81),
+    'gamma_cautious': (0.7, 0.8),
     'lambda_cautious': (0., 0.),
 }
 Q_LEARNER_PARAMS = AGENT_BASE_PARAMS.copy()

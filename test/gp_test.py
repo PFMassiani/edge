@@ -389,7 +389,7 @@ class TestGP(unittest.TestCase):
         y_ = np.exp(-x_ ** 2).reshape(-1)
         forgettable = [False] * len(y_)
 
-        gp.append_data(x_, y_, forgettable = forgettable)
+        gp.append_data(x_, y_, forgettable=forgettable)
 
         x__ = np.linspace(0, 1, 21, dtype=np.float32).reshape((-1, 1))
         y__ = np.exp(-x_ ** 2).reshape(-1)
@@ -402,21 +402,29 @@ class TestGP(unittest.TestCase):
                               for x__ex in x__)
 
         self.assertTrue(all_present_x_ and all_present_x__)
-        # Set to True to plot
-        if False:
-            import matplotlib.pyplot as plt
-            plt.figure()
-            plt.scatter(
-                gp.train_x.numpy()[-len(x_):],
-                gp.train_x.numpy()[-len(x_):],
-                color='r',
-            )
-            plt.scatter(
-                gp.train_x.numpy()[:-len(x_)],
-                gp.train_x.numpy()[:-len(x_)],
-                color='b'
-            )
-            plt.show()
+
+    def test_neighbor_erasing_dataset_3(self):
+        x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 1))
+        y = np.exp(-x ** 2).reshape(-1)
+
+        r = 0.0125
+
+        gp = MaternGP(
+            x, y, noise_constraint=(0, 1e-3), dataset_type='neighborerasing',
+            dataset_params={'radius': r}
+        )
+        x_ = np.linspace(0, 1, 20, dtype=np.float32).reshape((-1, 1))
+        y_ = np.exp(-x_ ** 2).reshape(-1)
+        make_forget = [False] * len(y_)
+
+        gp.append_data(x_, y_, make_forget=make_forget)
+
+        all_present_x = all(x_ex.tolist() in gp.train_x.numpy().tolist()
+                             for x_ex in x)
+        all_present_x_ = all(x_ex.tolist() in gp.train_x.numpy().tolist()
+                              for x_ex in x_)
+
+        self.assertTrue(all_present_x and all_present_x_)
 
     def test_multi_dim_input(self):
         tol = 0.1

@@ -323,14 +323,25 @@ class NeighborErasingDataset(Dataset):
             forgettable = torch.ones(append_x.shape[0], dtype=bool)
         else:
             forgettable = torch.tensor(forgettable, dtype=bool)
+        make_forget = kwargs.get('make_forget')
+        if make_forget is None:
+            make_forget = torch.ones(append_x.shape[0], dtype=bool)
+        else:
+            make_forget = torch.tensor(make_forget, dtype=bool)
 
-        lists_indices_to_forget = self._kdtree.query_radius(append_x.numpy(),
-                                                            r=self.radius)
-        lists_indices_to_forget = list(map(
-            torch.tensor,
-            lists_indices_to_forget
-        ))
-        indices_to_forget = torch.cat(lists_indices_to_forget)
+        if make_forget.any():
+            lists_indices_to_forget = self._kdtree.query_radius(
+                append_x[make_forget].numpy(),
+                r=self.radius
+            )
+            lists_indices_to_forget = list(map(
+                torch.tensor,
+                lists_indices_to_forget
+            ))
+            indices_to_forget = torch.cat(lists_indices_to_forget)
+        else:
+            indices_to_forget = torch.tensor([], dtype=int)
+
         to_forget_is_forgettable = self.forgettable[indices_to_forget]
         indices_to_forget = indices_to_forget[to_forget_is_forgettable]
 
