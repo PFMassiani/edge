@@ -89,7 +89,7 @@ SLIP_GP_PARAMS = {
     'lengthscale_prior': (0.15, 0.05),
     'noise_prior': (0.001, 0.002),
     'dataset_type': 'neighborerasing',
-    'dataset_params': {'radius': 0.1},
+    'dataset_params': {'radius': 0.05},
 }
 SLIP_Q_SEED_PARAMS = {
     'q_x_seed': nparray([.45, 0.6632]),  # .45, 38 / 180 * np.pi
@@ -166,7 +166,7 @@ AGENT_DEP_SIMULATION_PARAMS = {
     Q_LEARNER: {'safety_parameters_update_end': None},
     SOFT_HARD_LEARNER: {'safety_parameters_update_end': None},
     EPSILON_SAFETY_LEARNER: {'safety_parameters_update_end': None},
-    SAFETY_VALUES_SWITCHER: {'safety_parameters_update_end': 0.2},
+    SAFETY_VALUES_SWITCHER: {'safety_parameters_update_end': 0.4},
 }
 
 SIMULATION_PARAMS = AGENT_DEP_SIMULATION_PARAMS.copy()
