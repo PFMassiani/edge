@@ -9,7 +9,7 @@ from edge.reward import ConstantReward
 class Hovership(Environment):
     def __init__(self, random_start=False, default_initial_state=None,
                  dynamics_parameters=None, reward=None,
-                 reward_done_threshold=None):
+                 reward_done_threshold=None, steps_done_threshold=None):
         if dynamics_parameters is None:
             dynamics_parameters = {}
         default_dynamics_parameters = {
@@ -49,7 +49,8 @@ class Hovership(Environment):
             reward=reward,
             default_initial_state=default_initial_state,
             random_start=random_start,
-            reward_done_threshold=reward_done_threshold
+            reward_done_threshold=reward_done_threshold,
+            steps_done_threshold=steps_done_threshold
         )
 
     def is_failure_state(self, state):

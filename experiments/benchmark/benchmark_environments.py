@@ -4,10 +4,12 @@ from edge.reward import AffineReward, ConstantReward
 
 class LowGoalSlip(Slip):
     # * This goal incentivizes the agent to run fast
-    def __init__(self, dynamics_parameters=None, reward_done_threshold=None):
+    def __init__(self, dynamics_parameters=None, reward_done_threshold=None,
+                 steps_done_threshold=None):
         super(LowGoalSlip, self).__init__(
             dynamics_parameters=dynamics_parameters,
             reward_done_threshold=reward_done_threshold,
+            steps_done_threshold=steps_done_threshold,
             random_start=True
         )
 
@@ -17,9 +19,10 @@ class LowGoalSlip(Slip):
 
 class PenalizedSlip(LowGoalSlip):
     def __init__(self, penalty_level=100, dynamics_parameters=None,
-                 reward_done_threshold=None):
+                 reward_done_threshold=None, steps_done_threshold=None):
         super(PenalizedSlip, self).__init__(dynamics_parameters,
-                                            reward_done_threshold)
+                                            reward_done_threshold,
+                                            steps_done_threshold)
 
         def penalty_condition(state, action, new_state, reward):
             return self.is_failure_state(new_state)
@@ -31,11 +34,13 @@ class PenalizedSlip(LowGoalSlip):
 
 
 class LowGoalHovership(Hovership):
-    def __init__(self, dynamics_parameters=None, reward_done_threshold=None):
+    def __init__(self, dynamics_parameters=None, reward_done_threshold=None,
+                 steps_done_threshold=None):
         super(LowGoalHovership, self).__init__(
             random_start=True,
             dynamics_parameters=dynamics_parameters,
             reward_done_threshold=reward_done_threshold,
+            steps_done_threshold=steps_done_threshold,
         )
 
         reward = AffineReward(self.stateaction_space, [(11, 1), (1, 0)])
@@ -44,9 +49,10 @@ class LowGoalHovership(Hovership):
 
 class PenalizedHovership(LowGoalHovership):
     def __init__(self, penalty_level=100, dynamics_parameters=None,
-                 reward_done_threshold=None):
+                 reward_done_threshold=None, steps_done_threshold=None):
         super(PenalizedHovership, self).__init__(dynamics_parameters,
-                                                 reward_done_threshold)
+                                                 reward_done_threshold,
+                                                 steps_done_threshold)
 
         def penalty_condition(state, action, new_state, reward):
             return self.is_failure_state(new_state)

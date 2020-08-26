@@ -24,7 +24,8 @@ AGENTS = SAFETY_AGENTS + NO_SAFETY_AGENTS
 ## Environments parameterizations
 
 LOW_GOAL_SLIP_PARAMS = {
-    'reward_done_threshold': 10,
+    'reward_done_threshold': None,
+    'steps_done_threshold': 10,
     'dynamics_parameters': {'shape': (201, 201)},
 }
 PENALIZED_SLIP_PARAMS = {
@@ -33,7 +34,8 @@ PENALIZED_SLIP_PARAMS = {
 PENALIZED_SLIP_PARAMS.update(LOW_GOAL_SLIP_PARAMS)
 
 LOW_GOAL_HOVERSHIP_PARAMS = {
-    'reward_done_threshold': 50,
+    'reward_done_threshold': None,
+    'steps_done_threshold': 10,
     'dynamics_parameters': {'shape': (201, 201)},
 }
 PENALIZED_HOVERSHIP_PARAMS = {

@@ -8,7 +8,8 @@ class Environment:
     :param has_failed: whether self.s is a failure state
     """
     def __init__(self, dynamics, reward, default_initial_state,
-                 random_start=False, reward_done_threshold=None):
+                 random_start=False, reward_done_threshold=None,
+                 steps_done_threshold=None):
         """ Initializer
         :param dynamics: the Dynamics object the environment wraps
         :param reward: the Reward object the environment wraps
@@ -16,6 +17,7 @@ class Environment:
         :param random_start: whether to initalize the agent randomly
         :param reward_done_threshold: at what reward threshold the environment
             is considered done.
+        :param steps_done_threshold: the maximal number of steps
         """
         self.dynamics = dynamics
         self.reward = reward
@@ -25,6 +27,8 @@ class Environment:
         self.default_initial_state = default_initial_state
         self.reward_done_threshold = reward_done_threshold
         self.reward_accumulator = 0
+        self.steps_done_threshold = steps_done_threshold
+        self.n_steps = 0
         self.reset()
 
     @property
@@ -83,7 +87,11 @@ class Environment:
             reward_done = self.reward_accumulator >= self.reward_done_threshold
         else:
             reward_done = False
-        return reward_done or self.in_failure_state
+        if self.steps_done_threshold is not None:
+            steps_done = self.steps_done_threshold >= self.n_steps
+        else:
+            steps_done = False
+        return reward_done or steps_done or self.in_failure_state
 
     @property
     def state_index(self):
@@ -107,6 +115,7 @@ class Environment:
             self.s = self.default_initial_state
         self.feasible = self.dynamics.is_feasible_state(self.s)
         self.reward_accumulator = 0
+        self.n_steps = 0
         return self.s
 
     def step(self, action):
@@ -128,6 +137,7 @@ class Environment:
                                         self.has_failed
                                         )
         self.reward_accumulator += reward
+        self.n_steps += 1
         return self.s, reward, self.has_failed
 
     def render(self):
