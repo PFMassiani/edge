@@ -245,9 +245,9 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
             if (n_ep >= 0) and (n_ep % self.metrics_sampling_frequency == 0):
                 self.agent.training_mode = False
                 measurement_episodes = [None] * self.n_episodes_in_measurement
-                self.save_episodes(measurement_episodes, f'meas_{n_ep}')
                 for n_measurement_ep in range(self.n_episodes_in_measurement):
                     measurement_episodes[n_measurement_ep] = self.run_episode()
+                self.save_episodes(measurement_episodes, f'meas_{n_ep}')
                 metrics_list = self.get_metrics(measurement_episodes)
                 self.metrics.add_measurement(n_ep, *metrics_list)
 
@@ -310,18 +310,25 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
     def save_episodes(self, episodes, name):
         def remove_np_arrays(e):
             return (e[0][0], e[1][0], e[2][0], e[3], e[4], e[5])
-        episodes = list(map(remove_np_arrays, episodes))
-        episodes = np.array(episodes, dtype=object)
-        episodes_dict = {
-            'states': episodes[:, 0].astype(float),
-            'actions': episodes[:, 1].astype(float),
-            'next_states': episodes[:, 2].astype(float),
-            'rewards': episodes[:, 3].astype(float),
-            'failed': episodes[:, 4].astype(bool),
-            'done': episodes[:, 5].astype(bool),
+        episodes = [list(map(remove_np_arrays, ep)) for ep in episodes]
+        episodes = [list(zip(*ep)) for ep in episodes]
+        episodes = [
+            {
+                'states': ep[0],
+                'actions': ep[1],
+                'next_states': ep[2],
+                'rewards': ep[3],
+                'failed': ep[4],
+                'done': ep[5],
+            } for ep in episodes
+        ]
+        keys = episodes[0].keys()
+        flattened_dict = {
+            f'{key}_EPISODE_{n}': episodes[n][key]
+            for key in keys for n in range(len(episodes))
         }
         save_path = self.samples_path / name
-        np.savez(save_path, **episodes_dict)
+        np.savez(save_path, **flattened_dict)
 
 
 if __name__ == '__main__':

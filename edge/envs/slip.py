@@ -59,15 +59,5 @@ class Slip(Environment):
         :param s: optional: the state where to initialize
         :return: the internal state of the environment (after reinitialization)
         """
-
         self.dynamics.failed = False
-
-        if s is not None:
-            self.s = s
-        elif self.random_start:
-            self.s = self.stateaction_space.state_space.sample()
-        else:
-            self.s = self.default_initial_state
-        self.feasible = self.dynamics.is_feasible_state(self.s)
-        self.reward_accumulator = 0
-        return self.s
+        return super(Slip, self).reset(s)

@@ -88,7 +88,7 @@ class Environment:
         else:
             reward_done = False
         if self.steps_done_threshold is not None:
-            steps_done = self.steps_done_threshold >= self.n_steps
+            steps_done = self.n_steps >= self.steps_done_threshold
         else:
             steps_done = False
         return reward_done or steps_done or self.in_failure_state
