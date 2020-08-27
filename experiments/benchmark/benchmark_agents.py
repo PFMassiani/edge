@@ -429,3 +429,75 @@ class SafetyQLearningSwitcher(ValuesAndSafetyCombinator):
         self.state = new_state
         self.last_action = action
         return new_state, reward, failed
+
+
+class SafetyQLearner(ValuesAndSafetyCombinator):
+    def __init__(self, env,
+                 greed, step_size, discount_rate, q_x_seed, q_y_seed,
+                 gamma_optimistic, gamma_cautious, lambda_cautious,
+                 s_x_seed, s_y_seed, q_gp_params=None, s_gp_params=None,
+                 keep_seed_in_data=True):
+
+        super(SafetyQLearner, self).__init__(
+            env=env,
+            greed=greed,
+            step_size=step_size,
+            discount_rate=discount_rate,
+            q_x_seed=q_x_seed,
+            q_y_seed=q_y_seed,
+            gamma_optimistic=gamma_optimistic,
+            gamma_cautious=gamma_cautious,
+            lambda_cautious=lambda_cautious,
+            s_x_seed=s_x_seed,
+            s_y_seed=s_y_seed,
+            q_gp_params=q_gp_params,
+            s_gp_params=s_gp_params,
+            keep_seed_in_data=keep_seed_in_data
+        )
+        self.violated_constraint = False
+        self.updated_safety = False
+
+    def get_next_action(self):
+        is_cautious, proba_slice, covar_slice = self.safety_model.level_set(
+            self.state,
+            lambda_threshold=self.lambda_cautious,
+            gamma_threshold=self.gamma_cautious,
+            return_proba=True,
+            return_covar=True
+        )
+        is_cautious = is_cautious.squeeze()
+        proba_slice = proba_slice.squeeze()
+
+        q_values = self.Q_model[self.state, :]
+        action = self.constrained_value_policy.get_action(
+            q_values, is_cautious
+        )
+
+        self.violated_constraint = False
+        if action is None:
+            logger.info('No viable action, taking the safest...')
+            action = self.safety_maximization_policy.get_action(
+                proba_slice
+            )
+            self.violated_constraint = True
+
+        return action
+
+    def step(self):
+        old_state = self.state
+        action = self.get_next_action()
+        new_state, reward, failed = self.env.step(action)
+        if self.training_mode:
+            self.Q_model.update(old_state, action, new_state, reward,
+                                failed)
+            self.safety_model.update(old_state, action, new_state, reward,
+                                     failed)
+        else:
+            # Normally, this if-else clause is also used to update
+            # self.updated_safety. Here, we always update safety: hence, this
+            # boolean is useless, and we set it to False so the samples are
+            # plotted in red
+            pass
+        self.state = new_state
+        self.last_action = action
+        return new_state, reward, failed

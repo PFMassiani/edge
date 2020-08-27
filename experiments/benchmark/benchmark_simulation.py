@@ -8,11 +8,11 @@ from edge.agent import QLearner
 from benchmark_environments import LowGoalSlip, PenalizedSlip, \
     LowGoalHovership, PenalizedHovership
 from benchmark_agents import SoftHardLearner, EpsilonSafety, \
-    SafetyQLearningSwitcher
+    SafetyQLearningSwitcher, SafetyQLearner
 from edge.graphics.plotter import QValueAndSafetyPlotter, QValuePlotter
 from benchmark_parameterizations import LOW_GOAL_SLIP, PENALIZED_SLIP, \
     LOW_GOAL_HOVERSHIP, PENALIZED_HOVERSHIP, Q_LEARNER, SOFT_HARD_LEARNER, \
-    EPSILON_SAFETY_LEARNER, SAFETY_VALUES_SWITCHER
+    EPSILON_SAFETY_LEARNER, SAFETY_VALUES_SWITCHER, SAFETY_Q_LEARNER
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ ENV_CONSTRUCTOR = {
 }
 AGENT_CONSTRUCTOR = {
     Q_LEARNER: QLearner,
+    SAFETY_Q_LEARNER: SafetyQLearner,
     SOFT_HARD_LEARNER: SoftHardLearner,
     EPSILON_SAFETY_LEARNER: EpsilonSafety,
     SAFETY_VALUES_SWITCHER: SafetyQLearningSwitcher,
@@ -40,7 +41,7 @@ SAFETY_TRUTH_FROM_VIBLY = [LOW_GOAL_SLIP, PENALIZED_SLIP,
 PLOTTABLE_Q = [LOW_GOAL_SLIP, PENALIZED_SLIP,
                LOW_GOAL_HOVERSHIP, PENALIZED_HOVERSHIP]
 HAS_SAFETY_MODEL = [SOFT_HARD_LEARNER, EPSILON_SAFETY_LEARNER,
-                    SAFETY_VALUES_SWITCHER]
+                    SAFETY_VALUES_SWITCHER, SAFETY_Q_LEARNER]
 
 FAILURE_SAMPLE_COLOR = [0.3, 0.3, 0.9]  # should be in edge.graphics
 
