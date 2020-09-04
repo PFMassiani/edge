@@ -45,7 +45,6 @@ HAS_SAFETY_MODEL = [SOFT_HARD_LEARNER, EPSILON_SAFETY_LEARNER,
 
 FAILURE_SAMPLE_COLOR = [0.3, 0.3, 0.9]  # should be in edge.graphics
 
-
 class AgentMetrics:
     def __init__(self, *metrics_names):
         self.metrics = {mname: [] for mname in metrics_names}
@@ -302,8 +301,8 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
             Q_cautious_Q_V_metric = Q_cautious_Q_V.sum() / Q_V.sum()
             Q_V_Q_cautious_metric = Q_V_Q_cautious.sum() / Q_V.sum()
             metrics_values += [
-                Q_V_Q_cautious_metric,
                 Q_cautious_Q_V_metric,
+                Q_V_Q_cautious_metric,
             ]
 
         return list(zip(self.METRICS_NAMES, metrics_values))
