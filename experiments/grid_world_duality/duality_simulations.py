@@ -3,7 +3,7 @@ from pathlib import Path
 from edge import Simulation, ModelLearningSimulation
 from edge.agent import DiscreteQLearner
 from edge.model.safety_models import SafetyTruth
-from edge.graphics.plotter import DualityPlotter, QValuePlotter
+from edge.graphics.plotter import DualityPlotter, DiscreteQValuePlotter
 from edge.model.value_models import QLearning
 from edge.envs import DiscreteHovership
 from edge.reward import AffineReward, ConstantReward
@@ -13,7 +13,9 @@ class LowGoalHovership(DiscreteHovership):
     def __init__(self, dynamics_parameters=None):
         super(LowGoalHovership, self).__init__(
             random_start=True,
-            dynamics_parameters=dynamics_parameters
+            dynamics_parameters=dynamics_parameters,
+            reward_done_threshold=None,
+            steps_done_threshold=15,
         )
 
         reward = AffineReward(self.stateaction_space, [(10,0), (0, 0)])
@@ -51,18 +53,20 @@ class DualitySimulation(ModelLearningSimulation):
             self.env = PenalizedHovership(penalty_level=penalty,
                                           dynamics_parameters=dynamics_parameters)
 
+        self.ground_truth = self.get_ground_truth()
         if penalty is None:
-            self.ground_truth = self.get_ground_truth()
+            constraint = self.ground_truth
             safety_threshold = 0
         else:
-            self.ground_truth = None
+            constraint = None
             safety_threshold = None
         self.agent = DiscreteQLearner(self.env, greed, step_size, discount_rate,
-                                      constraint=self.ground_truth,
+                                      constraint=constraint,
                                       safety_threshold=safety_threshold)
 
         plotters = {
-            'Q-Values': QValuePlotter(self.agent, self.agent.constraint)
+            'Q-Values': DiscreteQValuePlotter(self.agent, self.ground_truth,
+                                      vmin=-5, vmax=5)
         }
         self.plotters = plotters
 
@@ -112,9 +116,7 @@ class DualitySimulation(ModelLearningSimulation):
                 new_state, reward, failed = self.agent.step()
                 action = self.agent.last_action
                 if self.glie_start is not None and n_samples > self.glie_start:
-                    self.agent.greed *= (n_samples - self.glie_start) / (
-                            n_samples - (self.glie_start - 1)
-                    )
+                    self.agent.decrease_step_size()
 
                 self.on_run_iteration(n_samples, old_state, action, new_state,
                                       reward, failed)
@@ -172,7 +174,7 @@ class DualitySimulationsGroup(Simulation):
         self.constrained_sim.run()
         for pen_sim in self.penalized_sims:
             pen_sim.run()
-        self.save_figs(prefix='small_penalties_final')
+        self.save_figs(prefix='final')
 
     def save_models(self, globally=False, locally=True):
         self.constrained_sim.save_models(globally, locally)
@@ -182,13 +184,13 @@ class DualitySimulationsGroup(Simulation):
 
 if __name__ == '__main__':
     sim_group = DualitySimulationsGroup(
-        name='group_meeting',
+        name='thesis',
         penalties=[0, 5, 15, 200],
-        greed=0.1,
+        greed=0.3,
         step_size=0.6,
         discount_rate=0.3,
         max_samples=10000,
-        glie_start=8000
+        glie_start=None
     )
     sim_group.set_seed(0)
 

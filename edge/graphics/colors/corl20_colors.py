@@ -10,7 +10,7 @@ green = [115, 163, 72]
 orange = [253, 174, 97]
 yellow = [227, 198, 52]
 
-value_pen_cm = lambda t: cm.RdBu_r(t)
+value_pen_cm = lambda t: cm.seismic_r(t)
 value_con = tuple([c / 256 for c in green])
 
 value_pen_width = .5

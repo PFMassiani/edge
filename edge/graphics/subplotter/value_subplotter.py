@@ -22,7 +22,7 @@ class ValueSubplotter(Subplotter):
     def model(self):
         return self.agent.Q_model
 
-    def draw_on_axs(self, ax_V, Q_values, label, t=None):
+    def draw_on_axs(self, ax_V, Q_values, label, t=None, fill_from=None):
         warnings.filterwarnings('ignore')
         values = Q_values.max(axis=self.actions_axes)
 
@@ -40,11 +40,19 @@ class ValueSubplotter(Subplotter):
             linewidth=linewidth,
             label=label
         )
+        if fill_from is not None:
+            ax_V.fill_between(
+                self.states,
+                y1=plot_values,
+                y2=fill_from,
+                color=color,
+                alpha=0.5,
+            )
+        if not self.constrained:
+            ax_V.set_xticks(self.states)
 
-        ax_V.set_xticks(self.states)
-
-        ax_V.set_xlabel('state')
-        ax_V.set_ylabel('value')
+            ax_V.set_xlabel(r'State')
+            ax_V.set_ylabel(r'Value')
 
         ax_V.legend()
 
