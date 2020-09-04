@@ -3,7 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from edge.agent import QLearner
+from edge.agent import QLearner, Agent
 from edge.model.safety_models import MaternSafety
 from edge.model.value_models import GPQLearning
 from edge.model.policy_models import ConstrainedEpsilonGreedy, \
@@ -84,6 +84,7 @@ class ValuesAndSafetyCombinator(QLearner):
             self.env.stateaction_space, greed)
         self.safety_maximization_policy = SafetyMaximization(
             self.env.stateaction_space)
+        self._training_greed = self.greed
 
         self.keep_seed_in_data = keep_seed_in_data
         if not keep_seed_in_data:
@@ -103,6 +104,7 @@ class ValuesAndSafetyCombinator(QLearner):
         Sets the epsilon parameter of the ConstrainedEpsilonGreedy policy
         """
         self.constrained_value_policy.greed = new_greed
+        self._training_greed = new_greed
 
     @property
     def gamma_optimistic(self):
@@ -111,6 +113,15 @@ class ValuesAndSafetyCombinator(QLearner):
     @gamma_optimistic.setter
     def gamma_optimistic(self, new_gamma_optimistic):
         self.safety_model.gamma_measure = new_gamma_optimistic
+
+    @Agent.training_mode.setter
+    def training_mode(self, new_training_mode):
+        if self.training_mode and not new_training_mode:  # From train to test
+            self._training_greed = self.greed
+            self.greed = 0
+        elif (not self.training_mode) and new_training_mode:  # Test to train:
+            self.greed = self._training_greed
+        self._training_mode = new_training_mode
 
     def get_random_safe_state(self):
         """
