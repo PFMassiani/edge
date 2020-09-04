@@ -40,7 +40,7 @@ LOW_GOAL_HOVERSHIP_PARAMS = {
     'dynamics_parameters': {'shape': (201, 201)},
 }
 PENALIZED_HOVERSHIP_PARAMS = {
-    'penalty_level': 100
+    'penalty_level': 10000
 }
 PENALIZED_HOVERSHIP_PARAMS.update(LOW_GOAL_HOVERSHIP_PARAMS)
 
@@ -57,19 +57,32 @@ AGENT_BASE_PARAMS = {
     'greed': 0.1,
     'step_size': 0.6,
     'discount_rate': 0.2,
+    # 'discount_rate': 0.99,
     'keep_seed_in_data': True,
 }
+# Optimistic parameters
 SAFETY_AGENT_BASE_PARAMS = {
     'gamma_optimistic': (0.6, 0.8),
     'gamma_cautious': (0.7, 0.8),
     'lambda_cautious': (0., 0.),
 }
+# Cautious parameters
+# SAFETY_AGENT_BASE_PARAMS = {
+#     'gamma_optimistic': (0.65, 0.9),
+#     'gamma_cautious': (0.7, 0.9),
+#     'lambda_cautious': (0.025, 0.025),
+# }
 Q_LEARNER_PARAMS = AGENT_BASE_PARAMS.copy()
 SAFETY_Q_LEARNER_PARAMS = AGENT_BASE_PARAMS.copy()
 SAFETY_Q_LEARNER_PARAMS.update(SAFETY_AGENT_BASE_PARAMS)
+# Optimistic parameters
 SOFT_HARD_LEARNER_PARAMS = {
     'gamma_soft': (0.75, 0.85)
 }
+# Cautious parameters
+# SOFT_HARD_LEARNER_PARAMS = {
+#     'gamma_soft': (0.85, 0.95)
+# }
 SOFT_HARD_LEARNER_PARAMS.update(AGENT_BASE_PARAMS)
 SOFT_HARD_LEARNER_PARAMS.update(SAFETY_AGENT_BASE_PARAMS)
 EPSILON_SAFETY_PARAMS = {
@@ -111,15 +124,15 @@ HOVERSHIP_GP_PARAMS = {
     'lengthscale_prior': (0.15, 0.05),
     'noise_prior': (0.001, 0.002),
     'dataset_type': 'neighborerasing',
-    'dataset_params': {'radius': 0.1},
+    'dataset_params': {'radius': 0.05},
 }
 HOVERSHIP_Q_SEED_PARAMS = {
     'q_x_seed': nparray([[1.3, 0.6], [2, 0]]),
     'q_y_seed': nparray([1, 1]),
 }
 HOVERSHIP_S_SEED_PARAMS = {
-    'q_x_seed': nparray([[1.3, 0.6], [2, 0]]),
-    'q_y_seed': nparray([1, 1]),
+    's_x_seed': nparray([[1.3, 0.6], [2, 0]]),
+    's_y_seed': nparray([1, 1]),
 }
 
 ENV_DEP_APARAMS = {
