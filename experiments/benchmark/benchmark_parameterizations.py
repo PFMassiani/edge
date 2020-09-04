@@ -36,7 +36,7 @@ PENALIZED_SLIP_PARAMS.update(LOW_GOAL_SLIP_PARAMS)
 
 LOW_GOAL_HOVERSHIP_PARAMS = {
     'reward_done_threshold': None,
-    'steps_done_threshold': 10,
+    'steps_done_threshold': 20,
     'dynamics_parameters': {'shape': (201, 201)},
 }
 PENALIZED_HOVERSHIP_PARAMS = {
@@ -173,7 +173,7 @@ for aname in AGENTS:
 ## Other simulation parameters
 
 SIMULATION_BASE_PARAMS = {
-    'n_episodes': 500,
+    'n_episodes': 200,
     'glie_start': 0.7,
     'reset_in_safe_state': True,
     'metrics_sampling_frequency': 10,
@@ -186,7 +186,7 @@ AGENT_DEP_SIMULATION_PARAMS = {
     SAFETY_Q_LEARNER: {'safety_parameters_update_end': None},
     SOFT_HARD_LEARNER: {'safety_parameters_update_end': None},
     EPSILON_SAFETY_LEARNER: {'safety_parameters_update_end': None},
-    SAFETY_VALUES_SWITCHER: {'safety_parameters_update_end': 0.4},
+    SAFETY_VALUES_SWITCHER: {'safety_parameters_update_end': 0.5},
 }
 
 SIMULATION_PARAMS = AGENT_DEP_SIMULATION_PARAMS.copy()
