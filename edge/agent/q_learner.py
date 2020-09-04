@@ -245,10 +245,10 @@ class DiscreteQLearner(Agent):
         q_values = self.Q_model[self.state, :]
         if self.is_constrained:
             all_actions = self.Q_model.env.action_space[:].reshape(-1, 1)
-            action_is_viable = [
+            action_is_viable = np.array([
                 self.constraint.measure(self.state, a) > self.safety_threshold
                 for a in all_actions
-            ]
+            ])
 
             action = self.policy.get_action(
                 q_values, action_is_viable
