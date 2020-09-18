@@ -1,8 +1,17 @@
 import unittest
+import numpy as np
+import gym
 
 from edge.model.safety_models import SafetyTruth
 from edge.envs import Hovership
 from edge.space import StateActionSpace
+from edge.gym_wrappers import GymEnvironmentWrapper
+
+
+class CartPole(GymEnvironmentWrapper):
+    def __init__(self, discretization_shape):
+        gym_env = gym.make('CartPole-v1')
+        super(CartPole, self).__init__(gym_env, discretization_shape)
 
 
 class SafetyTruthTest(unittest.TestCase):
@@ -39,3 +48,11 @@ class SafetyTruthTest(unittest.TestCase):
                          truth.stateaction_space.index_dim)
         self.assertTrue((train_y[:1200] > 0).all())
         self.assertTrue((train_y[1200:] == 0).all())
+
+    def test_gym_truth_computation(self):
+        env = CartPole((50, 50, 50, 50, 50))
+        print('Computing map...')
+        Q_map = env.compute_dynamics_map()
+        print('Done.\nSaving map...')
+        save_path = './cartpole_map.npz'
+        np.savez(save_path, Q_map)

@@ -15,7 +15,8 @@ class MaternGP(GP):
                  noise_prior=None, noise_constraint=(1e-3, 1e4),
                  lengthscale_prior=None, lengthscale_constraint=None,
                  outputscale_prior=None, outputscale_constraint=None,
-                 hyperparameters_initialization=None):
+                 hyperparameters_initialization=None,
+                 dataset_type=None, dataset_params=None):
         """
         Initializer
         :param train_x: training input data. Should be 2D, and interpreted as a list of points.
@@ -32,6 +33,9 @@ class MaternGP(GP):
         :param hyperparameters_initialization: None or dict. The hyperparameters are initialized to the values
             specified. The remaining ones are either initialized as their prior mean, or left uninitialized if no prior
             is specified.
+        :param dataset_type: If 'timeforgetting', use a TimeForgettingDataset. Otherwise, a default Dataset is used
+        :param dataset_params: dictionary or None. The entries are passed as keyword arguments to the constructor of
+            the chosen dataset.
         """
         train_x = atleast_2d(train_x)
 
@@ -42,7 +46,9 @@ class MaternGP(GP):
             'lengthscale_prior': lengthscale_prior,
             'lengthscale_constraint': lengthscale_constraint,
             'outputscale_prior': outputscale_prior,
-            'outputscale_constraint': outputscale_constraint
+            'outputscale_constraint': outputscale_constraint,
+            'dataset_type': dataset_type,
+            'dataset_params': dataset_params,
         }
 
         # Using a ConstantMean here performs much worse than a ZeroMean
@@ -79,7 +85,7 @@ class MaternGP(GP):
         )
 
         super(MaternGP, self).__init__(train_x, train_y, mean_module,
-                                       covar_module, likelihood)
+                                       covar_module, likelihood, dataset_type, dataset_params)
 
         initialization = {}
         if noise_prior is not None:

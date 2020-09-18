@@ -1,0 +1,14 @@
+# Copyright 2020 Max Planck Society. All rights reserved.
+# Call this file from src to launch examples/run_experiment.sh
+executable = /bin/bash
+# Add arguments here to pass them to the script
+arguments = experiments/run_experiment.sh benchmark benchmark_main.py $(Process) low_goal_slip soft_hard_learner
+error = ./experiments/benchmark/low_goal_slip/soft_hard_learner/$(Process)/logs/condor_errors.err
+output = ./$(Process)/logs/condor_output.out
+log = ./$(Process)/logs/condor_log.log
+request_memory = 6000
+request_cpus = 1
++MaxRunningPrice = 10
++RunningPriceExceededAction = "kill"
+# Change here to run several jobs in parallel
+queue 10

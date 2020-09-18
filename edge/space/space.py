@@ -376,4 +376,12 @@ class ProductSpace(DiscretizableSpace):
         return masked
 
     def from_components(self, *x_sets):
-        return np.hstack(x_sets)
+        out = []
+        for k in range(len(x_sets)):
+            if isinstance(x_sets[k], np.ndarray):
+                out += list(x_sets[k].reshape((-1,1)))
+            elif isinstance(x_sets[k], tuple):
+                out += x_sets[k]
+            else:
+                out += (x_sets[k], )
+        return tuple(out)

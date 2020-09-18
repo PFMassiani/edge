@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 from pathlib import Path
+import warnings, contextlib
 
 from .. import GPModel
 from ..inference import MaternGP
@@ -43,7 +44,8 @@ class SafetyMeasure(GPModel):
             update_value = np.array([0.])
 
         stateaction = self.env.stateaction_space[state, action]
-        self.gp.append_data(stateaction, update_value)
+        self.gp.append_data(stateaction, update_value, forgettable=[not failed],
+                            make_forget=[not failed])
 
     def _query(self, x, return_covar=False):
         """
@@ -116,18 +118,56 @@ class SafetyMeasure(GPModel):
             gamma_threshold_list = gamma_threshold
 
         if state is None:
-            state = slice(None, None, None)  # Unspecfied state means the whole state space
+            # Unspecfied state means the whole state space
+            state = slice(None, None, None)
         action = slice(None, None, None)
+        output_shape = (-1, ) + self.env.action_space.shape
 
         measure_slice, covar_slice = self.query(
-            (state, action), return_covar=True
+            tuple(self.env.stateaction_space.get_stateaction(state, action)),
+            return_covar=True
         )
-        level_value_list = [
-            norm.cdf(
-                (measure_slice - lambda_threshold) / np.sqrt(covar_slice)
-            )
-            for lambda_threshold in lambda_threshold_list
-        ]
+        measure_slice = measure_slice.reshape(output_shape)
+        covar_slice = covar_slice.reshape(output_shape)
+
+        # The following prints a user-friendly warning if a runtime warning is encountered in the computation of
+        # level_value_list
+        # If the kernel matrix is ill-conditioned, the covariance may be negative
+        # This will raise a RuntimeWarning in np.sqrt(covar_slice)
+        # See https://github.com/cornellius-gp/gpytorch/issues/1037
+        with warnings.catch_warnings(record=True) as w:
+            # The contextmanager decorator enables the use of the function in a `with` statement, and
+            # requires that the function is a generator
+            # This function simply returns the list it computes
+            @contextlib.contextmanager
+            def compute_cdf():
+                try:
+                    yield [
+                        norm.cdf(
+                            (measure_slice - lambda_threshold) / np.sqrt(covar_slice)
+                        ) for lambda_threshold in lambda_threshold_list
+                    ]
+                finally:
+                    pass
+            with compute_cdf() as cdf_list:  # The list computed by compute_cdf is stored in cdf_list
+                if len(w) > 0:  # We check whether a warning was raised to change its message
+                    original_warning = ''
+                    for wrng in w:
+                        original_warning += str(wrng.message) + '\n'
+                    original_warning = original_warning[:-2]
+                    warning_message = ('Warning encountered in cumulative density function computation. \nThis may be '
+                                       'caused by an ill-conditioned kernel matrix causing a negative covariance.\n'
+                                       'Original warning: ' + str(original_warning))
+                    level_value_list = [
+                        norm.cdf(
+                            (measure_slice - lambda_threshold) / np.sqrt(np.abs(covar_slice))
+                        ) for lambda_threshold in lambda_threshold_list
+                    ]
+                else:
+                    warning_message = None
+                    level_value_list = cdf_list  # We store cdf_list so its value is available outside of `with`
+        if warning_message is not None:
+            warnings.warn(warning_message)
 
         level_set_list = [level_value > gamma_threshold
                           for level_value, gamma_threshold in

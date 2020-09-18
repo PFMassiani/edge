@@ -144,3 +144,27 @@ class TestSimulation(unittest.TestCase):
             'Final measure is not the expected one. Final measure: '
             f'{final_measure}'
         )
+
+    def test_logging(self):
+        import logging
+        from edge.utils.logging import config_msg
+
+        sim = ToySimulation(
+            output_directory='results',
+            name='test_optimistic_init',
+            max_samples=300,
+            gamma_optimistic=0.5,
+            gamma_cautious=0.8,
+            lambda_cautious=0.1,
+            lengthscale_prior=(0.3, 0.01),
+            shape=(101, 101),
+            ground_truth='../data/ground_truth/from_vibly/hover_map.pickle',
+            every=50
+            # hyperparameters={
+            #     'hyperparameters_initialization': {
+            #         'mean_module.constant': 0.
+            #     }
+            # }
+        )
+        logging.info('Non config message')
+        logging.info(config_msg('Config message'))

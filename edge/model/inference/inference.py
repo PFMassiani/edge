@@ -1,5 +1,6 @@
 import gpytorch
 import torch
+from sklearn.neighbors import KDTree
 
 from edge.utils import atleast_2d, dynamically_import
 from .tensorwrap import tensorwrap
@@ -11,7 +12,7 @@ class GP(gpytorch.models.ExactGP):
     """
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, mean_module, covar_module,
-                 likelihood):
+                 likelihood, dataset_type=None, dataset_params=None):
         """
         Initializer
         :param train_x: np.ndarray: training input data. Should be 2D, and interpreted as a list of points.
@@ -19,11 +20,25 @@ class GP(gpytorch.models.ExactGP):
         :param mean_module: the mean of the GP. See GPyTorch tutorial
         :param covar_module: the covariance of the GP. See GPyTorch tutorial
         :param likelihood: the likelihood of the GP. See GPyTorch tutorial
+        :param dataset_type: Possible values:
+            * 'timeforgetting': use a TimeForgettingDataset
+            * 'neighborerasing': use a NeighborErasingDataset
+            * anything else: use a standard Dataset
+        :param dataset_params: dictionary or None. The entries are passed as keyword arguments to the constructor of
+            the chosen dataset.
         """
         # The @tensorwrap decorator automatically transforms train_x and train_y into torch.Tensors.
         # Hence, we only deal with tensors inside the methods
-        self.train_x = atleast_2d(train_x)
-        self.train_y = train_y
+        train_x = atleast_2d(train_x)
+        train_y = train_y
+        if dataset_type == 'timeforgetting':
+            create_dataset = TimeForgettingDataset
+        elif dataset_type == 'neighborerasing':
+            create_dataset = NeighborErasingDataset
+        else:
+            dataset_params = {}
+            create_dataset = Dataset
+        self.dataset = create_dataset(train_x, train_y, **dataset_params)
 
         super(GP, self).__init__(train_x, train_y, likelihood)
 
@@ -32,6 +47,22 @@ class GP(gpytorch.models.ExactGP):
 
         self.optimizer = torch.optim.Adam
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood
+
+    @property
+    def train_x(self):
+        return self.dataset.train_x
+
+    @train_x.setter
+    def train_x(self, new_train_x):
+        self.dataset.train_x = new_train_x
+
+    @property
+    def train_y(self):
+        return self.dataset.train_y
+
+    @train_y.setter
+    def train_y(self, new_train_y):
+        self.dataset.train_y = new_train_y
 
     @property
     def structure_dict(self):
@@ -105,6 +136,14 @@ class GP(gpytorch.models.ExactGP):
             else:
                 return self.likelihood(self(x))
 
+    def _set_gp_data_to_dataset(self):
+        self.set_train_data(
+            inputs=self.train_x,
+            targets=self.train_y,
+            strict=False
+            # If True, the new dataset should have the same shape as the old one
+        )
+
     def empty_data(self):
         """
         Empties the dataset of the GP
@@ -112,10 +151,12 @@ class GP(gpytorch.models.ExactGP):
         """
         outputs_shape = (0,) if len(self.train_y.shape) == 1 else \
                         (0, self.train_y.shape[1])
-        return self.set_data(
-            x=torch.empty((0, self.train_x.shape[1])),
-            y=torch.empty(outputs_shape)
-        )
+        empty_x = torch.empty((0, self.train_x.shape[1]))
+        empty_y = torch.empty(outputs_shape)
+        self.train_x = empty_x
+        self.train_y = empty_y
+        self._set_gp_data_to_dataset()
+        return self
 
     @tensorwrap('x', 'y')
     def set_data(self, x, y):
@@ -124,19 +165,13 @@ class GP(gpytorch.models.ExactGP):
         :param x: np.ndarray: the new training input data. Subject to the same constraints as train_x in __init__
         :param y: np.ndarray: the new training output data. Subject to the same constraints as train_y in __init__
         """
-        x = atleast_2d(x)
-
-        self.train_x = x
+        self.train_x = atleast_2d(x)
         self.train_y = y
-        self.set_train_data(
-            inputs=self.train_x,
-            targets=self.train_y,
-            strict=False  # If True, the new dataset should have the same shape as the old one
-        )
+        self._set_gp_data_to_dataset()
         return self
 
     @tensorwrap('x', 'y')
-    def append_data(self, x, y):
+    def append_data(self, x, y, **kwargs):
         """
         Appends data to the GP dataset
         :param x: np.ndarray: the additional training input data. Should be 2D, with the same number of columns than
@@ -145,9 +180,8 @@ class GP(gpytorch.models.ExactGP):
         """
         # GPyTorch provides an additional, more efficient way of adding data with the ExactGP.get_fantasy_model method,
         # but it seems to require that the model is called at least once before it can be used
-        new_x = torch.cat((self.train_x, atleast_2d(x)), dim=0)
-        new_y = torch.cat((self.train_y, y), dim=0)
-        self.set_data(new_x, new_y)
+        self.dataset.append(atleast_2d(x), y, **kwargs)
+        self._set_gp_data_to_dataset()
         return self
 
     def save(self, save_path):
@@ -201,3 +235,131 @@ class GP(gpytorch.models.ExactGP):
         )
         model.load_state_dict(save_dict['state_dict'])
         return model
+
+
+class Dataset:
+    """
+    Base class to handle datasets seamlessly in a GP. The properties `train_x` and `train_y` of a GP actually call the
+    getters/setters of this class or a subclass of it, and the processing of the dataset is totally transparent from
+    the GP class.
+    Defining a custom way of handling GP data means inheriting from this class and redefining its getters and setters
+    """
+    def __init__(self, train_x, train_y):
+        self._train_x = train_x
+        self._train_y = train_y
+
+    @property
+    def train_x(self):
+        return self._train_x
+
+    @train_x.setter
+    def train_x(self, new_train_x):
+        self._train_x = new_train_x
+
+    @property
+    def train_y(self):
+        return self._train_y
+
+    @train_y.setter
+    def train_y(self, new_train_y):
+        self._train_y = new_train_y
+
+    def append(self, append_x, append_y, **kwargs):
+        self.train_x = torch.cat((self.train_x, atleast_2d(append_x)), dim=0)
+        self.train_y = torch.cat((self.train_y, append_y), dim=0)
+
+
+class TimeForgettingDataset(Dataset):
+    """
+    This Dataset only keeps the last `keep` data points in the dataset, by simple assignment of the train_x and train_y
+    attributes
+    """
+    def __init__(self, train_x, train_y, keep):
+        """
+        Initializer
+        :param train_x: torch.Tensor, the training input data
+        :param train_y: torch.Tensor, the training output data
+        :param keep: int, how many points to keep in
+        """
+        super(TimeForgettingDataset, self).__init__(train_x, train_y)
+        self.keep = keep
+        self._train_x = train_x[-self.keep:]
+        self._train_y = train_y[-self.keep:]
+
+    # These redefine the setters of train_x and train_y
+    # Hence, we do NOT need to redefine TimeForgettingDataset.append, because
+    # the setters already make sure that there is at most self.keep points
+    @Dataset.train_x.setter
+    def train_x(self, new_train_x):
+        self._train_x = new_train_x[-self.keep:]
+
+    @Dataset.train_y.setter
+    def train_y(self, new_train_y):
+        self._train_y = new_train_y[-self.keep:]
+
+
+class NeighborErasingDataset(Dataset):
+    """
+    When receiving a new point, this dataset removes the neighbors of that point that are close enough to it
+    Note: this dataset does NOT ensure any condition when assigning a new set
+    of points to train_x/train_y. The non-neighboring condition is only enforced
+    when using the `append` method.
+    """
+    def __init__(self, train_x, train_y, radius):
+        """
+        Initializer
+        :param train_x: torch.Tensor, the training input data
+        :param train_y: torch.Tensor the training output data
+        :param radius: float, the maximal distance at which old points will be removed when sampling a new point
+        """
+        super(NeighborErasingDataset, self).__init__(train_x, train_y)
+        self.radius = radius
+        self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool)
+        self._kdtree = self._create_kdtree()
+
+    def append(self, append_x, append_y, **kwargs):
+        forgettable = kwargs.get('forgettable')
+        if forgettable is None:
+            forgettable = torch.ones(append_x.shape[0], dtype=bool)
+        else:
+            forgettable = torch.tensor(forgettable, dtype=bool)
+        make_forget = kwargs.get('make_forget')
+        if make_forget is None:
+            make_forget = torch.ones(append_x.shape[0], dtype=bool)
+        else:
+            make_forget = torch.tensor(make_forget, dtype=bool)
+
+        if make_forget.any():
+            lists_indices_to_forget = self._kdtree.query_radius(
+                append_x[make_forget].numpy(),
+                r=self.radius
+            )
+            lists_indices_to_forget = list(map(
+                torch.tensor,
+                lists_indices_to_forget
+            ))
+            indices_to_forget = torch.cat(lists_indices_to_forget)
+        else:
+            indices_to_forget = torch.tensor([], dtype=int)
+
+        to_forget_is_forgettable = self.forgettable[indices_to_forget]
+        indices_to_forget = indices_to_forget[to_forget_is_forgettable]
+
+        keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool)
+        keeping_filter[indices_to_forget] = False
+
+        train_x_without_neighbors = self.train_x[keeping_filter]
+        self.train_x = torch.cat((train_x_without_neighbors, append_x))
+
+        train_y_without_neighbors = self._train_y[keeping_filter]
+        self.train_y = torch.cat((train_y_without_neighbors, append_y))
+
+        forgettable_without_neighbors = self.forgettable[keeping_filter]
+        self.forgettable = torch.cat((forgettable_without_neighbors,
+                                      forgettable))
+
+        self._kdtree = self._create_kdtree()
+
+    def _create_kdtree(self):
+        kdtree = KDTree(self.train_x.numpy(), leaf_size=40)  # This is expensive
+        return kdtree

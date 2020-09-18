@@ -22,6 +22,6 @@ cmap_var = cm.cividis
 cmap_meas = cm.seismic
 cmap_proba = cm.seismic
 
-cmap_q_values = cm.RdBu_r
-cmap_q_values.set_under('gray', alpha=0)
-cmap_q_values.set_over('gray', alpha=0)
+cmap_q_values = cm.RdBu
+# cmap_q_values.set_under('gray', alpha=0)
+# cmap_q_values.set_over('gray', alpha=0)

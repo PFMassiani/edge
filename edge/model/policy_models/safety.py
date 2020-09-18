@@ -17,6 +17,11 @@ class SafetyMaximization(Policy):
             for any action
         :return: next_action
         """
+        # We add some noise so the selected action is not always the same when
+        # all actions have similar probability of being cautious
+        cautious_probability += np.random.randn(
+            *cautious_probability.shape
+        ) * 0.001
         action_index = np.unravel_index(
             np.argmax(cautious_probability),
             shape=self.stateaction_space.action_space.shape

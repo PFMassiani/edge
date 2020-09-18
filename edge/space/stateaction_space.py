@@ -12,6 +12,11 @@ class StateActionSpace(ProductSpace):
         self.state_space = state_space
         self.action_space = action_space
 
+    def __getitem__(self, index):
+        if len(index) == 2:
+            index = self.get_stateaction(*index)
+        return super(StateActionSpace, self).__getitem__(index)
+
     @staticmethod
     def from_product(product_space):
         """

@@ -1,7 +1,10 @@
 from pathlib import Path
 import os
+import logging
 from matplotlib.pyplot import close as plt_close
 from numpy.random import seed as npseed
+
+from edge.utils.logging import ConfigFilter
 
 
 class Simulation:
@@ -10,7 +13,7 @@ class Simulation:
     the appropriate locations.
     """
     def __init__(self, output_directory, name, plotters):
-        self.set_seed(random=False, value=0)
+        self.set_seed()
         self.output_directory = Path(output_directory) / name
         self.name = name
         self.plotters = plotters if plotters is not None else {}
@@ -23,11 +26,10 @@ class Simulation:
 
         self.__saved_figures = {}
 
-    def set_seed(self, value=0, random=False):
-        if random:
-            npseed(None)
-        else:
-            npseed(value)
+        self.setup_default_logging_configuration()
+
+    def set_seed(self, value=None):
+        npseed(value)
 
     def run(self):
         raise NotImplementedError
@@ -36,7 +38,9 @@ class Simulation:
         for plotter in self.plotters.values():
             try:
                 plotter.on_run_iteration(*args, **kwargs)
-            except Exception:
+            except AttributeError as e:
+                # The plotter does not have a on_run_iteration routine:
+                #  this is not a problem.
                 pass
 
     def save_figs(self, prefix):
@@ -64,6 +68,26 @@ class Simulation:
                 os.system(gif_command)
             except Exception as e:
                 print(f'Error: could not compile {name}.gif. Exception: {e}')
+
+    def setup_default_logging_configuration(self):
+        training_handler = logging.FileHandler(
+            self.log_path / 'training.log'
+        )
+        training_handler.addFilter(ConfigFilter(log_if_match=False))
+        training_handler.setLevel(logging.INFO)
+        config_handler = logging.FileHandler(
+            self.log_path / 'config.log'
+        )
+        config_handler.addFilter(ConfigFilter(log_if_match=True))
+        config_handler.setLevel(logging.INFO)
+        stdout_handler = logging.StreamHandler()
+        stdout_handler.setLevel(logging.INFO)
+
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.INFO)
+        root_logger.addHandler(training_handler)
+        root_logger.addHandler(config_handler)
+        root_logger.addHandler(stdout_handler)
 
 
 class ModelLearningSimulation(Simulation):

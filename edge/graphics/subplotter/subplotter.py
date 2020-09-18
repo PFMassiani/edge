@@ -5,5 +5,6 @@ class Subplotter:
     def draw_on_axs(self):
         raise NotImplementedError
 
-    def on_run_iteration(self, state, action, new_state, reward, failed):
+    def on_run_iteration(self, state, action, new_state, reward, failed, *args,
+                         **kwargs):
         pass
