@@ -55,7 +55,7 @@ if __name__ == '__main__':
 				measurement_name = get_name(measurement_episode_file)[:-4]  # Remove npz extension
 				if measurement_name == 'training':
 					continue
-				masurement_number = int(measurement_name.split('_')[-1])
+				measurement_number = int(measurement_name.split('_')[-1])
 				meas = np.load(measurement_episode_file)
 				n_episodes = 20
 				measurements = [{REWARDS: [], FAILURES: []} for ep in range(n_episodes)]

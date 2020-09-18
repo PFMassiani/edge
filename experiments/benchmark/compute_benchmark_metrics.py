@@ -125,10 +125,14 @@ if __name__=='__main__':
 					metrics[envname][aname][k]
 				)[:, :, 1]
 
-	metrics[LOW_GOAL_HOVERSHIP].update(metrics.pop(PENALIZED_HOVERSHIP))
-	metrics[LOW_GOAL_SLIP].update(metrics.pop(PENALIZED_SLIP))
-	x[LOW_GOAL_HOVERSHIP].update(x.pop(PENALIZED_HOVERSHIP))
-	x[LOW_GOAL_SLIP].update(x.pop(PENALIZED_SLIP))
+	print(list(metrics.keys()))
+	if LOW_GOAL_HOVERSHIP in list(metrics.keys()):
+		metrics[LOW_GOAL_HOVERSHIP].update(metrics.pop(PENALIZED_HOVERSHIP))
+		x[LOW_GOAL_HOVERSHIP].update(x.pop(PENALIZED_HOVERSHIP))
+	if LOW_GOAL_SLIP in list(metrics.keys()):
+		metrics[LOW_GOAL_SLIP].update(metrics.pop(PENALIZED_SLIP))
+		x[LOW_GOAL_SLIP].update(x.pop(PENALIZED_SLIP))
+	print(list(metrics[LOW_GOAL_HOVERSHIP].keys()))
 	for envname in metrics.keys():
 		envprefix = envname.split('_')[-1] + '_'
 		for exp_name, std_name in [(b.EXP_REWARD_MNAME, b.STD_REWARD_MNAME),
