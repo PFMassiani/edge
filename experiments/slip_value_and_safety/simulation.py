@@ -152,13 +152,13 @@ class ValueAndSafetyLearningSimulation(ModelLearningSimulation):
         print('Optimizing hyperparameters...')
         s_train_x, s_train_y = self.ground_truth.get_training_examples()
         self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
+            s_epochs=5, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
         )
         self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
+            s_epochs=5, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
         )
         self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
+            s_epochs=5, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
         )
         print('Lengthscale:',self.agent.safety_model.gp.covar_module.base_kernel.lengthscale)
         print('Outputscale:',self.agent.safety_model.gp.covar_module.outputscale)

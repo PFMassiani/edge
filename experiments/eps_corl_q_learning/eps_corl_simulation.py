@@ -23,7 +23,8 @@ class EpsCorlSimulation(ModelLearningSimulation):
     def __init__(self, name, max_samples, greed, step_size, discount_rate,
                  gamma_optimistic, gamma_cautious, lambda_cautious,
                  q_x_seed, q_y_seed, s_x_seed, s_y_seed,
-                 shape, every, glie_start):
+                 shape, every, glie_start, s_epochs):
+        self.s_epochs = s_epochs
         dynamics_parameters = {
             'shape': shape
         }
@@ -126,13 +127,13 @@ class EpsCorlSimulation(ModelLearningSimulation):
         print('Optimizing hyperparameters...')
         s_train_x, s_train_y = self.ground_truth.get_training_examples()
         self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
+            s_epochs=self.s_epochs, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.1}
         )
         self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
+            s_epochs=self.s_epochs, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.01}
         )
         self.agent.fit_models(
-            s_epochs=50, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
+            s_epochs=self.s_epochs, s_train_x=s_train_x, s_train_y=s_train_y, s_optimizer_kwargs={'lr': 0.001}
         )
         print('Lengthscale:',self.agent.safety_model.gp.covar_module.base_kernel.lengthscale)
         print('Outputscale:',self.agent.safety_model.gp.covar_module.outputscale)
@@ -193,7 +194,7 @@ class EpsCorlSimulation(ModelLearningSimulation):
 if __name__ == '__main__':
     sim = EpsCorlSimulation(
         name='long',
-        max_samples=1000,
+        max_samples=10,
         greed=0.1,
         step_size=0.6,
         discount_rate=0.9,
@@ -206,7 +207,8 @@ if __name__ == '__main__':
         s_y_seed=np.array([1, 0.8]),
         shape=(201,201),
         every=100,
-        glie_start=0.9
+        glie_start=0.9,
+        s_epochs=5,
     )
     sim.set_seed(0)
 

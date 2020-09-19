@@ -1,6 +1,6 @@
 import gym.spaces as gspaces
 
-from edge.envs import Environment
+from edge.envs.environments import Environment
 from edge.space import StateActionSpace
 from . import BoxWrapper, DiscreteWrapper
 

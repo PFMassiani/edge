@@ -168,7 +168,7 @@ class TestHyperparametersLearning(unittest.TestCase):
         sim = HyperparametersSimulation(
             output_directory='results/',
             name='test_optimistic_init',
-            max_samples=1500,
+            max_samples=500,
             gamma_optimistic=0.52,
             gamma_cautious=0.7,
             lambda_cautious=0.1,

@@ -145,10 +145,10 @@ class ConstrainedQLearner(Agent):
 
     def get_next_action(self):
         all_actions = self.Q_model.env.action_space[:].reshape(-1, 1)
-        action_is_viable = [
+        action_is_viable = np.array([
             self.safety_measure.measure(self.state, a) > self.safety_threshold
             for a in all_actions
-        ]
+        ])
         q_values = self.Q_model[self.state, :]
 
         action = self.constrained_value_policy.get_action(

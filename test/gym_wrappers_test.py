@@ -2,8 +2,8 @@ import unittest
 import warnings
 import numpy as np
 
-import safety_gym
-from safety_gym.envs.engine import Engine
+# import safety_gym
+# from safety_gym.envs.engine import Engine
 import gym
 import gym.spaces as spaces
 from gym.envs.registration import register
@@ -49,46 +49,46 @@ class SpaceWrappers(unittest.TestCase):
         self.assertEqual(ed.from_gym(g), g)
 
 
-class SafetyGymEnvironmentWrappers(unittest.TestCase):
-    def test_safety_gym_environment_creation(self):
-        senv = gym.make('Safexp-PointGoal1-v0')
-        env = GymEnvironmentWrapper(senv)
-
-        config = {
-            'robot_base': 'xmls/car.xml',
-            'task': 'push',
-            'observe_goal_lidar': True,
-            'observe_box_lidar': True,
-            'observe_hazards': True,
-            'observe_vases': True,
-            'constrain_hazards': True,
-            'lidar_max_dist': 3,
-            'lidar_num_bins': 16,
-            'hazards_num': 4,
-            'vases_num': 4
-        }
-
-        senv = Engine(config)
-        register(id='SafexpTestEnvironment-v0',
-                 entry_point='safety_gym.envs.mujoco:Engine',
-                 kwargs={'config': config})
-        env = GymEnvironmentWrapper(senv, failure_critical=True)
-
-    def test_safety_gym_random_agent(self):
-        senv = gym.make('Safexp-PointGoal1-v0')
-        env = GymEnvironmentWrapper(senv)
-        random_agent = RandomAgent(env)
-
-        ep_ret, ep_cost = 0, 0
-        for t in range(1000):
-            new_state, reward, failed = random_agent.step()
-            ep_ret += reward
-            ep_cost += env.info.get('cost', 0)
-            env.gym_env.render()
-            if env.done:
-                print('Episode Return: %.3f \t Episode Cost: %.3f' % (ep_ret, ep_cost))
-                ep_ret, ep_cost = 0, 0
-                random_agent.reset()
+# class SafetyGymEnvironmentWrappers(unittest.TestCase):
+#     def test_safety_gym_environment_creation(self):
+#         senv = gym.make('Safexp-PointGoal1-v0')
+#         env = GymEnvironmentWrapper(senv)
+#
+#         config = {
+#             'robot_base': 'xmls/car.xml',
+#             'task': 'push',
+#             'observe_goal_lidar': True,
+#             'observe_box_lidar': True,
+#             'observe_hazards': True,
+#             'observe_vases': True,
+#             'constrain_hazards': True,
+#             'lidar_max_dist': 3,
+#             'lidar_num_bins': 16,
+#             'hazards_num': 4,
+#             'vases_num': 4
+#         }
+#
+#         senv = Engine(config)
+#         register(id='SafexpTestEnvironment-v0',
+#                  entry_point='safety_gym.envs.mujoco:Engine',
+#                  kwargs={'config': config})
+#         env = GymEnvironmentWrapper(senv, failure_critical=True)
+#
+#     def test_safety_gym_random_agent(self):
+#         senv = gym.make('Safexp-PointGoal1-v0')
+#         env = GymEnvironmentWrapper(senv)
+#         random_agent = RandomAgent(env)
+#
+#         ep_ret, ep_cost = 0, 0
+#         for t in range(1000):
+#             new_state, reward, failed = random_agent.step()
+#             ep_ret += reward
+#             ep_cost += env.info.get('cost', 0)
+#             env.gym_env.render()
+#             if env.done:
+#                 print('Episode Return: %.3f \t Episode Cost: %.3f' % (ep_ret, ep_cost))
+#                 ep_ret, ep_cost = 0, 0
+#                 random_agent.reset()
 
 
 class GymEnvironmentWrappers(unittest.TestCase):
@@ -105,7 +105,7 @@ class GymEnvironmentWrappers(unittest.TestCase):
         random_agent = RandomAgent(env)
 
         ep_ret, ep_cost = 0, 0
-        for t in range(1000):
+        for t in range(100):
             new_state, reward, failed = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)
@@ -122,7 +122,7 @@ class GymEnvironmentWrappers(unittest.TestCase):
         random_agent = RandomAgent(env)
 
         ep_ret, ep_cost = 0, 0
-        for t in range(1000):
+        for t in range(100):
             new_state, reward, failed = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)

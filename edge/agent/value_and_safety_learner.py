@@ -91,6 +91,8 @@ class ValueAndSafetyLearner(Agent):
             return_proba=True,
             return_covar=False
         )
+        is_cautious = is_cautious.squeeze()
+        proba_slice = proba_slice.squeeze()
         q_values = self.Q_model[self.state, :]
 
         action = self.constrained_value_policy.get_action(

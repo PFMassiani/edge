@@ -358,6 +358,7 @@ if __name__ == '__main__':
         name=f'{ENV_NAME}_test',
         env_name=ENV_NAME,
         reward_threshold=env_dependent_params[ENV_NAME]['reward_threshold'],
+        control_frequency=1,
         max_samples=1000,
         max_steps=np.inf,
         greed=0.1,

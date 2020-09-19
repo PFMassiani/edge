@@ -5,7 +5,7 @@ import safety_gym
 import gym
 
 from edge.gym_wrappers import GymEnvironmentWrapper
-from edge.agent import PolicyLearner
+from edge.agent.policy_learner import PolicyLearner
 
 class MLPTests(unittest.TestCase):
     def test_random_agent(self):

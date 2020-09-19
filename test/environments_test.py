@@ -145,3 +145,7 @@ class TestDiscreteHovership(unittest.TestCase):
         self.assertEqual(hovership.s, atleast_1d(0))
         self.assertTrue(hovership.has_failed)
         self.assertTrue(hovership.in_failure_state)
+
+
+if __name__ == '__main__':
+    unittest.main()

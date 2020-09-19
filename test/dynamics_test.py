@@ -183,7 +183,9 @@ class DiscreteHovershipTests(unittest.TestCase):
             ground_gravity=0,
             gravity_gradient=0,
             max_thrust=2,
-            max_altitude=3
+            max_altitude=3,
+            minimum_gravity_altitude=3,
+            maximum_gravity_altitude=3,
         )
         state_space = hovership_dynamics.stateaction_space.state_space
 
@@ -200,7 +202,9 @@ class DiscreteHovershipTests(unittest.TestCase):
             ground_gravity=10,
             gravity_gradient=0,
             max_thrust=2,
-            max_altitude=3
+            max_altitude=3,
+            minimum_gravity_altitude=3,
+            maximum_gravity_altitude=3,
         )
         state_space = hovership_dynamics.stateaction_space.state_space
 
@@ -217,7 +221,9 @@ class DiscreteHovershipTests(unittest.TestCase):
             ground_gravity=0,
             gravity_gradient=0,
             max_thrust=2,
-            max_altitude=3
+            max_altitude=3,
+            minimum_gravity_altitude=3,
+            maximum_gravity_altitude=3,
         )
         state_space = hovership_dynamics.stateaction_space.state_space
 
@@ -236,7 +242,9 @@ class DiscreteHovershipTests(unittest.TestCase):
             ground_gravity=0,
             gravity_gradient=0,
             max_thrust=2,
-            max_altitude=3
+            max_altitude=3,
+            minimum_gravity_altitude=3,
+            maximum_gravity_altitude=3,
         )
         state_space = Discrete(4)
         action_space = Discrete(n=3, start=-1, end=1)

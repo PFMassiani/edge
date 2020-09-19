@@ -127,6 +127,10 @@ class EpsCorlLearner(Agent):
             return_proba=True,
             return_covar=True
         )
+        is_cautious = is_cautious.squeeze()
+        proba_slice = proba_slice.squeeze()
+        covar_slice = covar_slice.squeeze()
+
         if self.has_explored:
             action = self.active_sampling_policy.get_action(
                 covar_slice, is_cautious

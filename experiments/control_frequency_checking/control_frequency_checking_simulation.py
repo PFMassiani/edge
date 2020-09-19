@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 from edge import Simulation
-from edge.envs import ContinuousCartPole
+from edge.envs.continuous_cartpole import ContinuousCartPole
 
 from control_frequency_checking_parameterization import DLQRController
 

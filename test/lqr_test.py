@@ -1,8 +1,7 @@
 import numpy as np
 import unittest
-import control
 
-from edge.envs import ContinuousCartPole
+from edge.envs.continuous_cartpole import ContinuousCartPole
 from edge.utils.control import dlqr, lqr
 
 
