@@ -47,20 +47,6 @@ class SafetyMeasure(GPModel):
         self.gp.append_data(stateaction, update_value, forgettable=[not failed],
                             make_forget=[not failed])
 
-    def _query(self, x, return_covar=False):
-        """
-        Calls the GP model on the passed list of points. The covariance can also be returned.
-        :param x: np.ndarray: a list of stateactions where the GP should be evaluated
-        :param return_covar: boolean: whether the covariance should be returned as well
-        :return: the mean value of the GP at these points, and if return_covar=True, the covariance at these points
-        """
-        prediction = self.gp.predict(x)
-        mean = prediction.mean.numpy()
-        if return_covar:
-            return mean, prediction.variance.detach().numpy()
-        else:
-            return mean
-
     def measure(self, state, lambda_threshold=0, gamma_threshold=None):
         """
         Computes the safety measure in the state passed as parameter with the given thresholds.
