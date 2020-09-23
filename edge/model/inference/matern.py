@@ -16,7 +16,8 @@ class MaternGP(GP):
                  lengthscale_prior=None, lengthscale_constraint=None,
                  outputscale_prior=None, outputscale_constraint=None,
                  hyperparameters_initialization=None,
-                 dataset_type=None, dataset_params=None):
+                 dataset_type=None, dataset_params=None,
+                 value_structure_discount_factor=None):
         """
         Initializer
         :param train_x: training input data. Should be 2D, and interpreted as a list of points.
@@ -49,6 +50,7 @@ class MaternGP(GP):
             'outputscale_constraint': outputscale_constraint,
             'dataset_type': dataset_type,
             'dataset_params': dataset_params,
+            'value_structure_discount_factor': value_structure_discount_factor,
         }
 
         # Using a ConstantMean here performs much worse than a ZeroMean
@@ -85,7 +87,10 @@ class MaternGP(GP):
         )
 
         super(MaternGP, self).__init__(train_x, train_y, mean_module,
-                                       covar_module, likelihood, dataset_type, dataset_params)
+                                       covar_module, likelihood, dataset_type,
+                                       dataset_params,
+                                       value_structure_discount_factor,
+                                       )
 
         initialization = {}
         if noise_prior is not None:

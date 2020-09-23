@@ -4,6 +4,7 @@ from sklearn.neighbors import KDTree
 
 from edge.utils import atleast_2d, dynamically_import
 from .tensorwrap import tensorwrap
+from .value_structure_kernel import ValueStructureKernel
 
 
 class GP(gpytorch.models.ExactGP):
@@ -12,7 +13,8 @@ class GP(gpytorch.models.ExactGP):
     """
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, mean_module, covar_module,
-                 likelihood, dataset_type=None, dataset_params=None):
+                 likelihood, dataset_type=None, dataset_params=None,
+                 value_structure_discount_factor=None):
         """
         Initializer
         :param train_x: np.ndarray: training input data. Should be 2D, and interpreted as a list of points.
@@ -26,6 +28,9 @@ class GP(gpytorch.models.ExactGP):
             * anything else: use a standard Dataset
         :param dataset_params: dictionary or None. The entries are passed as keyword arguments to the constructor of
             the chosen dataset.
+        :param value_structure_discount_factor: None or in (0,1). If float,
+            wraps covar_module with a ValueStructureKernel with the given
+            discount factor.
         """
         # The @tensorwrap decorator automatically transforms train_x and train_y into torch.Tensors.
         # Hence, we only deal with tensors inside the methods
@@ -43,10 +48,29 @@ class GP(gpytorch.models.ExactGP):
         super(GP, self).__init__(train_x, train_y, likelihood)
 
         self.mean_module = mean_module
+        self.has_value_structue = value_structure_discount_factor is not None
+        if self.has_value_structue:
+            covar_module = ValueStructureKernel(
+                base_kernel=covar_module,
+                discount_factor=value_structure_discount_factor,
+            )
         self.covar_module = covar_module
 
         self.optimizer = torch.optim.Adam
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood
+
+    def initialize(self, **kwargs):
+        if self.has_value_structue:
+            kwargs_keys_to_change = [
+                key for key in kwargs.keys()
+                if key.startswith('covar_module.')
+            ]
+            for key in kwargs_keys_to_change:
+                key_parts = key.split('.')
+                key_parts = ['covar_module', 'base_kernel'] + key_parts[1:]
+                new_key = '.'.join(key_parts)
+                kwargs[new_key] = kwargs.pop(key)
+        super(GP, self).initialize(**kwargs)
 
     @property
     def train_x(self):
