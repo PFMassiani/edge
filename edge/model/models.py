@@ -105,7 +105,7 @@ class GPModel(ContinuousModel):
         super(GPModel, self).__init__(env)
         self.gp = gp
 
-    def _query(self, x, return_covar=False):
+    def _query(self, x, return_covar=False, return_covar_matrix=False):
         """
         Calls the GP model on the passed list of points. The covariance can also be returned.
         :param x: np.ndarray: a list of stateactions where the GP should be evaluated
@@ -114,10 +114,13 @@ class GPModel(ContinuousModel):
         """
         prediction = self.gp.predict(x)
         mean = prediction.mean.numpy()
+
+        output = (mean,) if return_covar or return_covar_matrix else mean
         if return_covar:
-            return mean, prediction.variance.detach().numpy()
-        else:
-            return mean
+            output += (prediction.variance.detach().numpy(),)
+        if return_covar_matrix:
+            output += (prediction.covariance_matrix.detach().numpy(),)
+        return output
 
     def fit(self, train_x, train_y, epochs, **optimizer_kwargs):
         """

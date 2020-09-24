@@ -11,6 +11,7 @@ class SafetyMeasure(GPModel):
     """
     Safety measure as described in "A learnable safety measure", by Heim, von Rohr, et al. (2019, CoRL).
     """
+
     def __init__(self, env, gp, gamma_measure):
         """
         Initializer
@@ -63,12 +64,13 @@ class SafetyMeasure(GPModel):
 
         level_set = level_set.reshape((-1,) + self.env.action_space.shape)
         mean_axes = tuple([1 + k
-                          for k in range(self.env.action_space.index_dim)])
+                           for k in range(self.env.action_space.index_dim)])
 
         return np.atleast_1d(level_set.mean(mean_axes))
 
     def level_set(self, state, lambda_threshold, gamma_threshold,
-                  return_proba=False, return_covar=False, return_measure=False):
+                  return_proba=False, return_covar=False, return_measure=False,
+                  return_covar_matrix=False):
         """
         Computes the probabilistic level set of the GP on the stateaction space. The output is a boolean array which
         is True whenever the stateaction is within the level set.
@@ -107,14 +109,25 @@ class SafetyMeasure(GPModel):
             # Unspecfied state means the whole state space
             state = slice(None, None, None)
         action = slice(None, None, None)
-        output_shape = (-1, ) + self.env.action_space.shape
+        output_shape = (-1,) + self.env.action_space.shape
 
-        measure_slice, covar_slice = self.query(
+        query_out = self.query(
             tuple(self.env.stateaction_space.get_stateaction(state, action)),
-            return_covar=True
+            return_covar=True,
+            return_covar_matrix=return_covar_matrix,
         )
+        if return_covar_matrix:
+            measure_slice, covar_slice, covar_matrix = query_out
+        else:
+            measure_slice, covar_slice = query_out
+            covar_matrix = None
         measure_slice = measure_slice.reshape(output_shape)
         covar_slice = covar_slice.reshape(output_shape)
+        if covar_matrix is not None:
+            # The covar_matrix does not have the same shape as the other two:
+            # its number of lines is n_states x n_actions, whereas the number of
+            # lines of the others is simply n_states.
+            covar_matrix = covar_matrix.reshape(output_shape)
 
         # The following prints a user-friendly warning if a runtime warning is encountered in the computation of
         # level_value_list
@@ -135,15 +148,17 @@ class SafetyMeasure(GPModel):
                     ]
                 finally:
                     pass
+
             with compute_cdf() as cdf_list:  # The list computed by compute_cdf is stored in cdf_list
                 if len(w) > 0:  # We check whether a warning was raised to change its message
                     original_warning = ''
                     for wrng in w:
                         original_warning += str(wrng.message) + '\n'
                     original_warning = original_warning[:-2]
-                    warning_message = ('Warning encountered in cumulative density function computation. \nThis may be '
-                                       'caused by an ill-conditioned kernel matrix causing a negative covariance.\n'
-                                       'Original warning: ' + str(original_warning))
+                    warning_message = (
+                                'Warning encountered in cumulative density function computation. \nThis may be '
+                                'caused by an ill-conditioned kernel matrix causing a negative covariance.\n'
+                                'Original warning: ' + str(original_warning))
                     level_value_list = [
                         norm.cdf(
                             (measure_slice - lambda_threshold) / np.sqrt(np.abs(covar_slice))
@@ -163,17 +178,19 @@ class SafetyMeasure(GPModel):
             level_set_list = level_set_list[0]
             level_value_list = level_value_list[0]
 
-        return_var = level_set_list
+        return_var = (level_set_list,) if any((return_proba,
+                                               return_covar,
+                                               return_measure,
+                                               return_covar_matrix)) \
+            else level_set_list
         if return_proba:
-            return_var = (return_var, level_value_list)
+            return_var += (level_value_list,)
         if return_covar:
-            if not isinstance(return_var, tuple):
-                return_var = (return_var, )
-            return_var += (covar_slice, )
+            return_var += (covar_slice,)
         if return_measure:
-            if not isinstance(return_var, tuple):
-                return_var = (return_var, )
-            return_var += (measure_slice, )
+            return_var += (measure_slice,)
+        if return_covar_matrix:
+            return_var += (covar_matrix,)
 
         return return_var
 
