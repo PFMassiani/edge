@@ -26,6 +26,8 @@ class BayesianPolicy(Policy):
         """
         if constraints is None:
             constraints = np.ones_like(mean, dtype=bool)
+        elif not constraints.any():
+            return None
         else:
             mean = mean[constraints]
             covar = covar[constraints]
@@ -63,3 +65,15 @@ class ExpectedImprovementPolicy(BayesianPolicy):
             ei = improvement * norm.cdf(Z) + covar * norm.pdf(Z)
             ei[covar == 0] = 0
         return ei
+
+
+class SafetyInformationMaximization(BayesianPolicy):
+    def __init__(self, stateaction_space):
+        super(SafetyInformationMaximization, self).__init__(stateaction_space)
+
+    def acquisition_function(self, mean, covar):
+        return np.abs(covar)
+
+    def get_action(self, covar, constraints=None):
+        # The mean does not matter here
+        return self.proposed_action(np.zeros_like(covar), covar, constraints)
