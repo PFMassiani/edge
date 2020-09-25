@@ -5,6 +5,7 @@ from matplotlib.pyplot import close as plt_close
 from numpy.random import seed as npseed
 
 from edge.utils.logging import ConfigFilter
+from edge.dataset import Dataset
 
 
 class Simulation:
@@ -17,12 +18,17 @@ class Simulation:
         self.output_directory = Path(output_directory) / name
         self.name = name
         self.plotters = plotters if plotters is not None else {}
+        self.training_dataset = Dataset()
 
         self.fig_path = self.output_directory / 'figs'
         self.log_path = self.output_directory / 'logs'
+        self.data_path = self.output_directory / 'data'
 
         self.fig_path.mkdir(parents=True, exist_ok=True)
         self.log_path.mkdir(parents=False, exist_ok=True)
+        self.data_path.mkdir(parents=False, exist_ok=True)
+
+        self.training_dataset_path = self.data_path / 'training_samples.csv'
 
         self.__saved_figures = {}
 
@@ -42,6 +48,10 @@ class Simulation:
                 # The plotter does not have a on_run_iteration routine:
                 #  this is not a problem.
                 pass
+
+    def on_simulation_end(self, *args, **kwargs):
+        self.training_dataset.save(self.training_dataset_path)
+        self.save_figs(prefix='final')
 
     def save_figs(self, prefix):
         for name, plotter in self.plotters.items():

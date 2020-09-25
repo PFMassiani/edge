@@ -6,6 +6,7 @@ from edge.simulation import ModelLearningSimulation
 from edge.model.safety_models import SafetyTruth
 from edge.graphics.plotter import QValuePlotter, QValueAndSafetyPlotter
 from edge.utils.logging import config_msg
+from edge.dataset import Dataset
 
 from gpsarsa_test_parameterization import \
     LowGoalHovership, PenalizedHovership, HighGoalHovership, \
@@ -17,7 +18,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
                  max_samples, xi, discount_rate, q_x_seed, q_y_seed,
                  use_safety_model, s_x_seed, s_y_seed, gamma_cautious,
                  lambda_cautious, gamma_optimistic,
-                 every):
+                 plot_every, measure_every, episodes_per_measure):
         parameterization = {
             'name': name,
             'goal': goal,
@@ -28,13 +29,15 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             'discount_rate': discount_rate,
             'q_x_seed': q_x_seed,
             'q_y_seed': q_y_seed,
-            'use_safety_model':use_safety_model,
+            'use_safety_model': use_safety_model,
             's_x_seed': s_x_seed,
             's_y_seed': s_y_seed,
             'gamma_cautious': gamma_cautious,
             'lambda_cautious': lambda_cautious,
             'gamma_optimistic': gamma_optimistic,
-            'every': every,
+            'plot_every': plot_every,
+            'measure_every': measure_every,
+            'episodes_per_measure': episodes_per_measure
         }
         dynamics_parameters = {'shape': shape}
         if penalty is None:
@@ -109,7 +112,12 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         )
 
         self.max_samples = max_samples
-        self.every = every
+        self.plot_every = plot_every
+        self.measure_every = measure_every
+        self.episodes_per_measure = episodes_per_measure
+
+        self.testing_dataset = Dataset(*Dataset.DEFAULT_COLUMNS,
+                                       group_name='measurement')
 
         msg = ''
         for pname, pval in parameterization.items():
@@ -144,18 +152,27 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             MaternGPSARSA.load(load_path, self.env, self.x_seed, self.y_seed)
         )
 
-    def run(self):
-        n_samples = 0
-        self.save_figs(prefix='0')
-        while n_samples < self.max_samples:
-            self.agent.reset()
-            failed = self.agent.failed
-            done = self.env.done
-            while not done:
+    def _append_to_episode(self, episode, state, action, new_state, reward,
+                           failed, done):
+        episode[self.training_dataset.STATE].append(state)
+        episode[self.training_dataset.ACTION].append(action)
+        episode[self.training_dataset.NEW].append(new_state)
+        episode[self.training_dataset.REWARD].append(reward)
+        episode[self.training_dataset.FAILED].append(failed)
+        episode[self.training_dataset.DONE].append(done)
+
+    def run_episode(self, n_samples):
+        done = self.env.done
+        episode = {cname: []
+                   for cname in self.training_dataset.columns_wo_group}
+        while not done:
+            old_state = self.agent.state
+            new_state, reward, failed, done = self.agent.step()
+            action = self.agent.last_action
+            self._append_to_episode(episode, old_state, action, new_state,
+                                    reward, failed, done)
+            if n_samples is not None:
                 n_samples += 1
-                old_state = self.agent.state
-                new_state, reward, failed, done = self.agent.step()
-                action = self.agent.last_action
                 self.on_run_iteration(
                     n_samples=n_samples,
                     state=old_state,
@@ -168,25 +185,59 @@ class GPSARSATestSimulation(ModelLearningSimulation):
                 )
                 if n_samples >= self.max_samples:
                     break
-        self.save_figs(prefix='final')
+        return episode, n_samples
+
+    def measure(self, n_episode):
+        self.agent.training_mode = False
+        for n_meas_ep in range(self.episodes_per_measure):
+            done = True
+            while done:
+                self.agent.reset()
+                done = self.agent.env.done
+            meas_ep, _ = self.run_episode(None)
+            len_meas_ep = len(meas_ep[list(meas_ep.keys())[0]])
+            meas_ep[self.testing_dataset.EPISODE] = [n_meas_ep] * len_meas_ep
+            self.testing_dataset.add_group(meas_ep, group_number=n_episode)
+            # TODO add actual measurements
+        self.agent.training_mode = True
+
+    def run(self):
+        n_samples = 0
+        n_episode = 0
+        self.save_figs(prefix='0')
+        while n_samples < self.max_samples:
+            done = True
+            while done:
+                self.agent.reset()
+                done = self.agent.env.done
+            n_episode += 1
+            episode, n_samples = self.run_episode(n_samples)
+            self.training_dataset.add_group(episode)
+            if n_episode % self.measure_every == 0:
+                self.measure(n_episode)
+        self.on_simulation_end()
 
     def on_run_iteration(self, n_samples, *args, **kwargs):
         super(GPSARSATestSimulation, self).on_run_iteration(*args, **kwargs)
-        if n_samples % self.every == 0:
+        if n_samples % self.plot_every == 0:
             print(f'Iteration {n_samples}/{self.max_samples}')
             if n_samples > 0:
                 self.save_figs(prefix=f'{n_samples}')
+
+    def on_simulation_end(self, *args, **kwargs):
+        super().on_simulation_end(*args, **kwargs)
+        self.testing_dataset.save(self.data_path / 'testing_samples.csv')
 
 
 if __name__ == '__main__':
     import time
 
     sim = GPSARSATestSimulation(
-        name='all_iter_plot',
-        goal='high',  # 'low' or 'high'
+        name='test',
+        goal='low',  # 'low' or 'high'
         shape=(201, 201),
         penalty=100,
-        steps_done_threshold=20,
+        steps_done_threshold=5,
         max_samples=50,
         xi=0.01,
         discount_rate=0.8,
@@ -198,7 +249,9 @@ if __name__ == '__main__':
         gamma_cautious=0.75,
         lambda_cautious=0.05,
         gamma_optimistic=0.6,
-        every=1,
+        plot_every=51,
+        measure_every=2,
+        episodes_per_measure=2,
     )
     sim.set_seed(value=0)
 

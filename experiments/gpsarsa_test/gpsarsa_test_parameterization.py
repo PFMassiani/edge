@@ -67,6 +67,8 @@ class SARSALearner(Agent):
                 self.safety_model.empty_data()
         self.update_safety_model = False
 
+        self._old_xi = xi
+
     def _compute_best_sample(self):
         predictions = self.Q_model[self.state, :]
         return np.max(predictions)
@@ -82,7 +84,7 @@ class SARSALearner(Agent):
     @xi.setter
     def xi(self, new_xi):
         """
-        Sets the epsilon parameter of the policy
+        Sets the xi parameter of the policy
         """
         self.policy.xi = new_xi
 
@@ -99,6 +101,14 @@ class SARSALearner(Agent):
             self.safety_model.gamma_measure = new_gamma_optimistic
         else:
             pass
+
+    @Agent.training_mode.setter
+    def training_mode(self, new_training_mode):
+        if self.training_mode and not new_training_mode:
+            self._old_xi = self.xi
+        elif (not self.training_mode) and new_training_mode:
+            self.xi = self._old_xi
+        self._training_mode = new_training_mode
 
     def get_next_action(self):
         """
