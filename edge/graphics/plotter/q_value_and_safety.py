@@ -6,10 +6,12 @@ from ..colors import corl_colors
 
 
 class QValueAndSafetyPlotter(Plotter):
-    def __init__(self, agent, safety_truth=None, ensure_in_dataset=False):
+    def __init__(self, agent, safety_truth=None, ensure_in_dataset=False,
+                 **kwargs):
         super(QValueAndSafetyPlotter, self).__init__(agent)
 
-        self.q_value_subplotter = QValueSubplotter(agent, corl_colors, write_values=False)
+        self.q_value_subplotter = QValueSubplotter(agent, corl_colors, write_values=False,
+                                                   **kwargs)
         self.safety_subplotter = SafetyMeasureSubplotter(agent, corl_colors, fill=False, plot_optimistic=True)
         self.sample_subplotter = SampleSubplotter(corl_colors)
         if safety_truth is not None:

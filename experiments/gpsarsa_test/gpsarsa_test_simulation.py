@@ -8,17 +8,19 @@ from edge.graphics.plotter import QValuePlotter, QValueAndSafetyPlotter
 from edge.utils.logging import config_msg
 
 from gpsarsa_test_parameterization import \
-    LowGoalHovership, PenalizedHovership, SARSALearner
+    LowGoalHovership, PenalizedHovership, HighGoalHovership, \
+    HighPenalizedHovership, SARSALearner
 
 
 class GPSARSATestSimulation(ModelLearningSimulation):
-    def __init__(self, name, shape, penalty, steps_done_threshold, max_samples,
-                 xi, discount_rate, q_x_seed, q_y_seed,
+    def __init__(self, name, goal, shape, penalty, steps_done_threshold,
+                 max_samples, xi, discount_rate, q_x_seed, q_y_seed,
                  use_safety_model, s_x_seed, s_y_seed, gamma_cautious,
                  lambda_cautious, gamma_optimistic,
                  every):
         parameterization = {
             'name': name,
+            'goal': goal,
             'shape': shape,
             'steps_done_threshold': steps_done_threshold,
             'max_samples': max_samples,
@@ -26,16 +28,25 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             'discount_rate': discount_rate,
             'q_x_seed': q_x_seed,
             'q_y_seed': q_y_seed,
+            'use_safety_model':use_safety_model,
+            's_x_seed': s_x_seed,
+            's_y_seed': s_y_seed,
+            'gamma_cautious': gamma_cautious,
+            'lambda_cautious': lambda_cautious,
+            'gamma_optimistic': gamma_optimistic,
             'every': every,
         }
         dynamics_parameters = {'shape': shape}
         if penalty is None:
-            self.env = LowGoalHovership(
+            hovership = LowGoalHovership if goal == 'low' else HighGoalHovership
+            self.env = hovership(
                 dynamics_parameters=dynamics_parameters,
                 steps_done_threshold=steps_done_threshold
             )
         else:
-            self.env = PenalizedHovership(
+            hovership = PenalizedHovership if goal == 'low' \
+                else HighPenalizedHovership
+            self.env = hovership(
                 penalty_level=penalty,
                 dynamics_parameters=dynamics_parameters,
                 steps_done_threshold=steps_done_threshold
@@ -79,13 +90,16 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         self.ground_truth = SafetyTruth(self.env)
         self.ground_truth.from_vibly_file(truth_path)
 
+        v_extreme = 10 * 1 / (1 - discount_rate)
         plotters = {
             'Q-Values': QValuePlotter(
-                self.agent, self.ground_truth, plot_samples=True
+                self.agent, self.ground_truth, plot_samples=True,
+                vmin=-v_extreme, vmax=v_extreme, scale='lin'
             )
         } if not use_safety_model else {
             'Safety_Q-Values': QValueAndSafetyPlotter(
-                self.agent, self.ground_truth
+                self.agent, self.ground_truth,
+                vmin=-v_extreme, vmax=v_extreme, scale='lin'
             )
         }
 
@@ -132,7 +146,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
 
     def run(self):
         n_samples = 0
-        # self.save_figs(prefix='0')
+        self.save_figs(prefix='0')
         while n_samples < self.max_samples:
             self.agent.reset()
             failed = self.agent.failed
@@ -152,8 +166,8 @@ class GPSARSATestSimulation(ModelLearningSimulation):
                     done=done,
                     color=[0, 1, 0] if self.agent.update_safety_model else None,
                 )
-            if n_samples >= self.max_samples:
-                break
+                if n_samples >= self.max_samples:
+                    break
         self.save_figs(prefix='final')
 
     def on_run_iteration(self, n_samples, *args, **kwargs):
@@ -168,22 +182,23 @@ if __name__ == '__main__':
     import time
 
     sim = GPSARSATestSimulation(
-        name='test_correct_episode_update',
+        name='all_iter_plot',
+        goal='high',  # 'low' or 'high'
         shape=(201, 201),
         penalty=100,
         steps_done_threshold=20,
-        max_samples=500,
+        max_samples=50,
         xi=0.01,
         discount_rate=0.8,
         q_x_seed=np.array([[1.3, 0.6], [2, 0]]),
         q_y_seed=np.array([3.5, 0]),
-        use_safety_model=True,
-        s_x_seed=np.array([[1.3, 0.6], [2, 0]]),
+        use_safety_model=False,
+        s_x_seed=np.array([[1.3, 0.6], [2, 0.4]]),
         s_y_seed=np.array([1, 1]),
         gamma_cautious=0.75,
         lambda_cautious=0.05,
         gamma_optimistic=0.6,
-        every=50,
+        every=1,
     )
     sim.set_seed(value=0)
 

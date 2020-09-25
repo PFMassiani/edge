@@ -280,16 +280,22 @@ class Dataset:
         self.has_is_terminal = kwargs.get('has_is_terminal', False)
         if self.has_is_terminal:
             self.is_terminal = self._get_is_terminal(
-                kwargs, self.train_y.shape[0]
+                kwargs, self.train_y.shape[0], default=True
             )
 
-    def _default_is_terminal(self, n):
-        return torch.zeros(n, dtype=torch.bool)
+    def _default_is_terminal(self, n, default=False):
+        if default == False:
+            default_constr = torch.zeros
+        else:
+            default_constr = torch.ones
+        return default_constr(n, dtype=torch.bool)
 
-    def _get_is_terminal(self, kwargs, n_default):
+    def _get_is_terminal(self, kwargs, n_default, default=False):
         return ensure_tensor(
-            kwargs.get('is_terminal', self._default_is_terminal(n_default)),
-            dtype=torch.bool
+            kwargs.get('is_terminal', self._default_is_terminal(
+                n_default, default=default
+            )),
+            dtype=torch.bool,
         )
 
     @property

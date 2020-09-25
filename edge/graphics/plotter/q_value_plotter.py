@@ -9,11 +9,11 @@ from edge.envs import DiscreteHovership
 
 class QValuePlotter(Plotter):
     def __init__(self, agent, safety_truth=None, write_values=False,
-                 plot_samples=False, vmin=None, vmax=None):
+                 plot_samples=False, **kwargs):
         super(QValuePlotter, self).__init__(agent)
 
         self.q_value_subplotter = QValueSubplotter(agent, corl_colors,
-                                                   write_values, vmin, vmax)
+                                                   write_values, **kwargs)
         if safety_truth is not None:
             self.safety_truth_subplotter = SafetyTruthSubplotter(safety_truth,
                                                                  corl_colors)

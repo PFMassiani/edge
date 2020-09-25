@@ -196,3 +196,30 @@ class PenalizedHovership(LowGoalHovership):
                                  reward_condition=penalty_condition)
 
         self.reward += penalty
+
+
+class HighGoalHovership(Hovership):
+    def __init__(self, dynamics_parameters=None, steps_done_threshold=None):
+        super(HighGoalHovership, self).__init__(
+            random_start=True,
+            dynamics_parameters=dynamics_parameters,
+            steps_done_threshold=steps_done_threshold,
+        )
+
+        reward = AffineReward(self.stateaction_space, [(0, 10), (0, 0)])
+        self.reward = reward
+
+
+class HighPenalizedHovership(HighGoalHovership):
+    def __init__(self, penalty_level=100, dynamics_parameters=None,
+                 steps_done_threshold=None):
+        super(HighPenalizedHovership, self).__init__(dynamics_parameters,
+                                                     steps_done_threshold)
+
+        def penalty_condition(state, action, new_state, reward):
+            return self.is_failure_state(new_state)
+
+        penalty = ConstantReward(self.reward.stateaction_space, -penalty_level,
+                                 reward_condition=penalty_condition)
+
+        self.reward += penalty

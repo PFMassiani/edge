@@ -6,7 +6,8 @@ from . import Subplotter
 
 
 class QValueSubplotter(Subplotter):
-    def __init__(self, agent, colors, write_values=False, vmin=None, vmax=None):
+    def __init__(self, agent, colors, write_values=False, vmin=None, vmax=None,
+                 scale='log'):
         super(QValueSubplotter, self).__init__(colors)
         self.agent = agent
         self.states = squeeze(self.model.env.state_space[:])
@@ -17,6 +18,7 @@ class QValueSubplotter(Subplotter):
         self.write_values = write_values
         self.vmin = vmin
         self.vmax = vmax
+        self.scale = scale
 
     @property
     def model(self):
@@ -40,7 +42,7 @@ class QValueSubplotter(Subplotter):
         vmin, vmax = self.__get_min_max(Q_values)
         self.colors.q_values_norm = mpl.colors.SymLogNorm(
             linthresh=0.1, linscale=1, base=10, vmin=vmin, vmax=vmax
-        )
+        ) if self.scale == 'log' else None
         image = ax_Q.pcolormesh(
             self.actions_grid,
             self.states_grid,
