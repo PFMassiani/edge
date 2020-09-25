@@ -102,7 +102,7 @@ class PenalizedSimulation(ModelLearningSimulation):
                 n_samples += 1
                 n_steps += 1
                 old_state = self.agent.state
-                new_state, reward, failed = self.agent.step()
+                new_state, reward, failed, done = self.agent.step()
                 action = self.agent.last_action
 
                 # * start reducing eps to converge to a greedy policy.

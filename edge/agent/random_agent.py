@@ -12,7 +12,7 @@ class RandomAgent(Agent):
     def get_next_action(self):
         return self.policy.get_action(self.state)
 
-    def update_models(self, state, action, new_state, reward, failed):
+    def update_models(self, state, action, new_state, reward, failed, done):
         pass
 
     def fit_models(self):

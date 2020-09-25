@@ -15,5 +15,5 @@ class PolicyLearner(Agent):
     def get_next_action(self):
         return self.env.action_space.closest_in(self.policy.get_action(self.state))
 
-    def update_models(self, state, action, new_state, reward, failed):
+    def update_models(self, state, action, new_state, reward, failed, done):
         pass

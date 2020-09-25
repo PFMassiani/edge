@@ -203,8 +203,7 @@ class BenchmarkSingleSimulation(ModelLearningSimulation):
             done = self.env.done
         while not done:
             old_state = self.agent.state
-            new_state, reward, failed = self.agent.step()
-            done = self.env.done
+            new_state, reward, failed, done = self.agent.step()
             action = self.agent.last_action
             episode.append((old_state, action, new_state, reward, failed, done))
             if self.agent.training_mode:

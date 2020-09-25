@@ -78,7 +78,7 @@ class QLearner(Agent):
         action = self.policy.get_action(q_values)
         return action
 
-    def update_models(self, state, action, next_state, reward, failed):
+    def update_models(self, state, action, next_state, reward, failed, done):
         self.Q_model.update(state, action, next_state, reward, failed)
 
     def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):
@@ -176,7 +176,7 @@ class ConstrainedQLearner(Agent):
         state = self.safety_measure.stateaction_space.state_space[state_index]
         return state
 
-    def update_models(self, state, action, next_state, reward, failed):
+    def update_models(self, state, action, next_state, reward, failed, done):
         self.Q_model.update(state, action, next_state, reward, failed)
 
     def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):
@@ -273,5 +273,5 @@ class DiscreteQLearner(Agent):
             state = self.constraint.stateaction_space.state_space[state_index]
             return state
 
-    def update_models(self, state, action, next_state, reward, failed):
+    def update_models(self, state, action, next_state, reward, failed, done):
         self.Q_model.update(state, action, next_state, reward, failed)

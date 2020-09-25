@@ -88,7 +88,7 @@ class SafetyLearner(Agent):
 
         return action
 
-    def update_models(self, state, action, next_state, reward, failed):
+    def update_models(self, state, action, next_state, reward, failed, done):
         self.safety_model.update(state, action, next_state, reward, failed)
 
     def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):

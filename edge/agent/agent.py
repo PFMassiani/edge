@@ -28,7 +28,7 @@ class Agent:
         """
         raise NotImplementedError
 
-    def update_models(self, state, action, new_state, reward, failed):
+    def update_models(self, state, action, new_state, reward, failed, done):
         """ Abstract method
         Update the models the Agent has
         :param state: the previous state
@@ -36,6 +36,7 @@ class Agent:
         :param new_state: the state the Agent ends up in
         :param reward: the collected reward
         :param failed: whether the Agent has failed
+        :param done: whether the Environment is done
         """
         raise NotImplementedError
 
@@ -79,8 +80,11 @@ class Agent:
         old_state = self.state
         action = self.get_next_action()
         new_state, reward, failed = self.env.step(action)
+        done = self.env.done
         if self.training_mode:
-            self.update_models(old_state, action, new_state, reward, failed)
+            self.update_models(
+                old_state, action, new_state, reward, failed, done
+            )
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed
+        return new_state, reward, failed, done

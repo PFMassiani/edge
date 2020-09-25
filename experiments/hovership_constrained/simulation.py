@@ -80,7 +80,7 @@ class ConstrainedSimulation(ModelLearningSimulation):
                 n_samples += 1
                 n_steps += 1
                 old_state = self.agent.state
-                new_state, reward, failed = self.agent.step()
+                new_state, reward, failed, done = self.agent.step()
                 action = self.agent.last_action
                 if n_samples > 300:
                     self.agent.greed *= (n_samples - 300) / (n_samples - 299)

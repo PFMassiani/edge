@@ -142,7 +142,7 @@ class ValuesAndSafetyCombinator(QLearner):
         state = self.env.stateaction_space.state_space[state_index]
         return state
 
-    def update_models(self, state, action, next_state, reward, failed):
+    def update_models(self, state, action, next_state, reward, failed, done):
         self.Q_model.update(state, action, next_state, reward, failed)
         self.safety_model.update(state, action, next_state, reward, failed)
 
@@ -267,7 +267,7 @@ class SoftHardLearner(ValuesAndSafetyCombinator):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed
+        return new_state, reward, failed, self.env.done
 
 
 class EpsilonSafety(ValuesAndSafetyCombinator):
@@ -356,7 +356,7 @@ class EpsilonSafety(ValuesAndSafetyCombinator):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed
+        return new_state, reward, failed, self.env.done
 
 
 class SafetyQLearningSwitcher(ValuesAndSafetyCombinator):
@@ -439,7 +439,7 @@ class SafetyQLearningSwitcher(ValuesAndSafetyCombinator):
             self.updated_safety = False
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed
+        return new_state, reward, failed, self.env.done
 
 
 class SafetyQLearner(ValuesAndSafetyCombinator):
@@ -511,4 +511,4 @@ class SafetyQLearner(ValuesAndSafetyCombinator):
             pass
         self.state = new_state
         self.last_action = action
-        return new_state, reward, failed
+        return new_state, reward, failed, self.env.done

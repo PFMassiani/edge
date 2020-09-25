@@ -82,7 +82,7 @@ class Environment:
         whereas the agent has not failed, for example because the reward
         limit is exceeded.
         By default, an environment is done iff it has failed or has exceeded the
-        reward thresholde (if it is specified). """
+        reward threshold or maximal number of steps (if it is specified). """
         if self.reward_done_threshold is not None:
             reward_done = self.reward_accumulator >= self.reward_done_threshold
         else:

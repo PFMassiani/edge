@@ -122,7 +122,7 @@ class ValueAndSafetyLearner(Agent):
         state = self.env.stateaction_space.state_space[state_index]
         return state
 
-    def update_models(self, state, action, next_state, reward, failed):
+    def update_models(self, state, action, next_state, reward, failed, done):
         self.Q_model.update(state, action, next_state, reward, failed)
         self.safety_model.update(state, action, next_state, reward, failed)
 
