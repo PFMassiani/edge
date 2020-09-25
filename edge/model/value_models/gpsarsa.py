@@ -15,9 +15,10 @@ class GPSARSA(GPModel):
     def __init__(self, env, gp):
         super(GPSARSA, self).__init__(env, gp)
 
-    def update(self, state, action, new_state, reward, failed):
+    def update(self, state, action, new_state, reward, failed, done):
         stateaction = self.env.stateaction_space[state, action]
-        self.gp.append_data(stateaction, np.atleast_1d(reward))
+        self.gp.append_data(stateaction, np.atleast_1d(reward),
+                            is_terminal=np.atleast_1d(done))
         return self[state, action]
 
 

@@ -140,9 +140,6 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             while not done:
                 n_samples += 1
                 old_state = self.agent.state
-                # TODO properly take into account episode end into the GP:
-                # TODO add an attribute to the valuestructurekernel with the
-                # TODO information whether a sample is the end of an episode
                 new_state, reward, failed, done = self.agent.step()
                 action = self.agent.last_action
                 self.on_run_iteration(
@@ -171,16 +168,16 @@ if __name__ == '__main__':
     import time
 
     sim = GPSARSATestSimulation(
-        name='test_safety',
+        name='test_correct_episode_update',
         shape=(201, 201),
-        penalty=10,
+        penalty=100,
         steps_done_threshold=20,
         max_samples=500,
         xi=0.01,
         discount_rate=0.8,
         q_x_seed=np.array([[1.3, 0.6], [2, 0]]),
         q_y_seed=np.array([3.5, 0]),
-        use_safety_model=False,
+        use_safety_model=True,
         s_x_seed=np.array([[1.3, 0.6], [2, 0]]),
         s_y_seed=np.array([1, 1]),
         gamma_cautious=0.75,

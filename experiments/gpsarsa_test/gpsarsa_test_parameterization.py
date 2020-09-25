@@ -160,8 +160,8 @@ class SARSALearner(Agent):
 
         return action
 
-    def update_models(self, state, action, next_state, reward, failed):
-        self.Q_model.update(state, action, next_state, reward, failed)
+    def update_models(self, state, action, next_state, reward, failed, done):
+        self.Q_model.update(state, action, next_state, reward, failed, done)
         if self.update_safety_model:
             self.safety_model.update(state, action, next_state, reward, failed)
 
@@ -169,10 +169,6 @@ class SARSALearner(Agent):
         self.Q_model.fit(train_x, train_y, epochs, **optimizer_kwargs)
         if not self.keep_seed_in_data:
             self.Q_model.empty_data()
-
-    def step(self):
-        new_state, reward, failed = super(SARSALearner, self).step()
-        return new_state, reward, failed, self.env.done
 
 
 class LowGoalHovership(Hovership):

@@ -5,12 +5,12 @@ from gpytorch.utils.memoize import cached
 from gpytorch import settings, delazify
 from gpytorch.kernels import Kernel
 from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor
-from torch import tensor, Size
+from torch import tensor, Size, logical_not
 
 
 class DiscountedPredictionStrategy(DefaultPredictionStrategy):
     def __init__(self, train_inputs, train_prior_dist, train_labels, likelihood,
-                 discount_tensor, root=None, inv_root=None):
+                 discount_tensor, is_terminal, root=None, inv_root=None):
         # train_prior_dist is the output of gp(gp.train_inputs)
         # -> (MultivariateNormal)Distribution
         super(DiscountedPredictionStrategy, self).__init__(
@@ -18,6 +18,7 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
             inv_root
         )
         self.discount_tensor = discount_tensor
+        self.is_terminal = is_terminal
 
     @property
     @cached(name="mean_cache")
@@ -98,12 +99,13 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
 
 
 class ValueStructureKernel(Kernel):
-    def __init__(self, base_kernel, discount_factor, **kwargs):
+    def __init__(self, base_kernel, discount_factor, dataset, **kwargs):
         if base_kernel.active_dims is not None:
             kwargs["active_dims"] = base_kernel.active_dims
         super(ValueStructureKernel, self).__init__(**kwargs)
         self.base_kernel = base_kernel
         self.discount_factor = discount_factor
+        self.dataset = dataset
 
     def prediction_strategy(self, train_inputs, train_prior_dist, train_labels,
                             likelihood):
@@ -112,6 +114,7 @@ class ValueStructureKernel(Kernel):
             train_prior_dist=train_prior_dist,
             train_labels=train_labels,
             discount_tensor=self._discount_tensor(train_inputs),
+            is_terminal=self.dataset.is_terminal,
             likelihood=likelihood,
         )
 
@@ -125,6 +128,11 @@ class ValueStructureKernel(Kernel):
 
         eye_tm1 = DiagLazyTensor(tensor([1.] * tm1))
         gamma_tm1 = DiagLazyTensor(tensor([- self.discount_factor] * tm1))
+        if self.dataset.has_is_terminal:
+            terminal_filter = DiagLazyTensor(
+                logical_not(self.dataset.is_terminal[:tm1])
+            )
+            gamma_tm1 = terminal_filter.matmul(gamma_tm1)
 
         # TODO make this more general by replacing the 1 with num_tasks
         diag_part = CatLazyTensor(

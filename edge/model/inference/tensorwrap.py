@@ -3,9 +3,9 @@ from inspect import signature
 from decorator import decorator
 
 
-def ensure_tensor(x):
+def ensure_tensor(x, dtype=torch.float):
     if not torch.is_tensor(x):
-        x = torch.tensor(x).float()
+        x = torch.tensor(x).type(dtype)
     return x
 
 

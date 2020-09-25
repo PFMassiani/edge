@@ -3,7 +3,7 @@ import torch
 from sklearn.neighbors import KDTree
 
 from edge.utils import atleast_2d, dynamically_import
-from .tensorwrap import tensorwrap
+from .tensorwrap import tensorwrap, ensure_tensor
 from .value_structure_kernel import ValueStructureKernel
 
 
@@ -36,6 +36,7 @@ class GP(gpytorch.models.ExactGP):
         # Hence, we only deal with tensors inside the methods
         train_x = atleast_2d(train_x)
         train_y = train_y
+        self.has_value_structure = value_structure_discount_factor is not None
         if dataset_type == 'timeforgetting':
             create_dataset = TimeForgettingDataset
         elif dataset_type == 'neighborerasing':
@@ -43,16 +44,17 @@ class GP(gpytorch.models.ExactGP):
         else:
             dataset_params = {}
             create_dataset = Dataset
+        dataset_params['has_is_terminal'] = self.has_value_structure
         self.dataset = create_dataset(train_x, train_y, **dataset_params)
 
         super(GP, self).__init__(train_x, train_y, likelihood)
 
         self.mean_module = mean_module
-        self.has_value_structue = value_structure_discount_factor is not None
-        if self.has_value_structue:
+        if self.has_value_structure:
             covar_module = ValueStructureKernel(
                 base_kernel=covar_module,
                 discount_factor=value_structure_discount_factor,
+                dataset=self.dataset,
             )
         self.covar_module = covar_module
 
@@ -60,7 +62,7 @@ class GP(gpytorch.models.ExactGP):
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood
 
     def initialize(self, **kwargs):
-        if self.has_value_structue:
+        if self.has_value_structure:
             kwargs_keys_to_change = [
                 key for key in kwargs.keys()
                 if key.startswith('covar_module.')
@@ -179,11 +181,13 @@ class GP(gpytorch.models.ExactGP):
         empty_y = torch.empty(outputs_shape)
         self.train_x = empty_x
         self.train_y = empty_y
+        if self.dataset.has_is_terminal:
+            self.dataset.is_terminal = None
         self._set_gp_data_to_dataset()
         return self
 
     @tensorwrap('x', 'y')
-    def set_data(self, x, y):
+    def set_data(self, x, y, **kwargs):
         """
         Sets the dataset of the GP
         :param x: np.ndarray: the new training input data. Subject to the same constraints as train_x in __init__
@@ -191,6 +195,8 @@ class GP(gpytorch.models.ExactGP):
         """
         self.train_x = atleast_2d(x)
         self.train_y = y
+        if self.dataset.has_is_terminal:
+            self.dataset.is_terminal = kwargs.get('is_terminal')
         self._set_gp_data_to_dataset()
         return self
 
@@ -268,9 +274,23 @@ class Dataset:
     the GP class.
     Defining a custom way of handling GP data means inheriting from this class and redefining its getters and setters
     """
-    def __init__(self, train_x, train_y):
-        self._train_x = train_x
-        self._train_y = train_y
+    def __init__(self, train_x, train_y, **kwargs):
+        self.train_x = train_x
+        self.train_y = train_y
+        self.has_is_terminal = kwargs.get('has_is_terminal', False)
+        if self.has_is_terminal:
+            self.is_terminal = self._get_is_terminal(
+                kwargs, self.train_y.shape[0]
+            )
+
+    def _default_is_terminal(self, n):
+        return torch.zeros(n, dtype=torch.bool)
+
+    def _get_is_terminal(self, kwargs, n_default):
+        return ensure_tensor(
+            kwargs.get('is_terminal', self._default_is_terminal(n_default)),
+            dtype=torch.bool
+        )
 
     @property
     def train_x(self):
@@ -288,9 +308,30 @@ class Dataset:
     def train_y(self, new_train_y):
         self._train_y = new_train_y
 
+    @property
+    def is_terminal(self):
+        if not self.has_is_terminal:
+            raise AttributeError
+        else:
+            return self._is_terminal
+
+    @is_terminal.setter
+    def is_terminal(self, new_is_terminal):
+        self.has_is_terminal = True
+        if new_is_terminal is None:
+            new_is_terminal = self._default_is_terminal(self.train_y.shape[0])
+        else:
+            new_is_terminal = ensure_tensor(new_is_terminal)
+        self._is_terminal = new_is_terminal
+
     def append(self, append_x, append_y, **kwargs):
         self.train_x = torch.cat((self.train_x, atleast_2d(append_x)), dim=0)
         self.train_y = torch.cat((self.train_y, append_y), dim=0)
+        if self.has_is_terminal:
+            self.is_terminal = torch.cat((
+                self.is_terminal,
+                self._get_is_terminal(kwargs, append_y.shape[0])
+            ))
 
 
 class TimeForgettingDataset(Dataset):
@@ -298,14 +339,14 @@ class TimeForgettingDataset(Dataset):
     This Dataset only keeps the last `keep` data points in the dataset, by simple assignment of the train_x and train_y
     attributes
     """
-    def __init__(self, train_x, train_y, keep):
+    def __init__(self, train_x, train_y, keep, **kwargs):
         """
         Initializer
         :param train_x: torch.Tensor, the training input data
         :param train_y: torch.Tensor, the training output data
         :param keep: int, how many points to keep in
         """
-        super(TimeForgettingDataset, self).__init__(train_x, train_y)
+        super(TimeForgettingDataset, self).__init__(train_x, train_y, **kwargs)
         self.keep = keep
         self._train_x = train_x[-self.keep:]
         self._train_y = train_y[-self.keep:]
@@ -321,6 +362,15 @@ class TimeForgettingDataset(Dataset):
     def train_y(self, new_train_y):
         self._train_y = new_train_y[-self.keep:]
 
+    @Dataset.is_terminal.setter
+    def is_terminal(self, new_is_terminal):
+        self.has_is_terminal = True
+        if new_is_terminal is None:
+            new_is_terminal = self._default_is_terminal(self.train_y.shape[0])
+        else:
+            new_is_terminal = ensure_tensor(new_is_terminal)
+        self._is_terminal = new_is_terminal[-self.keep:]
+
 
 class NeighborErasingDataset(Dataset):
     """
@@ -329,14 +379,14 @@ class NeighborErasingDataset(Dataset):
     of points to train_x/train_y. The non-neighboring condition is only enforced
     when using the `append` method.
     """
-    def __init__(self, train_x, train_y, radius):
+    def __init__(self, train_x, train_y, radius, **kwargs):
         """
         Initializer
         :param train_x: torch.Tensor, the training input data
         :param train_y: torch.Tensor the training output data
         :param radius: float, the maximal distance at which old points will be removed when sampling a new point
         """
-        super(NeighborErasingDataset, self).__init__(train_x, train_y)
+        super(NeighborErasingDataset, self).__init__(train_x, train_y, **kwargs)
         self.radius = radius
         self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool)
         self._kdtree = self._create_kdtree()
@@ -377,6 +427,15 @@ class NeighborErasingDataset(Dataset):
 
         train_y_without_neighbors = self._train_y[keeping_filter]
         self.train_y = torch.cat((train_y_without_neighbors, append_y))
+
+        if self.has_is_terminal:
+            append_is_terminal = self._get_is_terminal(
+                kwargs, append_y.shape[0]
+            )
+            is_terminal_without_neighbors = self.is_terminal[keeping_filter]
+            self.is_terminal = torch.cat(
+                (is_terminal_without_neighbors, append_is_terminal)
+            )
 
         forgettable_without_neighbors = self.forgettable[keeping_filter]
         self.forgettable = torch.cat((forgettable_without_neighbors,
