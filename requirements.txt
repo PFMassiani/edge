@@ -2,7 +2,7 @@ Box2D==2.3.10
 cloudpickle==1.2.2
 cycler==0.10.0
 decorator==4.4.2
--e git+git@github.com:PFMassiani/edge.git@91fbbfd840ef7dea7033d1838bf5a161f89857c5#egg=edge
+-e git+git@github.com:PFMassiani/edge.git@221fb9c25afa7f4f5feee24de337743576db2278#egg=edge
 future==0.18.2
 gpytorch==1.1.1
 gym==0.15.7
@@ -10,9 +10,11 @@ joblib==0.16.0
 kiwisolver==1.2.0
 matplotlib==3.2.1
 numpy==1.18.4
+pandas==1.1.2
 pyglet==1.5.0
 pyparsing==2.4.7
 python-dateutil==2.8.1
+pytz==2020.1
 scikit-learn==0.23.1
 scipy==1.4.1
 six==1.15.0
