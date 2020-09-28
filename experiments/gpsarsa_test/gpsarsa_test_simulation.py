@@ -89,7 +89,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             gamma_optimistic=gamma_optimistic if use_safety_model else None,
         )
 
-        truth_path = Path(__file__).parent.parent.parent / 'data' / \
+        truth_path = Path(__file__).absolute().parent.parent.parent / 'data' / \
                      'ground_truth' / 'from_vibly' / 'hover_map.pickle'
         self.ground_truth = SafetyTruth(self.env)
         self.ground_truth.from_vibly_file(truth_path)
@@ -236,8 +236,8 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         failed = episode.loc[episode.index[-1], train.FAILED]
         reward = episode.loc[:, train.REWARD].sum()
         logging.info(f'Episode {n_episode}/{self.max_episodes}: '
-                    f'{"failed" if failed else "success"} '
-                    f'| reward: {reward:.3f}')
+                     f'{"failed" if failed else "success"} '
+                     f'| reward: {reward:.3f}')
         if n_episode % self.plot_every == 0:
             self.save_figs(prefix=f'{n_episode}')
 
@@ -248,6 +248,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     import time
+
     seed = int(time.time())
 
     sim = GPSARSATestSimulation(
