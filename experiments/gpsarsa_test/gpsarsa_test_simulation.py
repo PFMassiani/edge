@@ -14,17 +14,18 @@ from gpsarsa_test_parameterization import \
 
 
 class GPSARSATestSimulation(ModelLearningSimulation):
-    def __init__(self, name, goal, shape, penalty, steps_done_threshold,
-                 max_samples, xi, discount_rate, q_x_seed, q_y_seed,
-                 use_safety_model, s_x_seed, s_y_seed, gamma_cautious,
-                 lambda_cautious, gamma_optimistic,
+    def __init__(self, name, goal, shape, reset_in_safe_state, penalty,
+                 steps_done_threshold, max_episodes, xi, discount_rate,
+                 q_x_seed, q_y_seed, use_safety_model, s_x_seed, s_y_seed,
+                 gamma_cautious, lambda_cautious, gamma_optimistic,
                  plot_every, measure_every, episodes_per_measure):
         parameterization = {
             'name': name,
             'goal': goal,
             'shape': shape,
+            'reset_in_safe_state': reset_in_safe_state,
             'steps_done_threshold': steps_done_threshold,
-            'max_samples': max_samples,
+            'max_episodes': max_episodes,
             'xi': xi,
             'discount_rate': discount_rate,
             'q_x_seed': q_x_seed,
@@ -111,10 +112,11 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             output_directory, name, plotters
         )
 
-        self.max_samples = max_samples
+        self.max_episodes = max_episodes
         self.plot_every = plot_every
         self.measure_every = measure_every
         self.episodes_per_measure = episodes_per_measure
+        self.reset_in_safe_state = reset_in_safe_state
 
         self.testing_dataset = Dataset(*Dataset.DEFAULT_COLUMNS,
                                        group_name='measurement')
@@ -152,6 +154,16 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             MaternGPSARSA.load(load_path, self.env, self.x_seed, self.y_seed)
         )
 
+    def get_random_safe_state(self):
+        viable_state_indexes = np.argwhere(self.ground_truth.viability_kernel)
+        chosen_index_among_safe = np.random.choice(
+            viable_state_indexes.shape[0]
+        )
+        chosen_index = tuple(viable_state_indexes[chosen_index_among_safe])
+        safe_state = self.env.state_space[chosen_index]
+
+        return safe_state
+
     def _append_to_episode(self, episode, state, action, new_state, reward,
                            failed, done):
         episode[self.training_dataset.STATE].append(state)
@@ -161,7 +173,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         episode[self.training_dataset.FAILED].append(failed)
         episode[self.training_dataset.DONE].append(done)
 
-    def run_episode(self, n_samples):
+    def run_episode(self):
         done = self.env.done
         episode = {cname: []
                    for cname in self.training_dataset.columns_wo_group}
@@ -171,10 +183,8 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             action = self.agent.last_action
             self._append_to_episode(episode, old_state, action, new_state,
                                     reward, failed, done)
-            if n_samples is not None:
-                n_samples += 1
-                self.on_run_iteration(
-                    n_samples=n_samples,
+            if self.agent.training_mode:
+                self.on_run_episode_iteration(
                     state=old_state,
                     action=action,
                     new_state=new_state,
@@ -183,18 +193,18 @@ class GPSARSATestSimulation(ModelLearningSimulation):
                     done=done,
                     color=[0, 1, 0] if self.agent.update_safety_model else None,
                 )
-                if n_samples >= self.max_samples:
-                    break
-        return episode, n_samples
+        return episode
 
     def measure(self, n_episode):
         self.agent.training_mode = False
         for n_meas_ep in range(self.episodes_per_measure):
             done = True
             while done:
-                self.agent.reset()
+                reset_state = None if not self.reset_in_safe_state else \
+                    self.get_random_safe_state()
+                self.agent.reset(reset_state)
                 done = self.agent.env.done
-            meas_ep, _ = self.run_episode(None)
+            meas_ep = self.run_episode()
             len_meas_ep = len(meas_ep[list(meas_ep.keys())[0]])
             meas_ep[self.testing_dataset.EPISODE] = [n_meas_ep] * len_meas_ep
             self.testing_dataset.add_group(meas_ep, group_number=n_episode)
@@ -202,27 +212,34 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         self.agent.training_mode = True
 
     def run(self):
-        n_samples = 0
         n_episode = 0
         self.save_figs(prefix='0')
-        while n_samples < self.max_samples:
+        while n_episode < self.max_episodes:
             done = True
             while done:
                 self.agent.reset()
                 done = self.agent.env.done
             n_episode += 1
-            episode, n_samples = self.run_episode(n_samples)
-            self.training_dataset.add_group(episode)
+            episode = self.run_episode()
+            self.training_dataset.add_group(episode, group_number=n_episode)
             if n_episode % self.measure_every == 0:
                 self.measure(n_episode)
+            self.on_run_iteration(n_episode)
         self.on_simulation_end()
 
-    def on_run_iteration(self, n_samples, *args, **kwargs):
+    def on_run_episode_iteration(self, *args, **kwargs):
         super(GPSARSATestSimulation, self).on_run_iteration(*args, **kwargs)
-        if n_samples % self.plot_every == 0:
-            print(f'Iteration {n_samples}/{self.max_samples}')
-            if n_samples > 0:
-                self.save_figs(prefix=f'{n_samples}')
+
+    def on_run_iteration(self, n_episode):
+        train = self.training_dataset
+        episode = train.df.loc[train.df.loc[:, train.group_name] == n_episode]
+        failed = episode.loc[episode.index[-1], train.FAILED]
+        reward = episode.loc[:, train.REWARD].sum()
+        logging.info(f'Episode {n_episode}/{self.max_episodes}: '
+                    f'{"failed" if failed else "success"} '
+                    f'| reward: {reward:.3f}')
+        if n_episode % self.plot_every == 0:
+            self.save_figs(prefix=f'{n_episode}')
 
     def on_simulation_end(self, *args, **kwargs):
         super().on_simulation_end(*args, **kwargs)
@@ -231,14 +248,16 @@ class GPSARSATestSimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     import time
+    seed = int(time.time())
 
     sim = GPSARSATestSimulation(
-        name='test',
+        name=f'full_test_{seed}',
         goal='low',  # 'low' or 'high'
         shape=(201, 201),
+        reset_in_safe_state=True,
         penalty=100,
-        steps_done_threshold=5,
-        max_samples=50,
+        steps_done_threshold=30,
+        max_episodes=200,
         xi=0.01,
         discount_rate=0.8,
         q_x_seed=np.array([[1.3, 0.6], [2, 0]]),
@@ -249,15 +268,17 @@ if __name__ == '__main__':
         gamma_cautious=0.75,
         lambda_cautious=0.05,
         gamma_optimistic=0.6,
-        plot_every=51,
-        measure_every=2,
-        episodes_per_measure=2,
+        plot_every=50,
+        measure_every=10,
+        episodes_per_measure=5,
     )
-    sim.set_seed(value=0)
+
+    sim.set_seed(value=seed)
+    logging.info(config_msg(f'Random seed: {seed}'))
 
     t0 = time.time()
     sim.run()
     t1 = time.time()
     dt = t1 - t0
-    print(f'Simulation duration: {dt:.2f} s')
+    logging.info(f'Simulation duration: {dt:.2f} s')
     sim.save_models()

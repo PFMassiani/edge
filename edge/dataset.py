@@ -27,14 +27,9 @@ class Dataset:
             else self.EPISODE
         self.columns = self.DEFAULT_COLUMNS if len(columns) == 0\
             else list(columns)
-        if group_name is not None and group_name != Dataset.EPISODE:
-            self.group_name = group_name
-            self.columns_wo_group = self.columns
-            self.columns = [self.group_name] + self.columns
-        else:
-            self.group_name = self.EPISODE
-            self.columns_wo_group = [cname for cname in self.columns
-                                     if cname != self.EPISODE]
+        self.columns_wo_group = [cname for cname in self.columns
+                                 if cname != self.group_name]
+        self.columns = [self.group_name] + self.columns_wo_group
         self.df = pd.DataFrame(columns=self.columns)
 
     def __getattr__(self, item):
