@@ -18,9 +18,11 @@ class Dataset:
     NEW = 'new_state'
     FAILED = 'failed'
     DONE = 'done'
+    _INDEX = 'index'
 
     DEFAULT_COLUMNS = [EPISODE, REWARD, STATE, ACTION, NEW, FAILED, DONE]
     DEFAULT_COLUMNS_WO_EPISODE = [REWARD, STATE, ACTION, NEW, FAILED, DONE]
+    DEFAULT_ARRAY_CAST = [STATE, ACTION, NEW]
 
     def __init__(self, *columns, group_name=None):
         self.group_name = group_name if group_name is not None\
@@ -31,6 +33,7 @@ class Dataset:
                                  if cname != self.group_name]
         self.columns = [self.group_name] + self.columns_wo_group
         self.df = pd.DataFrame(columns=self.columns)
+        self.df.index.name = Dataset._INDEX
 
     def __getattr__(self, item):
         if item in self.__dict__:
@@ -71,11 +74,21 @@ class Dataset:
             self.df.to_csv(f)
 
     @staticmethod
+    def _get_index_key(df):
+        dflt_idx = 'Unnamed: 0'
+        return dflt_idx if dflt_idx in list(df.columns) else Dataset._INDEX
+
+    @staticmethod
     def load(filepath, *array_cast):
+        if len(array_cast) == 0:
+            array_cast = Dataset.DEFAULT_ARRAY_CAST
         filepath = Path(filepath)
         converters = {cname: from_np_array for cname in array_cast}
         with filepath.open('r') as f:
             df = pd.read_csv(f, converters=converters)
-        ds = Dataset(df.columns)
+        idxkey = Dataset._get_index_key(df)
+        df = df.set_index(idxkey)
+        df.index.name = Dataset._INDEX
+        ds = Dataset(list(df.columns))
         ds.df = df
         return ds
