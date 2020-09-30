@@ -19,7 +19,7 @@ def get_index_length(gym_box):
 
 class GymEnvironmentWrapper(Environment):
     def __init__(self, gym_env, shape=None, failure_critical=False,
-                 control_frequency=None):
+                 control_frequency=None, **kwargs):
         self.gym_env = gym_env
         if shape is None:
             obs_shape = None
@@ -29,7 +29,8 @@ class GymEnvironmentWrapper(Environment):
                 action_space_ndim = get_index_length(gym_env.action_space)
                 action_shape = shape[-action_space_ndim:]
             action_space = BoxWrapper(
-                gym_env.action_space, discretization_shape=action_shape
+                gym_env.action_space, discretization_shape=action_shape,
+                **kwargs
             )
         elif isinstance(gym_env.action_space, gspaces.Discrete):
             action_space = DiscreteWrapper(gym_env.action_space)
@@ -43,7 +44,8 @@ class GymEnvironmentWrapper(Environment):
                 obs_shape = shape[:state_space_ndim]
             state_space = BoxWrapper(
                 gym_env.observation_space,
-                discretization_shape=obs_shape
+                discretization_shape=obs_shape,
+                **kwargs
             )
         elif isinstance(gym_env.observation_space, gspaces.Discrete):
             state_space = DiscreteWrapper(gym_env.observation_space)
