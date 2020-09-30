@@ -3,28 +3,26 @@ import logging
 import numpy as np
 
 from edge.simulation import ModelLearningSimulation
-from edge.model.safety_models import SafetyTruth
-from edge.graphics.plotter import QValuePlotter, QValueAndSafetyPlotter
+# from edge.model.safety_models import SafetyTruth
+# from edge.graphics.plotter import QValuePlotter, QValueAndSafetyPlotter
 from edge.utils.logging import config_msg
 from edge.dataset import Dataset
 
-from .gpsarsa_test_agent import SARSALearner
-from .gpsarsa_test_env import LowGoalHovership, PenalizedHovership, \
-    HighGoalHovership, HighPenalizedHovership
+from gpsarsa_test_agent import SARSALearner
+from gpsarsa_test_env import LunarLander, PenalizedLunarLander
 
 
 class GPSARSATestSimulation(ModelLearningSimulation):
-    def __init__(self, name, goal, shape, reset_in_safe_state, penalty,
-                 steps_done_threshold, max_episodes, xi, discount_rate,
-                 q_x_seed, q_y_seed, use_safety_model, s_x_seed, s_y_seed,
+    def __init__(self, name, shape, penalty, control_frequency,
+                 max_episodes, xi, discount_rate,
+                 q_x_seed, q_y_seed,
+                 use_safety_model, s_x_seed, s_y_seed,
                  gamma_cautious, lambda_cautious, gamma_optimistic,
-                 plot_every, measure_every, episodes_per_measure):
+                 render, measure_every, episodes_per_measure):
         parameterization = {
             'name': name,
-            'goal': goal,
             'shape': shape,
-            'reset_in_safe_state': reset_in_safe_state,
-            'steps_done_threshold': steps_done_threshold,
+            'control_frequency': control_frequency,
             'max_episodes': max_episodes,
             'xi': xi,
             'discount_rate': discount_rate,
@@ -36,24 +34,20 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             'gamma_cautious': gamma_cautious,
             'lambda_cautious': lambda_cautious,
             'gamma_optimistic': gamma_optimistic,
-            'plot_every': plot_every,
+            'render': render,
             'measure_every': measure_every,
             'episodes_per_measure': episodes_per_measure
         }
-        dynamics_parameters = {'shape': shape}
         if penalty is None:
-            hovership = LowGoalHovership if goal == 'low' else HighGoalHovership
-            self.env = hovership(
-                dynamics_parameters=dynamics_parameters,
-                steps_done_threshold=steps_done_threshold
+            self.env = LunarLander(
+                shape=shape,
+                control_frequency=control_frequency,
             )
         else:
-            hovership = PenalizedHovership if goal == 'low' \
-                else HighPenalizedHovership
-            self.env = hovership(
+            self.env = PenalizedLunarLander(
                 penalty_level=penalty,
-                dynamics_parameters=dynamics_parameters,
-                steps_done_threshold=steps_done_threshold
+                shape=shape,
+                control_frequency=control_frequency,
             )
 
         self.x_seed = q_x_seed
@@ -89,34 +83,33 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             gamma_optimistic=gamma_optimistic if use_safety_model else None,
         )
 
-        truth_path = Path(__file__).absolute().parent.parent.parent / 'data' / \
-                     'ground_truth' / 'from_vibly' / 'hover_map.pickle'
-        self.ground_truth = SafetyTruth(self.env)
-        self.ground_truth.from_vibly_file(truth_path)
-
-        v_extreme = 10 * 1 / (1 - discount_rate)
-        plotters = {
-            'Q-Values': QValuePlotter(
-                self.agent, self.ground_truth, plot_samples=True,
-                vmin=-v_extreme, vmax=v_extreme, scale='lin'
-            )
-        } if not use_safety_model else {
-            'Safety_Q-Values': QValueAndSafetyPlotter(
-                self.agent, self.ground_truth,
-                vmin=-v_extreme, vmax=v_extreme, scale='lin'
-            )
-        }
+        # truth_path = Path(__file__).absolute().parent.parent.parent / 'data' / \
+        #              'ground_truth' / 'from_vibly' / 'hover_map.pickle'
+        # self.ground_truth = SafetyTruth(self.env)
+        # self.ground_truth.from_vibly_file(truth_path)
+        #
+        # v_extreme = 10 * 1 / (1 - discount_rate)
+        # plotters = {
+        #     'Q-Values': QValuePlotter(
+        #         self.agent, self.ground_truth, plot_samples=True,
+        #         vmin=-v_extreme, vmax=v_extreme, scale='lin'
+        #     )
+        # } if not use_safety_model else {
+        #     'Safety_Q-Values': QValueAndSafetyPlotter(
+        #         self.agent, self.ground_truth,
+        #         vmin=-v_extreme, vmax=v_extreme, scale='lin'
+        #     )
+        # }
 
         output_directory = Path(__file__).parent.resolve()
         super(GPSARSATestSimulation, self).__init__(
-            output_directory, name, plotters
+            output_directory, name, {}
         )
 
         self.max_episodes = max_episodes
-        self.plot_every = plot_every
+        self.render = render
         self.measure_every = measure_every
         self.episodes_per_measure = episodes_per_measure
-        self.reset_in_safe_state = reset_in_safe_state
 
         self.testing_dataset = Dataset(*Dataset.DEFAULT_COLUMNS,
                                        group_name='measurement')
@@ -154,15 +147,15 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             MaternGPSARSA.load(load_path, self.env, self.x_seed, self.y_seed)
         )
 
-    def get_random_safe_state(self):
-        viable_state_indexes = np.argwhere(self.ground_truth.viability_kernel)
-        chosen_index_among_safe = np.random.choice(
-            viable_state_indexes.shape[0]
-        )
-        chosen_index = tuple(viable_state_indexes[chosen_index_among_safe])
-        safe_state = self.env.state_space[chosen_index]
-
-        return safe_state
+    # def get_random_safe_state(self):
+    #     viable_state_indexes = np.argwhere(self.ground_truth.viability_kernel)
+    #     chosen_index_among_safe = np.random.choice(
+    #         viable_state_indexes.shape[0]
+    #     )
+    #     chosen_index = tuple(viable_state_indexes[chosen_index_among_safe])
+    #     safe_state = self.env.state_space[chosen_index]
+    #
+    #     return safe_state
 
     def _append_to_episode(self, episode, state, action, new_state, reward,
                            failed, done):
@@ -200,9 +193,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         for n_meas_ep in range(self.episodes_per_measure):
             done = True
             while done:
-                reset_state = None if not self.reset_in_safe_state else \
-                    self.get_random_safe_state()
-                self.agent.reset(reset_state)
+                self.agent.reset()
                 done = self.agent.env.done
             meas_ep = self.run_episode()
             len_meas_ep = len(meas_ep[list(meas_ep.keys())[0]])
@@ -213,7 +204,6 @@ class GPSARSATestSimulation(ModelLearningSimulation):
 
     def run(self):
         n_episode = 0
-        self.save_figs(prefix='0')
         while n_episode < self.max_episodes:
             done = True
             while done:
@@ -229,6 +219,8 @@ class GPSARSATestSimulation(ModelLearningSimulation):
 
     def on_run_episode_iteration(self, *args, **kwargs):
         super(GPSARSATestSimulation, self).on_run_iteration(*args, **kwargs)
+        if self.render:
+            self.env.render()
 
     def on_run_iteration(self, n_episode):
         train = self.training_dataset
@@ -238,8 +230,6 @@ class GPSARSATestSimulation(ModelLearningSimulation):
         logging.info(f'Episode {n_episode}/{self.max_episodes}: '
                      f'{"failed" if failed else "success"} '
                      f'| reward: {reward:.3f}')
-        if n_episode % self.plot_every == 0:
-            self.save_figs(prefix=f'{n_episode}')
 
     def on_simulation_end(self, *args, **kwargs):
         super().on_simulation_end(*args, **kwargs)
@@ -251,25 +241,40 @@ if __name__ == '__main__':
 
     seed = int(time.time())
 
+    q_x_seed = np.array([
+                [0,   0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1.4, 0, 0, 0, 0, 0, 0, 0]
+            ])
+    q_y_seed = np.array([200, 100])
+    s_x_seed = np.array([
+        [0, 1.4, 0, 0, 0, 0, 0, 0, 2]
+    ])
+    s_y_seed = np.array([1])
+
+    # STATE SPACE:
+    # X, Y, V_X, V_Y, THETA, dTHETA/dt, CTCT_L, CTCT_R
+    # ACTION SPACE:
+    # Discrete:
+    # 0: No engine; 1: Left, 2: Main, 3: Right
+
+
     sim = GPSARSATestSimulation(
-        name=f'full_test_{seed}',
-        goal='low',  # 'low' or 'high'
-        shape=(201, 201),
-        reset_in_safe_state=True,
+        name=f'lander_{seed}',
+        shape=(10, 10, 10, 10, 10, 10, 10, 10),  # TODO refine this grid
+        control_frequency=1.,
         penalty=100,
-        steps_done_threshold=30,
         max_episodes=200,
         xi=0.01,
         discount_rate=0.8,
-        q_x_seed=np.array([[1.3, 0.6], [2, 0]]),
-        q_y_seed=np.array([3.5, 0]),
-        use_safety_model=False,
-        s_x_seed=np.array([[1.3, 0.6], [2, 0.4]]),
-        s_y_seed=np.array([1, 1]),
+        q_x_seed=q_x_seed,
+        q_y_seed=q_y_seed,
+        use_safety_model=True,
+        s_x_seed=s_x_seed,
+        s_y_seed=s_y_seed,
         gamma_cautious=0.75,
         lambda_cautious=0.05,
         gamma_optimistic=0.6,
-        plot_every=50,
+        render=True,
         measure_every=10,
         episodes_per_measure=5,
     )

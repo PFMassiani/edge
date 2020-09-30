@@ -7,9 +7,6 @@ from edge.model.policy_models.bayesian import \
     ExpectedImprovementPolicy, SafetyInformationMaximization
 from edge.model.policy_models import SafetyMaximization
 
-from edge.envs import Hovership
-from edge.reward import AffineReward, ConstantReward
-
 
 class SARSALearner(Agent):
     """
@@ -179,57 +176,3 @@ class SARSALearner(Agent):
         self.Q_model.fit(train_x, train_y, epochs, **optimizer_kwargs)
         if not self.keep_seed_in_data:
             self.Q_model.empty_data()
-
-
-class LowGoalHovership(Hovership):
-    def __init__(self, dynamics_parameters=None, steps_done_threshold=None):
-        super(LowGoalHovership, self).__init__(
-            random_start=True,
-            dynamics_parameters=dynamics_parameters,
-            steps_done_threshold=steps_done_threshold,
-        )
-
-        reward = AffineReward(self.stateaction_space, [(10, 0), (0, 0)])
-        self.reward = reward
-
-
-class PenalizedHovership(LowGoalHovership):
-    def __init__(self, penalty_level=100, dynamics_parameters=None,
-                 steps_done_threshold=None):
-        super(PenalizedHovership, self).__init__(dynamics_parameters,
-                                                 steps_done_threshold)
-
-        def penalty_condition(state, action, new_state, reward):
-            return self.is_failure_state(new_state)
-
-        penalty = ConstantReward(self.reward.stateaction_space, -penalty_level,
-                                 reward_condition=penalty_condition)
-
-        self.reward += penalty
-
-
-class HighGoalHovership(Hovership):
-    def __init__(self, dynamics_parameters=None, steps_done_threshold=None):
-        super(HighGoalHovership, self).__init__(
-            random_start=True,
-            dynamics_parameters=dynamics_parameters,
-            steps_done_threshold=steps_done_threshold,
-        )
-
-        reward = AffineReward(self.stateaction_space, [(0, 10), (0, 0)])
-        self.reward = reward
-
-
-class HighPenalizedHovership(HighGoalHovership):
-    def __init__(self, penalty_level=100, dynamics_parameters=None,
-                 steps_done_threshold=None):
-        super(HighPenalizedHovership, self).__init__(dynamics_parameters,
-                                                     steps_done_threshold)
-
-        def penalty_condition(state, action, new_state, reward):
-            return self.is_failure_state(new_state)
-
-        penalty = ConstantReward(self.reward.stateaction_space, -penalty_level,
-                                 reward_condition=penalty_condition)
-
-        self.reward += penalty
