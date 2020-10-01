@@ -9,8 +9,8 @@ class SafetyMeasureSubplotter(Subplotter):
     def __init__(self, agent, colors, fill=True, plot_optimistic=True):
         super(SafetyMeasureSubplotter, self).__init__(colors)
         self.agent = agent
-        self.states = squeeze(self.model.env.state_space[:])
-        self.actions = squeeze(self.model.env.action_space[:])
+        self.states = squeeze(self.model.space.state_space[:])
+        self.actions = squeeze(self.model.space.action_space[:])
 
         if not len(self.states.shape) == 1:
             raise ValueError('Too many state dimensions for plotting: '
@@ -24,7 +24,7 @@ class SafetyMeasureSubplotter(Subplotter):
         self.nS = self.states.shape[0]
         self.nA = self.actions.shape[0]
 
-        stateaction_grid = self.model.env.stateaction_space[:, :]
+        stateaction_grid = self.model.space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
 
@@ -158,7 +158,7 @@ class SafetyGPSubplotter(Subplotter):
     def __init__(self, agent, colors):
         super(SafetyGPSubplotter, self).__init__(colors)
         self.agent = agent
-        stateaction_grid = self.agent.safety_model.env.stateaction_space[:, :]
+        stateaction_grid = self.agent.safety_model.space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
 

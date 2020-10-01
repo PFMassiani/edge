@@ -25,7 +25,7 @@ class QLearner(Agent):
         :param keep_seed_in_data: whether to keep the seed data in the GP dataset. Should be True, otherwise GPyTorch
             fails.
         """
-        Q_model = GPQLearning(env, step_size, discount_rate,
+        Q_model = GPQLearning(env.stateaction_space, step_size, discount_rate,
                               x_seed=x_seed, y_seed=y_seed,
                               gp_params=gp_params)
         super(QLearner, self).__init__(env, Q_model)
@@ -112,7 +112,7 @@ class ConstrainedQLearner(Agent):
         :param keep_seed_in_data: whether to keep the seed data in the GP dataset. Should be True, otherwise GPyTorch
             fails.
         """
-        Q_model = GPQLearning(env, step_size, discount_rate,
+        Q_model = GPQLearning(env.stateaction_space, step_size, discount_rate,
                               x_seed=x_seed, y_seed=y_seed,
                               gp_params=gp_params)
         super(ConstrainedQLearner, self).__init__(env, Q_model)
@@ -144,7 +144,7 @@ class ConstrainedQLearner(Agent):
         self.constrained_value_policy.greed = new_greed
 
     def get_next_action(self):
-        all_actions = self.Q_model.env.action_space[:].reshape(-1, 1)
+        all_actions = self.Q_model.space.action_space[:].reshape(-1, 1)
         action_is_viable = np.array([
             self.safety_measure.measure(self.state, a) > self.safety_threshold
             for a in all_actions
@@ -205,7 +205,7 @@ class DiscreteQLearner(Agent):
             that is at the exact boundary of the viability kernel still fails due to rounding errors. Hence, this should
             be a small, positive value.
         """
-        Q_model = QLearning(env, step_size, discount_rate)
+        Q_model = QLearning(env.stateaction_space, step_size, discount_rate)
 
         super(DiscreteQLearner, self).__init__(env, Q_model)
 
@@ -244,7 +244,7 @@ class DiscreteQLearner(Agent):
     def get_next_action(self):
         q_values = self.Q_model[self.state, :]
         if self.is_constrained:
-            all_actions = self.Q_model.env.action_space[:].reshape(-1, 1)
+            all_actions = self.Q_model.space.action_space[:].reshape(-1, 1)
             action_is_viable = np.array([
                 self.constraint.measure(self.state, a) > self.safety_threshold
                 for a in all_actions

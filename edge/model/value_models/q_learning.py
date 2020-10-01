@@ -13,18 +13,18 @@ class QLearning(DiscreteModel):
     ARRAY_SAVE_NAME = 'q_values_map.npy'
     SAVE_NAME = 'model.json'
 
-    def __init__(self, env, step_size, discount_rate):
+    def __init__(self, space, step_size, discount_rate):
         """
         Initializer
-        :param env: the environment
+        :param space: the Q-space (state-action space) that the model lives in.
         :param step_size: the step size in the Q-Learning update
         :param discount_rate: the discount rate
         """
-        super(QLearning, self).__init__(env)
+        super(QLearning, self).__init__(space)
         self.step_size = step_size
         self.discount_rate = discount_rate
         self.q_values = np.zeros(
-            self.env.stateaction_space.index_shape,
+            self.space.index_shape,
             dtype=np.float
         )
 
@@ -38,8 +38,8 @@ class QLearning(DiscreteModel):
         :param failed: whether the agent has failed
         """
         sa_index = (
-            self.env.stateaction_space.state_space.get_index_of(state),
-            self.env.stateaction_space.action_space.get_index_of(action)
+            self.space.state_space.get_index_of(state),
+            self.space.action_space.get_index_of(action)
         )
 
         self.q_values[sa_index] = self[sa_index] + self.step_size * (
@@ -71,7 +71,7 @@ class QLearning(DiscreteModel):
         np.save(array_path, self.q_values)
 
     @staticmethod
-    def load(load_folder, env):
+    def load(load_folder, space):
         """
         Loads the model and the array saved by the QLearning.save method. Note that this method may fail if the save was
         made with an older version of the code.
@@ -86,7 +86,7 @@ class QLearning(DiscreteModel):
             state_dict = json.load(f)
         q_values = np.load(array_path)
 
-        model = QLearning(env, **state_dict)
+        model = QLearning(space, **state_dict)
         model.q_values = q_values
 
         return model

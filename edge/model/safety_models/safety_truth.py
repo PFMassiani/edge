@@ -12,15 +12,15 @@ class SafetyTruth(GroundTruth):
     Represents the ground truth about a safety measure. A realistic Agent typically does not have access to that,
     but instead to a SafetyMeasure model.
     """
-    def __init__(self, env):
+    def __init__(self, space):
         """
         Initializer
         This method DOES NOT initialize all parameters. You should use one of self.compute, self.load, or
         self.from_vibly_file to finalize the initialization
-        :param env: the environment
+        :param space: the environment
         """
         super(SafetyTruth, self).__init__()
-        self.env = env
+        self.space = space
 
         # These attributes are initialized either by compute, load, or from_vibly_file
         self.stateaction_space = None
@@ -254,7 +254,7 @@ class SafetyTruth(GroundTruth):
         This method is computationally intensive.
         :param Q_map_path: path to the dynamics map. If None, the dynamics map is computed beforehand.
         """
-        self.stateaction_space = self.env.stateaction_space
+        self.stateaction_space = self.space
 
         if Q_map_path is not None:
             Q_map = np.load(Q_map_path, allow_pickle=True)
@@ -335,7 +335,7 @@ class SafetyTruth(GroundTruth):
     @staticmethod
     def load(load_path, env):
         truth = SafetyTruth(env)
-        truth.stateaction_space = env.stateaction_space
+        truth.stateaction_space = space
 
         loaded = np.load(load_path)
 

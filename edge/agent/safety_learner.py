@@ -24,7 +24,7 @@ class SafetyLearner(Agent):
         :param keep_seed_in_data: whether to keep the seed data in the GP dataset. Should be True, otherwise GPyTorch
             fails.
         """
-        safety_model = MaternSafety(env, gamma_optimistic,
+        safety_model = MaternSafety(env.stateaction_space, gamma_optimistic,
                                     x_seed, y_seed, gp_params)
         super(SafetyLearner, self).__init__(env, safety_model)
 

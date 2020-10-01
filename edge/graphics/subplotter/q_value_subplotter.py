@@ -9,9 +9,9 @@ class QValueSubplotter(Subplotter):
     def __init__(self, agent, colors, write_values=False, vmin=None, vmax=None):
         super(QValueSubplotter, self).__init__(colors)
         self.agent = agent
-        self.states = squeeze(self.model.env.state_space[:])
-        self.actions = squeeze(self.model.env.action_space[:])
-        stateaction_grid = self.model.env.stateaction_space[:, :]
+        self.states = squeeze(self.model.space.state_space[:])
+        self.actions = squeeze(self.model.space.action_space[:])
+        stateaction_grid = self.model.space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
         self.write_values = write_values
@@ -79,9 +79,9 @@ class DiscreteQValueSubplotter(Subplotter):
                  interp_n=100):
         super(DiscreteQValueSubplotter, self).__init__(colors)
         self.agent = agent
-        self.states = squeeze(self.model.env.state_space[:])
-        self.actions = squeeze(self.model.env.action_space[:])
-        stateaction_grid = self.model.env.stateaction_space[:, :]
+        self.states = squeeze(self.model.space.state_space[:])
+        self.actions = squeeze(self.model.space.action_space[:])
+        stateaction_grid = self.model.space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
         self.write_values = write_values

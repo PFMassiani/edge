@@ -129,8 +129,8 @@ class ValueAndSafetyLearningSimulation(ModelLearningSimulation):
         from edge.model.value_models import GPQLearning
         models_names = list(self.get_models_to_save().keys())
         loaders= {
-            'Q_model': lambda mpath: GPQLearning(mpath, self.env, self.q_x_seed, self.q_y_seed),
-            'safety_model': lambda mpath: MaternSafety(mpath, self.env, self.gamma_optimistic,
+            'Q_model': lambda mpath: GPQLearning(mpath, self.env.stateaction_space, self.q_x_seed, self.q_y_seed),
+            'safety_model': lambda mpath: MaternSafety(mpath, self.env.stateaction_space, self.gamma_optimistic,
                                                        self.s_x_seed, self.s_y_seed),
         }
         for mname in models_names:

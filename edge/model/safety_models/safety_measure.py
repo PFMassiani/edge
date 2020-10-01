@@ -11,10 +11,10 @@ class SafetyMeasure(GPModel):
     """
     Safety measure as described in "A learnable safety measure", by Heim, von Rohr, et al. (2019, CoRL).
     """
-    def __init__(self, env, gp, gamma_measure):
+    def __init__(self, space, gp, gamma_measure):
         """
         Initializer
-        :param env: the environment
+        :param space: the Q-space (state-action space) that the model lives in.
         :param gp: the underlying GP
         :param gamma_measure: the gamma coefficient used by the measure. It corresponds to gamma_optimistic
 
@@ -22,7 +22,7 @@ class SafetyMeasure(GPModel):
         not the measure. Hence, we rename gamma_optimistic to gamma_measure, since it is the only gamma parameter of the
         measure.
         """
-        super(SafetyMeasure, self).__init__(env, gp)
+        super(SafetyMeasure, self).__init__(space, gp)
         self.gamma_measure = gamma_measure
 
     def update(self, state, action, new_state, reward, failed):
@@ -43,7 +43,7 @@ class SafetyMeasure(GPModel):
         else:
             update_value = np.array([0.])
 
-        stateaction = self.env.stateaction_space[state, action]
+        stateaction = self.space[state, action]
         self.gp.append_data(stateaction, update_value, forgettable=[not failed],
                             make_forget=[not failed])
 
@@ -75,9 +75,9 @@ class SafetyMeasure(GPModel):
         level_set = self.level_set(state, lambda_threshold, gamma_threshold,
                                    return_proba=False, return_covar=False)
 
-        level_set = level_set.reshape((-1,) + self.env.action_space.shape)
+        level_set = level_set.reshape((-1,) + self.space.action_space.shape)
         mean_axes = tuple([1 + k
-                          for k in range(self.env.action_space.index_dim)])
+                          for k in range(self.space.action_space.index_dim)])
 
         return np.atleast_1d(level_set.mean(mean_axes))
 
@@ -121,10 +121,10 @@ class SafetyMeasure(GPModel):
             # Unspecfied state means the whole state space
             state = slice(None, None, None)
         action = slice(None, None, None)
-        output_shape = (-1, ) + self.env.action_space.shape
+        output_shape = (-1, ) + self.space.action_space.shape
 
         measure_slice, covar_slice = self.query(
-            tuple(self.env.stateaction_space.get_stateaction(state, action)),
+            tuple(self.space.get_stateaction(state, action)),
             return_covar=True
         )
         measure_slice = measure_slice.reshape(output_shape)
@@ -193,10 +193,10 @@ class SafetyMeasure(GPModel):
 
 
 class MaternSafety(SafetyMeasure):
-    def __init__(self, env, gamma_measure, x_seed, y_seed, gp_params=None):
+    def __init__(self, space, gamma_measure, x_seed, y_seed, gp_params=None):
         """
         Initializer
-        :param env: the environment
+        :param space: the Q-space (state-action space) that the model lives in.
         :param gamma_measure: the gamma coefficient used by the measure. It corresponds to gamma_optimistic
         :param x_seed: the seed input of the GP: a list of stateactions
         :param y_seed: the seed output of the GP: a list of floats
@@ -205,10 +205,10 @@ class MaternSafety(SafetyMeasure):
         if gp_params is None:
             gp_params = {}
         gp = MaternGP(x_seed, y_seed, **gp_params)
-        super(MaternSafety, self).__init__(env, gp, gamma_measure)
+        super(MaternSafety, self).__init__(space, gp, gamma_measure)
 
     @staticmethod
-    def load(load_folder, env, gamma_measure, x_seed, y_seed):
+    def load(load_folder, space, gamma_measure, x_seed, y_seed):
         """
         Loads the model and the GP saved by the GPModel.save method. Note that this method may fail if the save was
         made with an older version of the code.
@@ -220,7 +220,7 @@ class MaternSafety(SafetyMeasure):
 
         gp = MaternGP.load(gp_load_path, x_seed, y_seed)
 
-        model = MaternSafety(env, gamma_measure=gamma_measure,
+        model = MaternSafety(space, gamma_measure=gamma_measure,
                              x_seed=x_seed, y_seed=y_seed)
         model.gp = gp
 
