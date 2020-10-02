@@ -8,8 +8,8 @@ from edge.simulation import ModelLearningSimulation
 from edge.utils.logging import config_msg
 from edge.dataset import Dataset
 
-from gpsarsa_test_agent import SARSALearner
-from gpsarsa_test_env import LunarLander, PenalizedLunarLander
+from lander_agent import LanderSARSALearner
+from lander_env import LunarLander, PenalizedLunarLander
 
 
 class GPSARSATestSimulation(ModelLearningSimulation):
@@ -72,7 +72,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             'dataset_params': None,
             'value_structure_discount_factor': None,
         }
-        self.agent = SARSALearner(
+        self.agent = LanderSARSALearner(
             env=self.env,
             xi=xi,
             keep_seed_in_data=True,
@@ -202,6 +202,9 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             # TODO add actual measurements
         self.agent.training_mode = True
 
+        self.training_dataset.save(self.training_dataset_path)
+        self.testing_dataset.save(self.data_path / 'testing_samples.csv')
+
     def run(self):
         n_episode = 0
         while n_episode < self.max_episodes:
@@ -241,18 +244,19 @@ if __name__ == '__main__':
 
     seed = int(time.time())
 
+    # The Agent drops the last two state components (leg contact information)
     q_x_seed = np.array([
-                [0,   0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 1.4, 0, 0, 0, 0, 0, 0, 0]
+                [0,   0, 0, 0, 0, 0, 0],
+                [0, 1.4, 0, 0, 0, 0, 0]
             ])
     q_y_seed = np.array([200, 100])
     s_x_seed = np.array([
-        [0, 1.4, 0, 0, 0, 0, 0, 0, 2]
+        [0, 1.4, 0, 0, 0, 0, 2]
     ])
     s_y_seed = np.array([1])
 
     # STATE SPACE:
-    # X, Y, V_X, V_Y, THETA, dTHETA/dt, CTCT_L, CTCT_R
+    # X, Y, V_X, V_Y, THETA, dTHETA/dt, (CTCT_L, CTCT_R)
     # ACTION SPACE:
     # Discrete:
     # 0: No engine; 1: Left, 2: Main, 3: Right
@@ -261,9 +265,9 @@ if __name__ == '__main__':
     sim = GPSARSATestSimulation(
         name=f'lander_{seed}',
         shape=(10, 10, 10, 10, 10, 10, 10, 10),  # TODO refine this grid
-        control_frequency=1.,
-        penalty=100,
-        max_episodes=200,
+        control_frequency=5.,
+        penalty=10000,
+        max_episodes=10,
         xi=0.01,
         discount_rate=0.8,
         q_x_seed=q_x_seed,
@@ -274,8 +278,8 @@ if __name__ == '__main__':
         gamma_cautious=0.75,
         lambda_cautious=0.05,
         gamma_optimistic=0.6,
-        render=True,
-        measure_every=10,
+        render=False,
+        measure_every=2,
         episodes_per_measure=5,
     )
 
