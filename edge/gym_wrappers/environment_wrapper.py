@@ -9,6 +9,14 @@ class DummyDynamics:
     def __init__(self, stateaction_space):
         self.stateaction_space = stateaction_space
 
+    @property
+    def state_space(self):
+        return self.stateaction_space.state_space
+
+    @property
+    def action_space(self):
+        return self.stateaction_space.action_space
+
     def is_feasible_state(self, s):
         return True
 
@@ -97,18 +105,18 @@ class GymEnvironmentWrapper(Environment):
         return self.s
 
     def step(self, action):
-        gym_action = self.action_space.to_gym(action)
+        gym_action = self.dynamics.action_space.to_gym(action)
 
         def do_one_gym_step():
             if not self.failure_critical or not self.has_failed:
                 gym_new_state, reward, done, info = self.gym_env.step(
                     gym_action
                 )
-                s = self.state_space.from_gym(gym_new_state)
+                s = self.dynamics.state_space.from_gym(gym_new_state)
                 # Gym does not put a hard constraint on the fact that the state
                 # stays in the limit of the Box. Edge crashes if this happens,
                 # so we project the resulting state in state-space
-                s = self.state_space.closest_in(s)
+                s = self.dynamics.state_space.closest_in(s)
             else:
                 reward = 0
             return s, reward, done, info

@@ -15,11 +15,19 @@ class Agent:
         :param models: the list of models the agent has
         """
         self.env = env
-        self.state = env.s
+        self._state = env.s
         self.last_action = None
         self.models = models
 
         self._training_mode = True
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, new_state):
+        self._state = new_state
 
     def get_next_action(self):
         """ Abstract method
@@ -78,13 +86,11 @@ class Agent:
         :return: new_state, reward, failed
         """
         old_state = self.state
-        action = self.get_next_action()
-        new_state, reward, failed = self.env.step(action)
+        self.last_action = self.get_next_action()
+        self.state, reward, failed = self.env.step(self.last_action)
         done = self.env.done
         if self.training_mode:
             self.update_models(
-                old_state, action, new_state, reward, failed, done
+                old_state, self.last_action, self.state, reward, failed, done
             )
-        self.state = new_state
-        self.last_action = action
-        return new_state, reward, failed, done
+        return self.state, reward, failed, done

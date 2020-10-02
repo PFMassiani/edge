@@ -18,6 +18,14 @@ class DiscreteTimeDynamics(EventBased):
         self.stateaction_space = stateaction_space
 
     @property
+    def state_space(self):
+        return self.stateaction_space.state_space
+
+    @property
+    def action_space(self):
+        return self.stateaction_space.action_space
+
+    @property
     def parameters(self):
         """ Abstract property
         Returns the dict of the parameters relevant for the dynamics

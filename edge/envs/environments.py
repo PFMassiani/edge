@@ -29,7 +29,16 @@ class Environment:
         self.reward_accumulator = 0
         self.steps_done_threshold = steps_done_threshold
         self.n_steps = 0
+        self._s = None
         self.reset()
+
+    @property
+    def s(self):
+        return self._s
+
+    @s.setter
+    def s(self, new_s):
+        self._s = new_s
 
     @property
     def stateaction_space(self):
