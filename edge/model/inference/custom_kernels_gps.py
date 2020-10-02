@@ -196,7 +196,8 @@ class GloballySymmetricMaternCosGP(GP):
         l_init = get_initialization(
             'matern_0.lengthscale', hyperparameters_initialization, lp
         )
-        matern_0.lengthscale = l_init
+        if l_init is not None:
+            matern_0.lengthscale = l_init
 
         cos = gpytorch.kernels.CosineKernel()
         cos.period_length = math.pi
@@ -212,7 +213,8 @@ class GloballySymmetricMaternCosGP(GP):
         l_init = get_initialization(
             'matern_1.lengthscale', hyperparameters_initialization, lp
         )
-        matern_1.lengthscale = l_init
+        if l_init is not None:
+            matern_1.lengthscale = l_init
 
         lp, lc = get_prior_and_constraint(lengthscale_prior,
                                           lengthscale_constraint)
@@ -225,7 +227,8 @@ class GloballySymmetricMaternCosGP(GP):
         l_init = get_initialization(
             'matern_1.lengthscale', hyperparameters_initialization, lp
         )
-        action.lengthscale = l_init
+        if l_init is not None:
+            action.lengthscale = l_init
         # action = gpytorch.kernels.IndexKernel(
         #     num_tasks=4,
         #     rank=2,
@@ -264,7 +267,8 @@ class GloballySymmetricMaternCosGP(GP):
         o_init = get_initialization(
             'outputscale', hyperparameters_initialization, op
         )
-        covar_module.outputscale = o_init
+        if o_init is not None:
+            covar_module.outputscale = o_init
 
         noise_p, nc = get_prior_and_constraint(noise_prior,
                                           noise_constraint)
@@ -275,7 +279,8 @@ class GloballySymmetricMaternCosGP(GP):
         n_init = get_initialization(
             'noise_covar.noise', hyperparameters_initialization, op
         )
-        likelihood.noise_covar.noise = n_init
+        if n_init is not None:
+            likelihood.noise_covar.noise = n_init
 
         super(GloballySymmetricMaternCosGP, self).__init__(train_x, train_y,
                                                    mean_module, covar_module,

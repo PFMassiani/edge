@@ -1,16 +1,19 @@
 from pathlib import Path
 
 from edge.model.value_models.gpsarsa import GPSARSA
-from edge.model.inference.custom_kernels_gps import SymmetricMaternCosGP
+from edge.model.inference.custom_kernels_gps import SymmetricMaternCosGP, GloballySymmetricMaternCosGP
 from edge.model.safety_models import SafetyMeasure
 
 
 class SymmetricMaternCosGPSARSA(GPSARSA):
-    def __init__(self, env, **gp_params):
+    def __init__(self, env, global_symmetry=False, **gp_params):
         if gp_params.get('value_structure_discount_factor') is None:
             raise ValueError('The parameter `value_structure_discount_factor` '
                              'is mandatory for GPSARSA.')
-        gp = SymmetricMaternCosGP(**gp_params)
+        if global_symmetry:
+            gp = GloballySymmetricMaternCosGP(**gp_params)
+        else:
+            gp = SymmetricMaternCosGP(**gp_params)
         super(SymmetricMaternCosGPSARSA, self).__init__(env, gp)
 
 
@@ -23,11 +26,15 @@ class SymmetricMaternCosGPSARSA(GPSARSA):
         return {}
 
     @staticmethod
-    def load(load_folder, env, x_seed, y_seed):
+    def load(load_folder, env, global_symmetry, x_seed, y_seed):
         load_path = Path(load_folder)
         gp_load_path = str(load_path / SymmetricMaternCosGPSARSA.GP_SAVE_NAME)
 
-        gp = SymmetricMaternCosGP.load(gp_load_path, x_seed, y_seed)
+        if global_symmetry:
+            gp = GloballySymmetricMaternCosGP.load(gp_load_path, x_seed, y_seed)
+        else:
+            gp = SymmetricMaternCosGP.load(gp_load_path, x_seed, y_seed)
+
         model = SymmetricMaternCosGPSARSA(
             env=env,
             # Only basic arguments for GP construction: it is overwritten later

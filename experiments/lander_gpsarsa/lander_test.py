@@ -18,7 +18,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
                  q_x_seed, q_y_seed,
                  use_safety_model, s_x_seed, s_y_seed,
                  gamma_cautious, lambda_cautious, gamma_optimistic,
-                 render, measure_every, episodes_per_measure):
+                 render, measure_every, episodes_per_measure, global_symmetry):
         parameterization = {
             'name': name,
             'shape': shape,
@@ -36,7 +36,8 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             'gamma_optimistic': gamma_optimistic,
             'render': render,
             'measure_every': measure_every,
-            'episodes_per_measure': episodes_per_measure
+            'episodes_per_measure': episodes_per_measure,
+            'global_symmetry': global_symmetry,
         }
         if penalty is None:
             self.env = LunarLander(
@@ -81,6 +82,7 @@ class GPSARSATestSimulation(ModelLearningSimulation):
             gamma_cautious=gamma_cautious if use_safety_model else None,
             lambda_cautious=lambda_cautious if use_safety_model else None,
             gamma_optimistic=gamma_optimistic if use_safety_model else None,
+            global_symmetry=global_symmetry,
         )
 
         # truth_path = Path(__file__).absolute().parent.parent.parent / 'data' / \
@@ -281,6 +283,7 @@ if __name__ == '__main__':
         render=False,
         measure_every=2,
         episodes_per_measure=5,
+        global_symmetry=True,
     )
 
     sim.set_seed(value=seed)

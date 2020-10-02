@@ -14,7 +14,7 @@ class LanderSARSALearner(Agent):
     """
     def __init__(self, env, xi, keep_seed_in_data, q_gp_params,
                  s_gp_params=None, gamma_cautious=None, lambda_cautious=None,
-                 gamma_optimistic=None):
+                 gamma_optimistic=None, global_symmetry=False):
         """
         Initializer
         :param env: the environment
@@ -24,7 +24,7 @@ class LanderSARSALearner(Agent):
         :param gp_params: params passed to the MaternGP constructor. Parameter
             `value_structure_discount_factor` is mandatory.
         """
-        Q_model = SymmetricMaternCosGPSARSA(env, **q_gp_params)
+        Q_model = SymmetricMaternCosGPSARSA(env, global_symmetry, **q_gp_params)
         self.has_safety_model = s_gp_params is not None
         if self.has_safety_model:
             x_seed = s_gp_params.pop('train_x')
