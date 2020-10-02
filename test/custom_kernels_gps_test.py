@@ -23,7 +23,8 @@ def get_gp(x, y):
 
 class SymmetricMaternCosGPTest(unittest.TestCase):
     def test_init(self):
-        x = np.arange(12).reshape(-1,6)
+        x = np.arange(14).reshape(-1, 7)
+        x[:, -1] = [0, 1]
         y = x.sum(axis=1)
 
         model = get_gp(x, y)
@@ -56,7 +57,8 @@ class SymmetricMaternCosGPTest(unittest.TestCase):
         )
 
     def test_forward(self):
-        z = np.arange(18).reshape(-1, 6)
+        z = np.arange(21).reshape(-1, 7)
+        z[:, -1] = [0, 1, 2]
         x = z[(0, 1), :]
         x_test = z[2, :].reshape(1, 6)
         y = x.sum(axis=1)
