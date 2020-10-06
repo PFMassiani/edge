@@ -17,7 +17,7 @@ class SafetyTruth(GroundTruth):
         Initializer
         This method DOES NOT initialize all parameters. You should use one of self.compute, self.load, or
         self.from_vibly_file to finalize the initialization
-        :param space: the environment
+        :param env: the environment
         """
         super(SafetyTruth, self).__init__()
         self.env = env
