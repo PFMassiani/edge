@@ -8,11 +8,11 @@ class ValueSubplotter(Subplotter):
     def __init__(self, agent, colors, constrained=True):
         super(ValueSubplotter, self).__init__(colors)
         self.agent = agent
-        self.states = squeeze(self.model.env.state_space[:])
+        self.states = squeeze(self.model.space.state_space[:])
         if self.states.ndim != 1:
             raise ValueError(f'Expected a 1-dimensional state space, got {self.states.ndim} dimensions instead')
         self.actions_axes = tuple([1 + k
-                              for k in range(self.agent.env.action_space.index_dim)])
+                              for k in range(self.model.space.action_space.index_dim)])
         self.constrained = constrained
         if constrained:
             self.plot_filter = self.agent.constraint.viable_set.any(axis=self.actions_axes)

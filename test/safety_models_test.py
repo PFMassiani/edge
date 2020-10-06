@@ -27,7 +27,8 @@ class TestMeasure(MaternSafety):
             'lengthscale_prior': (0.1, 0.05),
             'noise_prior': (0.001, 0.001)
         }
-        super(TestMeasure, self).__init__(env, gamma_optimistic,
+        super(TestMeasure, self).__init__(env.stateaction_space,
+                                          gamma_optimistic,
                                           x_seed, y_seed,
                                           gp_params=hyperparameters)
 

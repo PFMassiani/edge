@@ -169,7 +169,7 @@ class SafetySimulation(ModelLearningSimulation):
 
 if __name__ == '__main__':
     sim = SafetySimulation(
-        name='2000',
+        name='test',
         max_samples=200,
         gamma_optimistic=0.5,
         gamma_cautious=0.6,

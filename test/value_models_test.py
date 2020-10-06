@@ -39,7 +39,7 @@ class TestQLearning(unittest.TestCase):
     def test_policy_convergence(self):
         env = ToyHovership()
         nA = env.action_space.n
-        qlearning = QLearning(env, 0.9, 0.9)
+        qlearning = QLearning(env.stateaction_space, 0.9, 0.9)
 
         def policy_from_q_values(q_values, eps=0.1):
             policy = np.ones_like(q_values) * eps / q_values.shape[1]
@@ -83,7 +83,8 @@ class TestGPQLearning(unittest.TestCase):
         }
         x_seed = np.array([0.85, 1.])
         y_seed = np.array([1.])
-        gpqlearning = GPQLearning(env, 0.9, 0.9, x_seed=x_seed, y_seed=y_seed,
+        gpqlearning = GPQLearning(env.stateaction_space, 0.9, 0.9,
+                                  x_seed=x_seed, y_seed=y_seed,
                                   gp_params=hyperparameters)
         nA = env.action_space.index_shape[0]
         eps = 0.1
@@ -105,7 +106,7 @@ class TestGPQLearning(unittest.TestCase):
 
         def policy_from_gpq(gpq):
             q_values = gpq[:, :].reshape(
-                gpq.env.stateaction_space.index_shape
+                gpq.space.index_shape
             )
             policy = np.zeros_like(q_values)
             for i, _ in iter(env.state_space):
@@ -131,7 +132,8 @@ class TestGPQLearning(unittest.TestCase):
             'lengthscale_prior': (0.2, 0.05),
             'noise_prior': (0.001, 0.001)
         }
-        gpqlearning = GPQLearning(env, 0.9, 0.9, x_seed=x_seed, y_seed=y_seed,
+        gpqlearning = GPQLearning(env.stateaction_space, 0.9, 0.9,
+                                  x_seed=x_seed, y_seed=y_seed,
                                   gp_params=hyperparameters)
 
         query = gpqlearning._get_query_from_index(

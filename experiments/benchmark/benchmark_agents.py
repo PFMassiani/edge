@@ -60,10 +60,11 @@ class ValuesAndSafetyCombinator(QLearner):
 
         self._step_size_decrease_index = 1
 
-        Q_model = GPQLearning(env, step_size, discount_rate,
+        Q_model = GPQLearning(env.stateaction_space, step_size, discount_rate,
                               x_seed=q_x_seed, y_seed=q_y_seed,
                               gp_params=q_gp_params)
-        safety_model = MaternSafety(env, self.gamma_optimistic_start,
+        safety_model = MaternSafety(env.stateaction_space,
+                                    self.gamma_optimistic_start,
                                     x_seed=s_x_seed, y_seed=s_y_seed,
                                     gp_params=s_gp_params)
         super(ValuesAndSafetyCombinator, self).__init__(
