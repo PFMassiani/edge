@@ -10,11 +10,11 @@ class GPQLearning(GPModel):
     """
     Models the Q-Function over a StateActionSpace as a MaternGP updated with a Q-Learning update.
     """
-    def __init__(self, env, step_size, discount_rate,
+    def __init__(self, space, step_size, discount_rate,
                  x_seed, y_seed, gp_params=None):
         """
         Initializer
-        :param env: the environment
+        :param space: the Q-space (state-action space) that the model lives in.
         :param step_size: the step size in the Q-Learning update
         :param discount_rate: the discount rate
         :param x_seed: the seed input of the GP. Typically a list of stateactions
@@ -25,7 +25,7 @@ class GPQLearning(GPModel):
             gp_params = {}
 
         gp = MaternGP(x_seed, y_seed, **gp_params)
-        super(GPQLearning, self).__init__(env, gp)
+        super(GPQLearning, self).__init__(space, gp)
         self.step_size = step_size
         self.discount_rate = discount_rate
 
@@ -45,7 +45,7 @@ class GPQLearning(GPModel):
         )
         q_value_update = current_value + q_value_step
 
-        stateaction = self.env.stateaction_space[state, action]
+        stateaction = self.space[state, action]
         self.gp = self.gp.append_data(stateaction, q_value_update)
 
     @property
@@ -60,7 +60,7 @@ class GPQLearning(GPModel):
         }
 
     @staticmethod
-    def load(load_folder, env, x_seed, y_seed):
+    def load(load_folder, space, x_seed, y_seed):
         """
         Loads the model and the GP saved by the GPModel.save method. Note that this method may fail if the save was
         made with an older version of the code.
@@ -75,7 +75,7 @@ class GPQLearning(GPModel):
         with open(model_load_path, 'r') as f:
             state_dict = json.load(f)
 
-        model = GPQLearning(env, x_seed=x_seed, y_seed=y_seed, **state_dict)
+        model = GPQLearning(space, x_seed=x_seed, y_seed=y_seed, **state_dict)
         model.gp = gp
 
         return model

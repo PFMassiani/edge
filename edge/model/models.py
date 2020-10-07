@@ -9,11 +9,11 @@ class Model:
     through the indexing syntax (model[i0,..., iN]), where the indexing should be thought of as if it were done on the
     StateActionSpace directly.
     """
-    def __init__(self, env):
+    def __init__(self, space):
         """
-        :param env: the environment
+        :param space: the space the model lives in.
         """
-        self.env = env
+        self.space = space
 
     def update(self):
         """ Abstract method
@@ -64,13 +64,13 @@ class DiscreteModel(Model):
         :return: a tuple that can index a np.ndarray. The tuple has d items, and each item is the list of indexes
             on the given dimension
         """
-        stateactions = self.env.stateaction_space[index].reshape(
-            (-1, self.env.stateaction_space.data_length)
+        stateactions = self.space[index].reshape(
+            (-1, self.space.data_length)
         )
         if stateactions.ndim == 1:
             stateactions = np.atleast_2d(stateactions).tolist()
         index = np.array(list(map(
-            self.env.stateaction_space.get_index_of,
+            self.space.get_index_of,
             stateactions
         )))
         # `index` is now a list of n indexes, each of length d (index.shape = (n,d))
@@ -86,8 +86,8 @@ class ContinuousModel(Model):
         :param index: tuple: the index
         :return: np.ndarray of stateactions
         """
-        return self.env.stateaction_space[index].reshape(
-            (-1, self.env.stateaction_space.data_length)
+        return self.space[index].reshape(
+            (-1, self.space.data_length)
         )
 
 
@@ -95,14 +95,14 @@ class GPModel(ContinuousModel):
     GP_SAVE_NAME = 'gp.pth'  # name of file containing the GP when saving
     SAVE_NAME = 'model.json'  # name of file containing the Model's metadata when saving
 
-    def __init__(self, env, gp):
+    def __init__(self, space, gp):
         """
         Initializer
-        :param env: the environment
+        :param space: the space the model lives in
         :param gp: the GP model, an instance of a subclass of edge.model.inference.GP. Should be initialized by
             a subclass
         """
-        super(GPModel, self).__init__(env)
+        super(GPModel, self).__init__(space)
         self.gp = gp
 
     def _query(self, x):

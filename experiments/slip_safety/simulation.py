@@ -96,7 +96,8 @@ class SafetySimulation(ModelLearningSimulation):
             load_path = self.local_models_path / model_name
         else:
             load_path = self.models_path / model_name
-        self.agent.value_model = SafetyMeasure.load(load_path, self.env,
+        self.agent.value_model = SafetyMeasure.load(load_path,
+                                                    self.env.stateaction_space,
                                                     self.x_seed, self.y_seed)
 
     def run_optim(self):
