@@ -4,7 +4,9 @@ from gpytorch.models.exact_prediction_strategies import \
 from gpytorch.utils.memoize import cached
 from gpytorch import settings, delazify
 from gpytorch.kernels import Kernel
-from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor
+from gpytorch.means import Mean
+from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor, \
+    LazyEvaluatedKernelTensor
 from torch import tensor, Size, logical_not
 
 
@@ -118,13 +120,37 @@ class ValueStructureKernel(Kernel):
             likelihood=likelihood,
         )
 
+    def __call__(self, x1, x2=None, diag=False, last_dim_is_batch=False, **params):
+        res = super(ValueStructureKernel, self).__call__(
+            x1, x2, diag, last_dim_is_batch, **params
+        )
+        if not diag and settings.lazily_evaluate_kernels.on():
+            res = LazyEvaluatedValueStructureKernelTensor(
+                x1=res.x1, x2=res.x2, kernel=res.kernel,
+                last_dim_is_batch=res.last_dim_is_batch,
+                kernel_in_training=self.training, **res.params
+            )
+        return res
+
     def forward(self, x1, x2, diag=False, last_dim_is_batch=False, **params):
-        return self.base_kernel.forward(
+        res = self.base_kernel.forward(
             x1, x2, diag=diag, last_dim_is_batch=last_dim_is_batch, **params
         )
+        if self.training:
+            # In this case, the prediction strategy is not called in the
+            # calling class: we need to do it here
+            discount_tensor = self._discount_tensor(t=x1.shape[0]).evaluate()
+            res = discount_tensor.matmul(
+                res.matmul(
+                    discount_tensor.transpose(-1, -2)
+                )
+            )
+            return res
+        else:
+            return res
 
-    def _discount_tensor(self, train_inputs):
-        tm1 = len(train_inputs[0]) - 1
+    def _discount_tensor(self, train_inputs=None, t=None):
+        tm1 = len(train_inputs[0]) - 1 if t is None else t - 1
 
         eye_tm1 = DiagLazyTensor(tensor([1.] * tm1))
         gamma_tm1 = DiagLazyTensor(tensor([- self.discount_factor] * tm1))
@@ -145,9 +171,32 @@ class ValueStructureKernel(Kernel):
         return discount_tensor
 
 
-def add_value_structure(gp, discount_factor):
-    gp.covar_module = ValueStructureKernel(
-        base_kernel=gp.covar_module,
-        discount_factor=discount_factor,
-    )
-    gp.structure_dict["value_structure"] = {"discount_factor": discount_factor}
+class LazyEvaluatedValueStructureKernelTensor(LazyEvaluatedKernelTensor):
+    def __init__(self, x1, x2, kernel, last_dim_is_batch=False,
+                 kernel_in_training=False, **params):
+        super(LazyEvaluatedValueStructureKernelTensor, self).__init__(
+            x1, x2, kernel, last_dim_is_batch, **params
+        )
+        self.kernel_in_training = kernel_in_training
+
+    @LazyEvaluatedKernelTensor.shape.getter
+    def shape(self):
+        size = self.size()
+        if self.kernel_in_training:
+            dim_data = -2 if self.last_dim_is_batch else -1
+            end_append = size[-1:] if self.last_dim_is_batch else tuple()
+            size = size[:dim_data - 1] + (
+                size[dim_data - 1] - 1, size[dim_data] - 1
+            ) + end_append
+        return size
+
+class ValueStructureMean(Mean):
+    def __init__(self, base_mean):
+        super(ValueStructureMean, self).__init__()
+        self.base_mean = base_mean
+
+    def forward(self, input):
+        res = self.base_mean.forward(input)
+        if self.training:
+            res = res[:-1]
+        return res

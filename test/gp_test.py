@@ -517,7 +517,7 @@ class TestValueStructureGP(unittest.TestCase):
             self.plot_test_pred(test_x, test_y, pred_y)
         self.assertLess(np.max(np.abs(mean_y - test_y)), tol,
                         f'Difference is larger than tolerance: \n'
-                        f'pred_y = {pred_y}\ntest_y = {test_y}')
+                        f'pred_y = {mean_y}\ntest_y = {test_y}')
         return test_x, test_y, pred_y
 
     def plot_test_pred(self, test_x, test_y, pred_y):

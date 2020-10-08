@@ -4,7 +4,7 @@ from sklearn.neighbors import KDTree
 
 from edge.utils import atleast_2d, dynamically_import
 from .tensorwrap import tensorwrap, ensure_tensor
-from .value_structure_kernel import ValueStructureKernel
+from .value_structure_kernel import ValueStructureKernel, ValueStructureMean
 
 
 class GP(gpytorch.models.ExactGP):
@@ -49,13 +49,14 @@ class GP(gpytorch.models.ExactGP):
 
         super(GP, self).__init__(train_x, train_y, likelihood)
 
-        self.mean_module = mean_module
         if self.has_value_structure:
+            mean_module = ValueStructureMean(base_mean=mean_module)
             covar_module = ValueStructureKernel(
                 base_kernel=covar_module,
                 discount_factor=value_structure_discount_factor,
                 dataset=self.dataset,
             )
+        self.mean_module = mean_module
         self.covar_module = covar_module
 
         self.optimizer = torch.optim.Adam
@@ -63,15 +64,18 @@ class GP(gpytorch.models.ExactGP):
 
     def initialize(self, **kwargs):
         if self.has_value_structure:
-            kwargs_keys_to_change = [
-                key for key in kwargs.keys()
-                if key.startswith('covar_module.')
-            ]
-            for key in kwargs_keys_to_change:
-                key_parts = key.split('.')
-                key_parts = ['covar_module', 'base_kernel'] + key_parts[1:]
-                new_key = '.'.join(key_parts)
-                kwargs[new_key] = kwargs.pop(key)
+            change_info = [('covar_module.', ['covar_module', 'base_kernel']),
+                           ('mean_module.', ['mean_module', 'base_mean'])]
+            for current_start, new_start in change_info:
+                kwargs_keys_to_change = [
+                    key for key in kwargs.keys()
+                    if key.startswith(current_start)
+                ]
+                for key in kwargs_keys_to_change:
+                    key_parts = key.split('.')
+                    key_parts = new_start + key_parts[1:]
+                    new_key = '.'.join(key_parts)
+                    kwargs[new_key] = kwargs.pop(key)
         super(GP, self).initialize(**kwargs)
 
     @property
@@ -142,11 +146,14 @@ class GP(gpytorch.models.ExactGP):
             **optimizer_kwargs
         )
         mll = self.mll(self.likelihood, self)
-
+        data_to_explain = self.train_y
+        if self.has_value_structure:
+            # We discard the last observation if the GP has a value structure
+            data_to_explain = self.train_y[:-1]
         for n in range(epochs):
             optimizer.zero_grad()
             output = self(self.train_x)
-            loss = -mll(output, self.train_y)
+            loss = -mll(output, data_to_explain)
             loss.backward()
             optimizer.step()
 
@@ -280,7 +287,7 @@ class Dataset:
         self.has_is_terminal = kwargs.get('has_is_terminal', False)
         if self.has_is_terminal:
             self.is_terminal = self._get_is_terminal(
-                kwargs, self.train_y.shape[0], default=True
+                kwargs, self.train_y.shape[0], default=False
             )
 
     def _default_is_terminal(self, n, default=False):

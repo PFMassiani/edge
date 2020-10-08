@@ -19,7 +19,6 @@ class GPSARSA(GPModel):
         stateaction = self.env.stateaction_space[state, action]
         self.gp.append_data(stateaction, np.atleast_1d(reward),
                             is_terminal=np.atleast_1d(done))
-        return self[state, action]
 
 
 class MaternGPSARSA(GPSARSA):
