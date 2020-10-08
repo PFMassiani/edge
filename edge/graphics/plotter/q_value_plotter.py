@@ -58,7 +58,7 @@ class DiscreteQValuePlotter(QValuePlotter):
     def __init__(self, agent, safety_truth=None, write_values=False,
                  plot_samples=False, vmin=None, vmax=None):
         super(DiscreteQValuePlotter, self).__init__(agent, safety_truth, write_values,
-                                            plot_samples, vmin, vmax)
+                                            plot_samples, vmin=vmin, vmax=vmax)
         self.q_value_subplotter = DiscreteQValueSubplotter(agent, corl_colors,
                                                    write_values, vmin, vmax)
         self.vmin = vmin
