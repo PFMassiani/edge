@@ -172,6 +172,7 @@ class LanderSARSALearner(Agent):
             self.safety_model.update(state, action, next_state, reward, failed)
 
     def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):
-        self.Q_model.fit(train_x, train_y, epochs, **optimizer_kwargs)
+        self.Q_model.fit(train_x=train_x, train_y=train_y,
+                         epochs=epochs, **optimizer_kwargs)
         if not self.keep_seed_in_data:
             self.Q_model.empty_data()

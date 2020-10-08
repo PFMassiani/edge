@@ -81,8 +81,9 @@ class QLearner(Agent):
     def update_models(self, state, action, next_state, reward, failed, done):
         self.Q_model.update(state, action, next_state, reward, failed)
 
-    def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):
-        self.Q_model.fit(train_x, train_y, epochs, **optimizer_kwargs)
+    def fit_models(self, epochs, train_x=None, train_y=None,
+                   **optimizer_kwargs):
+        self.Q_model.fit(epochs, train_x, train_y, **optimizer_kwargs)
         if not self.keep_seed_in_data:
             self.Q_model.empty_data()
 
@@ -180,7 +181,8 @@ class ConstrainedQLearner(Agent):
         self.Q_model.update(state, action, next_state, reward, failed)
 
     def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):
-        self.Q_model.fit(train_x, train_y, epochs, **optimizer_kwargs)
+        self.Q_model.fit(train_x=train_x, train_y=train_y,
+                         epochs=epochs, **optimizer_kwargs)
         if not self.keep_seed_in_data:
             self.Q_model.empty_data()
 

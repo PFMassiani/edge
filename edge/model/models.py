@@ -122,23 +122,31 @@ class GPModel(ContinuousModel):
             output += (prediction.covariance_matrix.detach().numpy(),)
         return output
 
-    def fit(self, train_x, train_y, epochs, **optimizer_kwargs):
+    def fit(self, epochs, train_x=None, train_y=None, **optimizer_kwargs):
         """
         Fits the GP's hyperparameters to the data. After training, the GP's dataset is reset to what it was before
         training.
-        :param train_x: the input data to the GP
-        :param train_y: the output data to the GP corresponding to the input data (targets)
         :param epochs: number of epochs
+        :param train_x: the input data to the GP. If None, the GP's dataset is
+            used
+        :param train_y: the output data to the GP corresponding to the input
+            data (targets). If None, the GP's dataset is used
         :param optimizer_kwargs: parameters of the optimizer. Note: changing the optimizer itself can be done by setting
             self.gp.optimizer. Please use a PyTorch optimizer.
         """
-        x_data = self.gp.train_x
-        y_data = self.gp.train_y
+        if (train_x is None) != (train_y is None):
+            raise ValueError('train_x and train_y should be both specified, or '
+                             'both None')
+        train_on_dataset = (train_x is None)
+        if not train_on_dataset:
+            x_data = self.gp.train_x
+            y_data = self.gp.train_y
+            self.gp.set_data(train_x, train_y)
 
-        self.gp.set_data(train_x, train_y)
         self.gp.optimize_hyperparameters(epochs=epochs, **optimizer_kwargs)
 
-        self.gp.set_data(x_data, y_data)
+        if not train_on_dataset:
+            self.gp.set_data(x_data, y_data)
 
     def empty_data(self):
         """

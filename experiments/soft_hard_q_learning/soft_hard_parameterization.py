@@ -283,14 +283,16 @@ class SoftHardLearner(Agent):
         if q_train_x is not None:
             if q_optimizer_kwargs is None:
                 q_optimizer_kwargs = {}
-            self.Q_model.fit(q_train_x, q_train_y, q_epochs, **q_optimizer_kwargs)
+            self.Q_model.fit(train_x=q_train_x, train_y=q_train_y,
+                             epochs=q_epochs, **q_optimizer_kwargs)
             if not self.keep_seed_in_data:
                 self.Q_model.empty_data()
 
         if s_train_x is not None:
             if s_optimizer_kwargs is None:
                 s_optimizer_kwargs = {}
-            self.safety_model.fit(s_train_x, s_train_y, s_epochs, **s_optimizer_kwargs)
+            self.safety_model.fit(train_x=s_train_x, train_y=s_train_y,
+                                  epochs=s_epochs, **s_optimizer_kwargs)
             if not self.keep_seed_in_data:
                 self.safety_model.empty_data()
 
