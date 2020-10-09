@@ -55,8 +55,6 @@ class TestGPSARSAOptim(unittest.TestCase):
             s = env.s
             s_, r, f = env.step(action)
             q_model.update(s, action, s_, r, f, env.done)
-        s = np.array([2])
-        print(q_model[s, action])
         with gpytorch.settings.lazily_evaluate_kernels(lazily_evaluate):
             q_model.fit(epochs=10, lr=1)
             q_model.fit(epochs=10, lr=0.1)

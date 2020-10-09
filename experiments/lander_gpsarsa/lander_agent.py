@@ -2,6 +2,8 @@ import numpy as np
 
 from edge.agent import Agent
 from lander_model import SymmetricMaternCosGPSARSA, SymmetricMaternCosSafety
+from edge.model.value_models import MaternGPSARSA
+from edge.model.safety_models import MaternSafety
 from edge.model.policy_models.bayesian import \
     ExpectedImprovementPolicy, SafetyInformationMaximization
 from edge.model.policy_models import SafetyMaximization
@@ -14,7 +16,7 @@ class LanderSARSALearner(Agent):
     """
     def __init__(self, env, xi, keep_seed_in_data, q_gp_params,
                  s_gp_params=None, gamma_cautious=None, lambda_cautious=None,
-                 gamma_optimistic=None, global_symmetry=False):
+                 gamma_optimistic=None, kernel='matern'):
         """
         Initializer
         :param env: the environment
@@ -24,12 +26,20 @@ class LanderSARSALearner(Agent):
         :param gp_params: params passed to the MaternGP constructor. Parameter
             `value_structure_discount_factor` is mandatory.
         """
-        Q_model = SymmetricMaternCosGPSARSA(env, global_symmetry, **q_gp_params)
+        if kernel == 'matern':
+            QValues_constructor = MaternGPSARSA
+            Safety_constructor = MaternSafety
+        elif kernel == 'symmetric':
+            QValues_constructor = SymmetricMaternCosGPSARSA
+            Safety_constructor = SymmetricMaternCosSafety
+        else:
+            raise ValueError(f'Kernel "{kernel}" not recognized')
+        Q_model = QValues_constructor(env, **q_gp_params)
         self.has_safety_model = s_gp_params is not None
         if self.has_safety_model:
             x_seed = s_gp_params.pop('train_x')
             y_seed = s_gp_params.pop('train_y')
-            safety_model = SymmetricMaternCosSafety(
+            safety_model = Safety_constructor(
                 env,
                 gamma_measure=gamma_optimistic,
                 x_seed=x_seed,
@@ -63,7 +73,7 @@ class LanderSARSALearner(Agent):
                 self.safety_model.empty_data()
         self.update_safety_model = False
 
-        self._old_xi = xi
+        self._training_xi = xi
 
     def _compute_best_sample(self):
         predictions = self.Q_model[self.state, :]
@@ -101,9 +111,10 @@ class LanderSARSALearner(Agent):
     @Agent.training_mode.setter
     def training_mode(self, new_training_mode):
         if self.training_mode and not new_training_mode:
-            self._old_xi = self.xi
+            self._training_xi = self.xi
+            self.xi = 0
         elif (not self.training_mode) and new_training_mode:
-            self.xi = self._old_xi
+            self.xi = self._training_xi
         self._training_mode = new_training_mode
 
     def get_next_action(self):

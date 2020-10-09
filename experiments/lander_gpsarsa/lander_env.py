@@ -44,11 +44,13 @@ class LunarLander(GymEnvironmentWrapper):
 class PenalizedLunarLander(LunarLander):
     def __init__(self, penalty_level, shape, control_frequency):
         super(PenalizedLunarLander, self).__init__(shape, control_frequency)
-        self.penalty_level = penalty_level
+        self.is_penalized = penalty_level is not None
+        if self.is_penalized:
+            self.penalty_level = penalty_level
 
     def step(self, action):
         s, reward, failed = super(LunarLander, self).step(action)
-        if self.in_failure_state:
+        if self.is_penalized and self.in_failure_state:
             reward -= self.penalty_level
 
         return s, reward, failed
