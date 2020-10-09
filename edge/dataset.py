@@ -24,7 +24,7 @@ class Dataset:
     DEFAULT_COLUMNS_WO_EPISODE = [REWARD, STATE, ACTION, NEW, FAILED, DONE]
     DEFAULT_ARRAY_CAST = [STATE, ACTION, NEW]
 
-    def __init__(self, *columns, group_name=None):
+    def __init__(self, *columns, group_name=None, name=None):
         self.group_name = group_name if group_name is not None\
             else self.EPISODE
         self.columns = self.DEFAULT_COLUMNS if len(columns) == 0\
@@ -34,6 +34,7 @@ class Dataset:
         self.columns = [self.group_name] + self.columns_wo_group
         self.df = pd.DataFrame(columns=self.columns)
         self.df.index.name = Dataset._INDEX
+        self.name = name
 
     def __getattr__(self, item):
         if item in self.__dict__:
@@ -70,6 +71,8 @@ class Dataset:
 
     def save(self, filepath):
         filepath = Path(filepath)
+        if filepath.is_dir():
+            filepath = filepath / (self.name + '.csv')
         with filepath.open('w') as f:
             self.df.to_csv(f)
 
