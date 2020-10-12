@@ -24,7 +24,11 @@ class MaternGP(GP):
         :param nu: the nu parameter of the Matern kernel. Depends on the desired smoothness
         :param noise_prior: None or (mu, sigma). If not None, the noise has a prior NormalPrior(mu, sigma)
         :param noise_constraint: None or (nMin, nMax). If not None, the noise is bounded between nMin and nMax
-        :param lengthscale_prior: None or (mu, sigma). If not None, the lengthscale has a prior NormalPrior(mu, sigma)
+        :param lengthscale_prior: None or (mu, sigma) or ((mu_i, sigma_i)):
+            * if (mu, sigma), the lengthscale has a prior NormalPrior(mu, sigma)
+            * if ((mu_i, sigma_i)), the lengthscale has a
+                MultivariateNormalPrior, with mean diag(mu_i) and covariance
+                diag(sigma_i)
         :param lengthscale_constraint: None or (lMin, lMax). If not None, the lengthscale is bounded between lMin and
             lMax
         :param outputscale_prior: None or (mu, sigma). If not None, the outputscale has a prior NormalPrior(mu, sigma)
@@ -55,7 +59,16 @@ class MaternGP(GP):
         mean_module = gpytorch.means.ZeroMean()
 
         if lengthscale_prior is not None:
-            lengthscale_prior = gpytorch.priors.NormalPrior(*lengthscale_prior)
+            try:
+                means, covars = list(zip(*lengthscale_prior))
+                lengthscale_prior = gpytorch.priors.MultivariateNormalPrior(
+                    torch.FloatTensor(means),
+                    torch.diag(torch.FloatTensor(covars))
+                )
+            except TypeError:
+                lengthscale_prior = gpytorch.priors.NormalPrior(
+                    *lengthscale_prior
+                )
         lengthscale_constraint = constraint_from_tuple(lengthscale_constraint)
 
         if outputscale_prior is not None:
