@@ -304,6 +304,20 @@ class TestGP(unittest.TestCase):
         tmp_pred = tmp.predict(x_).mean.numpy()
         self.assertTrue(np.all(np.abs(tmp_pred - y_) < tol))
 
+    def test_multivariate_normal_prior(self):
+        x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 2))
+        y = np.exp(-x @ x.T).reshape(-1)
+
+        gp = MaternGP(
+            x, y,
+            lengthscale_prior=((1, 0.01), (10, 1))
+        )
+        kernel = gp.covar_module.base_kernel
+        prior = kernel.lengthscale_prior
+        self.assertIsInstance(gp.covar_module.base_kernel.lengthscale_prior,
+                              gpytorch.priors.MultivariateNormalPrior)
+        self.assertTrue((kernel.lengthscale.squeeze() == prior.mean).all())
+
     def test_timeforgetting_dataset(self):
         x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 1))
         y = np.exp(-x ** 2).reshape(-1)
