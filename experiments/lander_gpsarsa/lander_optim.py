@@ -7,6 +7,8 @@
 # plots: reward = f(hyperparameters): MC evaluation of the policy at the
 #                   end of the training and before optimization
 #             hyperparameters = f(n of trainings)
+import time
+import functools
 import numpy as np
 from pathlib import Path
 import logging
@@ -25,6 +27,18 @@ GAMMA = 0.99
 XI = 0.01
 TRAINING = 'Training number'
 
+
+def timeit(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        t0 = time.time()
+        out = f(*args, **kwargs)
+        t1 = time.time()
+        if out is None:
+            return t1 - t0
+        else:
+            return out, t1 - t0
+    return wrapper
 
 def append_to_episode(dataset, episode, state, action, new_state, reward,
                       failed, done):
@@ -136,6 +150,7 @@ class LanderHyperOptimization(ModelLearningSimulation):
             kernel='matern'
         )
 
+    @timeit
     def reset_agent(self):
         self.update_priors_with_current_agent()
         self.create_new_agent()
@@ -160,6 +175,7 @@ class LanderHyperOptimization(ModelLearningSimulation):
             s = self.agent.reset()
         return s
 
+    @timeit
     def train_agent(self, n_train):
         self.agent.training_mode = True
         for n in range(self.n_episodes_train):
@@ -167,6 +183,7 @@ class LanderHyperOptimization(ModelLearningSimulation):
             episode = self.run_episode(n)
             self.training_dataset.add_group(episode, group_number=n_train)
 
+    @timeit
     def test_agent(self, n_test):
         self.agent.training_mode = False
         for n in range(self.n_episodes_test):
@@ -174,6 +191,7 @@ class LanderHyperOptimization(ModelLearningSimulation):
             episode = self.run_episode(n)
             self.testing_dataset.add_group(episode, group_number=n_test)
 
+    @timeit
     def fit_hyperparameters(self, n_train):
         for lr in [1, 0.1, 0.01, 0.001]:
             self.agent.fit_models(
@@ -185,7 +203,7 @@ class LanderHyperOptimization(ModelLearningSimulation):
         params[TRAINING] = n_train
         self.hyperparameters_dataset.add_entry(**params)
 
-    def log_hyperparameters(self):
+    def log_hyperparameters(self, fit_t):
         message = '-------- Hyperparameters --------'
         tab = ''
         headers = ['    Parameter', '    Value (transformed)', '    Constraint']
@@ -204,53 +222,54 @@ class LanderHyperOptimization(ModelLearningSimulation):
                 for item, clen in zip(row, cols_lens)
             )
         message += tab
+        message += f'\nHyperparameters fitting computation time: {fit_t:.3f} s'
         logging.info(message)
 
-    def log_performance(self, n_train):
-        train_ds = self.training_dataset
-        train = train_ds.df
-        train = train.loc[train[train_ds.group_name] == n_train, :]
-        test_ds = self.testing_dataset
-        test = test_ds.df
-        test = test.loc[test[test_ds.group_name] == n_train, :]
+    @timeit
+    def log_performance(self, n_train, ds, name_in_log, duration, header=True):
+        df = ds.df
+        train = df.loc[df[ds.group_name] == n_train, :]
+        r, f = avg_reward_and_failure(train)
 
-        train_r, train_f = avg_reward_and_failure(train)
-        test_r, test_f = avg_reward_and_failure(test)
+        header = '-------- Performance --------\n' if header else ''
+        message = (f'--- {name_in_log}\n' 
+                   f'Average total reward per episode: {r:.3f}\n'
+                   f'Average number of failures: {f * 100:.3f} %\n'
+                   f'Computation time: {duration:.3f} s')
+        logging.info(header + message)
 
-        def get_perf_message(r, f):
-            return (f'Average total reward per episode: {r:.3f}\n'
-                    f'Average number of failures: {f * 100:.3f} %\n')
-        message = ('-------- Performance --------\n'
-                   '--- Training\n' +
-                   get_perf_message(train_r, train_f) +
-                   '--- Testing\n' +
-                   get_perf_message(test_r, test_f))
-        logging.info(message)
-
+    @timeit
     def checkpoint(self):
         self.training_dataset.save(self.data_path)
         self.testing_dataset.save(self.data_path)
         self.hyperparameters_dataset.save(self.data_path)
 
+    @timeit
     def run(self):
         for n in range(self.n_trainings):
+            times = {}
             logging.info(f'======== TRAINING {n+1}/{self.n_trainings} ========')
             self.reset_agent()
             try:
-                self.train_agent(n)
+                train_t = self.train_agent(n)
+                self.log_performance(n, self.training_dataset, 'Training',
+                                     train_t, True)
             except Exception as e:
                 logging.critical(f'train_agent({n}) failed:\n{str(e)}')
             try:
-                self.test_agent(n)
+                test_t = self.test_agent(n)
+                self.log_performance(n, self.testing_dataset, 'Testing',
+                                     test_t, False)
             except Exception as e:
                 logging.critical(f'test_agent({n}) failed:\n{str(e)}')
-            self.log_performance(n)
             try:
-                self.fit_hyperparameters(n)
+                fit_t = self.fit_hyperparameters(n)
             except Exception as e:
                 logging.critical(f'fit_hyperparameters({n}) failed:\n{str(e)}')
-            self.log_hyperparameters()
-            self.checkpoint()
+                fit_t = np.nan
+            self.log_hyperparameters(fit_t)
+            chkpt_t = self.checkpoint()
+            logging.info(f'Checkpointing time: {chkpt_t:.3f} s')
 
     def load_models(self, skip_local=False):
         if not skip_local:
@@ -265,8 +284,6 @@ class LanderHyperOptimization(ModelLearningSimulation):
 
 
 if __name__ == '__main__':
-    import time
-
     seed = int(time.time())
     sim = LanderHyperOptimization(
         name=f'optim_{seed}',
@@ -278,9 +295,6 @@ if __name__ == '__main__':
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))
-    t0 = time.time()
-    sim.run()
-    t1 = time.time()
-    dt = t1 - t0
-    logging.info(f'Simulation duration: {dt:.2f} s')
+    run_t = sim.run()
+    logging.info(f'Simulation duration: {run_t:.2f} s')
     sim.save_models()
