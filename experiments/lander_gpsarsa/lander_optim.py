@@ -206,6 +206,7 @@ class LanderHyperOptimization(ModelLearningSimulation):
     def run(self):
         for n in range(self.n_trainings):
             logging.info(f'======== TRAINING {n+1}/{self.n_trainings} ========')
+            self.reset_agent()
             try:
                 self.train_agent(n)
             except Exception as e:
@@ -242,8 +243,8 @@ if __name__ == '__main__':
         name=f'optim_{seed}',
         penalty=None,
         control_frequency=2,  # Higher increases the number of possible episodes
-        n_episodes_train=30,
-        n_episodes_test=10,
+        n_episodes_train=45,
+        n_episodes_test=20,
         n_trainings=10
     )
     sim.set_seed(value=seed)
