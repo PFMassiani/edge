@@ -21,7 +21,6 @@ from lander_agent import LanderSARSALearner
 # noinspection PyUnresolvedReferences
 from lander_env import PenalizedLunarLander
 
-
 GAMMA = 0.99
 XI = 0.01
 TRAINING = 'Training number'
@@ -42,7 +41,8 @@ def get_hyperparameters(gp, constraints=False):
     for name, param, constraint \
             in gp.named_parameters_and_constraints():
         transformed = np.around(
-            constraint.transform(param).detach().numpy().squeeze(), decimals=4
+            constraint.transform(param).cpu().detach().numpy().squeeze(),
+            decimals=4
         )
         entry = transformed if not constraints else (transformed, constraint)
         key = ''.join(name.split('raw_'))
@@ -72,23 +72,13 @@ class LanderHyperOptimization(ModelLearningSimulation):
             [0, 1.4, 0, 0, 0, 0, 0]
         ])
         self.y_seed = np.array([200, 100])
-        gp_params = {
-            'train_x': self.x_seed,
-            'train_y': self.y_seed,
-            'outputscale_prior': None,
-            'lengthscale_prior': (1, 1),  # TODO use MultivariateNormal
-            'noise_prior': (1, 1),
-            'dataset_type': None,
-            'dataset_params': None,
-            'value_structure_discount_factor': GAMMA,
-        }
-        self.agent = LanderSARSALearner(
-            env=self.env,
-            xi=XI,
-            keep_seed_in_data=True,
-            q_gp_params=gp_params,
-            kernel='matern'
+        # Initialization from previous optimization
+        self.lengthscale_means = (
+            1.6595, 0.7095, 2.1915, 0.7012, 0.9737, 1.0271, 1.4368
         )
+        self.outputscale_mean = 100.
+        self.noise_mean = 8.
+        self.create_new_agent()
 
         output_directory = Path(__file__).parent.resolve()
         super(LanderHyperOptimization, self).__init__(
@@ -108,8 +98,47 @@ class LanderHyperOptimization(ModelLearningSimulation):
             name='hyperparameters'
         )
 
+    def update_priors_with_current_agent(self):
+        params = get_hyperparameters(self.agent.Q_model.gp, constraints=False)
+        self.lengthscale_means = tuple(
+            params['covar_module.base_kernel.base_kernel.lengthscale']
+        )
+        self.outputscale_mean = params['covar_module.base_kernel.outputscale']
+        self.noise_mean = params['likelihood.noise_covar.noise']
+
+    def create_new_agent(self):
+        outputscale_var = 1.
+        lengthscale_vars = (1., 1., 1., 1., 1., 1., 1.)
+        noise_var = 1.
+        outputscale_prior = (self.outputscale_mean, outputscale_var)
+        lengthscale_prior = tuple(zip(self.lengthscale_means, lengthscale_vars))
+        noise_prior = (self.noise_mean, noise_var)
+        gp_params = {
+            'train_x': self.x_seed,
+            'train_y': self.y_seed,
+            'outputscale_prior': outputscale_prior,
+            'lengthscale_prior': lengthscale_prior,
+            'noise_prior': noise_prior,
+            'dataset_type': None,
+            'dataset_params': None,
+            'value_structure_discount_factor': GAMMA,
+        }
+        # Make sure previous agent is cleared from memory
+        try:
+            del self.agent
+        except AttributeError:
+            pass
+        self.agent = LanderSARSALearner(
+            env=self.env,
+            xi=XI,
+            keep_seed_in_data=True,
+            q_gp_params=gp_params,
+            kernel='matern'
+        )
+
     def reset_agent(self):
-        self.agent.Q_model.gp.set_data(self.x_seed, self.y_seed)
+        self.update_priors_with_current_agent()
+        self.create_new_agent()
 
     def run_episode(self, n_episode):
         episode = {cname: []
