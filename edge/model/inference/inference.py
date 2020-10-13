@@ -1,8 +1,9 @@
+import logging
 import gpytorch
 import torch
 from sklearn.neighbors import KDTree
 
-from edge.utils import atleast_2d, dynamically_import
+from edge.utils import atleast_2d, dynamically_import, device, cuda, cpu
 from .tensorwrap import tensorwrap, ensure_tensor
 from .value_structure_kernel import ValueStructureKernel, ValueStructureMean
 
@@ -184,8 +185,8 @@ class GP(gpytorch.models.ExactGP):
         """
         outputs_shape = (0,) if len(self.train_y.shape) == 1 else \
                         (0, self.train_y.shape[1])
-        empty_x = torch.empty((0, self.train_x.shape[1]))
-        empty_y = torch.empty(outputs_shape)
+        empty_x = torch.empty((0, self.train_x.shape[1]), device=device)
+        empty_y = torch.empty(outputs_shape, device=device)
         self.train_x = empty_x
         self.train_y = empty_y
         if self.dataset.has_is_terminal:
@@ -295,7 +296,7 @@ class Dataset:
             default_constr = torch.zeros
         else:
             default_constr = torch.ones
-        return default_constr(n, dtype=torch.bool)
+        return default_constr(n, dtype=torch.bool, device=device)
 
     def _get_is_terminal(self, kwargs, n_default, default=False):
         return ensure_tensor(
@@ -359,8 +360,8 @@ class TimeForgettingDataset(Dataset):
         :param train_y: torch.Tensor, the training output data
         :param keep: int, how many points to keep in
         """
-        super(TimeForgettingDataset, self).__init__(train_x, train_y, **kwargs)
         self.keep = keep
+        super(TimeForgettingDataset, self).__init__(train_x, train_y, **kwargs)
         self._train_x = train_x[-self.keep:]
         self._train_y = train_y[-self.keep:]
 
@@ -399,6 +400,10 @@ class NeighborErasingDataset(Dataset):
         :param train_y: torch.Tensor the training output data
         :param radius: float, the maximal distance at which old points will be removed when sampling a new point
         """
+        if device == cuda:
+            logging.warning('You are using a NeighborErasingDataset on the GPU.'
+                            ' This Dataset uses scipy, which does not allow '
+                            'parallelization: expect poor performance.')
         super(NeighborErasingDataset, self).__init__(train_x, train_y, **kwargs)
         self.radius = radius
         self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool)
@@ -407,32 +412,35 @@ class NeighborErasingDataset(Dataset):
     def append(self, append_x, append_y, **kwargs):
         forgettable = kwargs.get('forgettable')
         if forgettable is None:
-            forgettable = torch.ones(append_x.shape[0], dtype=bool)
+            forgettable = torch.ones(append_x.shape[0], dtype=bool,
+                                     device=device)
         else:
-            forgettable = torch.tensor(forgettable, dtype=bool)
+            forgettable = torch.tensor(forgettable, dtype=bool, device=device)
         make_forget = kwargs.get('make_forget')
         if make_forget is None:
-            make_forget = torch.ones(append_x.shape[0], dtype=bool)
+            make_forget = torch.ones(append_x.shape[0], dtype=bool,
+                                     device=device)
         else:
-            make_forget = torch.tensor(make_forget, dtype=bool)
+            make_forget = torch.tensor(make_forget, dtype=bool, device=device)
 
         if make_forget.any():
             lists_indices_to_forget = self._kdtree.query_radius(
-                append_x[make_forget].numpy(),
+                append_x[make_forget].cpu().numpy(),
                 r=self.radius
             )
-            lists_indices_to_forget = list(map(
-                torch.tensor,
-                lists_indices_to_forget
-            ))
+            lists_indices_to_forget = [
+                ensure_tensor(indices_to_forget, torch.long)
+                for indices_to_forget in lists_indices_to_forget
+            ]
             indices_to_forget = torch.cat(lists_indices_to_forget)
         else:
-            indices_to_forget = torch.tensor([], dtype=int)
+            indices_to_forget = ensure_tensor([], torch.long)
 
         to_forget_is_forgettable = self.forgettable[indices_to_forget]
         indices_to_forget = indices_to_forget[to_forget_is_forgettable]
 
-        keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool)
+        keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool,
+                                    device=device)
         keeping_filter[indices_to_forget] = False
 
         train_x_without_neighbors = self.train_x[keeping_filter]
@@ -457,5 +465,5 @@ class NeighborErasingDataset(Dataset):
         self._kdtree = self._create_kdtree()
 
     def _create_kdtree(self):
-        kdtree = KDTree(self.train_x.numpy(), leaf_size=40)  # This is expensive
+        kdtree = KDTree(self.train_x.cpu().numpy(), leaf_size=40)  # Expensive
         return kdtree

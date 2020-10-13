@@ -64,8 +64,8 @@ class MaternGP(GP):
             try:
                 means, covars = list(zip(*lengthscale_prior))
                 lengthscale_prior = gpytorch.priors.MultivariateNormalPrior(
-                    torch.FloatTensor(means),
-                    torch.diag(torch.FloatTensor(covars))
+                    ensure_tensor(means),
+                    torch.diag(ensure_tensor(covars))
                 )
             except TypeError:
                 lengthscale_prior = gpytorch.priors.NormalPrior(

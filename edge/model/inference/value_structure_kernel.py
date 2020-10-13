@@ -7,7 +7,8 @@ from gpytorch.kernels import Kernel
 from gpytorch.means import Mean
 from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor, \
     LazyEvaluatedKernelTensor
-from torch import tensor, Size, logical_not
+from torch import Size, logical_not
+from .tensorwrap import ensure_tensor
 
 
 class DiscountedPredictionStrategy(DefaultPredictionStrategy):
@@ -45,7 +46,6 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
         )
         mvn = self.likelihood(self.train_prior_dist, self.train_inputs)
         train_mean = mvn.loc
-        # TODO error when evaluating self.discount_tensor
         train_train_covar = self.discount_tensor.matmul(
             train_train_nonoise_covar.matmul(
                 self.discount_tensor.transpose(-1, -2)
@@ -152,8 +152,10 @@ class ValueStructureKernel(Kernel):
     def _discount_tensor(self, train_inputs=None, t=None):
         tm1 = len(train_inputs[0]) - 1 if t is None else t - 1
 
-        eye_tm1 = DiagLazyTensor(tensor([1.] * tm1))
-        gamma_tm1 = DiagLazyTensor(tensor([- self.discount_factor] * tm1))
+        eye_tm1 = DiagLazyTensor(ensure_tensor([1.] * tm1))
+        gamma_tm1 = DiagLazyTensor(
+            ensure_tensor([- self.discount_factor] * tm1)
+        )
         if self.dataset.has_is_terminal:
             terminal_filter = DiagLazyTensor(
                 logical_not(self.dataset.is_terminal[:tm1])
@@ -190,13 +192,14 @@ class LazyEvaluatedValueStructureKernelTensor(LazyEvaluatedKernelTensor):
             ) + end_append
         return size
 
+
 class ValueStructureMean(Mean):
     def __init__(self, base_mean):
         super(ValueStructureMean, self).__init__()
         self.base_mean = base_mean
 
-    def forward(self, input):
-        res = self.base_mean.forward(input)
+    def forward(self, x):
+        res = self.base_mean.forward(x)
         if self.training:
             res = res[:-1]
         return res
