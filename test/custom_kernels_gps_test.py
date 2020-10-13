@@ -70,3 +70,7 @@ class SymmetricMaternCosGPTest(unittest.TestCase):
 
         self.assertEqual(mean.shape[0], 1)
         self.assertEqual(tuple(covar.shape), (1, 1))
+
+if __name__ == '__main__':
+    unittest.main()
+

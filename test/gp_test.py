@@ -141,7 +141,7 @@ class TestGP(unittest.TestCase):
         gp.optimize_hyperparameters(epochs=20, lr=0.01)
 
         predictions = gp.predict(x)
-        y_pred = predictions.mean.numpy()
+        y_pred = predictions.mean.cpu().numpy()
 
         passed = np.all(np.abs(y - y_pred) < tol)
 
@@ -153,10 +153,10 @@ class TestGP(unittest.TestCase):
             lower, upper = predictions.confidence_region()
             ax.plot(x, y, 'k*')
             ax.plot(x, y_pred, 'b')
-            ax.fill_between(x, lower.numpy(), upper.numpy(), alpha=0.5)
+            ax.fill_between(x, lower.cpu().numpy(), upper.cpu().numpy(), alpha=0.5)
             ax.legend(['Observed Data', 'Mean', 'Confidence', 'Noise'])
             ax.grid(True)
-            plt.show()
+            #plt.show()
             self.assertTrue(False) # This test is necessarily failed
 
     def test_hyper_optimization_1(self):
@@ -187,7 +187,7 @@ class TestGP(unittest.TestCase):
         gp.optimize_hyperparameters(epochs=30, lr=0.0001)
 
         predictions = gp.predict(x_test)
-        y_pred = predictions.mean.numpy()
+        y_pred = predictions.mean.cpu().numpy()
 
         passed = np.all(np.abs(y_test - y_pred) < tol)
 
@@ -202,12 +202,12 @@ class TestGP(unittest.TestCase):
             ax.plot(x_train, y_train, 'k*')
             ax.plot(x_test, y_pred, 'g-*')
             ax.plot(x_test, y_test, 'r*')
-            ax.fill_between(x_test, lower.numpy(), upper.numpy(), alpha=0.5)
+            ax.fill_between(x_test, lower.cpu().numpy(), upper.cpu().numpy(), alpha=0.5)
             ax.legend(
                 ['Observed Data', 'Prediction', 'Hidden data', 'Confidence',
                  'Noise'])
             ax.grid(True)
-            plt.show()
+            #plt.show()
             self.assertTrue(False)
 
     def test_hyperparameters_2(self):
@@ -246,7 +246,7 @@ class TestGP(unittest.TestCase):
         gp.optimize_hyperparameters(epochs=30, lr=0.001)
 
         predictions = gp.predict(x_test)
-        y_pred = predictions.mean.numpy()
+        y_pred = predictions.mean.cpu().numpy()
 
         passed = np.all(np.abs(y_test - y_pred) < tol)
         passed &= np.abs(
@@ -265,12 +265,12 @@ class TestGP(unittest.TestCase):
             ax.plot(x_train, y_train, 'k*')
             ax.plot(x_test, y_pred, 'b')
             ax.plot(x_test, y_test, 'r*')
-            ax.fill_between(x_test, lower.numpy(), upper.numpy(), alpha=0.5)
+            ax.fill_between(x_test, lower.cpu().numpy(), upper.cpu().numpy(), alpha=0.5)
             ax.legend(
                 ['Observed Data', 'Prediction', 'Hidden data', 'Confidence',
                  'Noise'])
             ax.grid(True)
-            plt.show()
+            # plt.show()
             self.assertTrue(False)
 
     def test_data_manipulation(self):
@@ -292,7 +292,7 @@ class TestGP(unittest.TestCase):
         self.assertEqual(tuple(gp.train_x.shape), (len(x), 1))
 
         gp.optimize_hyperparameters(epochs=10)
-        gp_pred = gp.predict(x_).mean.numpy()
+        gp_pred = gp.predict(x_).mean.cpu().numpy()
         self.assertFalse(np.all(np.abs(gp_pred - y_) < tol))
 
         tmp = gp.append_data(x_, y_)
@@ -301,7 +301,7 @@ class TestGP(unittest.TestCase):
         self.assertEqual(tuple(tmp.train_x.shape), (len(x) + len(x_), 1))
 
         tmp.optimize_hyperparameters(epochs=10)
-        tmp_pred = tmp.predict(x_).mean.numpy()
+        tmp_pred = tmp.predict(x_).mean.cpu().numpy()
         self.assertTrue(np.all(np.abs(tmp_pred - y_) < tol))
 
     def test_multivariate_normal_prior(self):
@@ -326,16 +326,16 @@ class TestGP(unittest.TestCase):
             x, y, noise_constraint=(0, 1e-3), dataset_type='timeforgetting',
             dataset_params={'keep': 50}
         )
-        self.assertTrue((gp.train_x.numpy() == x[-50:]).all())
-        self.assertTrue((gp.train_y.numpy() == y[-50:]).all())
+        self.assertTrue((gp.train_x.cpu().numpy() == x[-50:]).all())
+        self.assertTrue((gp.train_y.cpu().numpy() == y[-50:]).all())
         gp.append_data(x[:10], y[:10])
         self.assertTrue(
-            (gp.train_x.numpy() == np.vstack((x[-40:], x[:10]))).all())
+            (gp.train_x.cpu().numpy() == np.vstack((x[-40:], x[:10]))).all())
         self.assertTrue(
-            (gp.train_y.numpy() == np.hstack((y[-40:], y[:10]))).all())
+            (gp.train_y.cpu().numpy() == np.hstack((y[-40:], y[:10]))).all())
         gp.set_data(x[:75], y[:75])
-        self.assertTrue((gp.train_x.numpy() == x[25:75]).all())
-        self.assertTrue((gp.train_y.numpy() == y[25:75]).all())
+        self.assertTrue((gp.train_x.cpu().numpy() == x[25:75]).all())
+        self.assertTrue((gp.train_y.cpu().numpy() == y[25:75]).all())
 
     def test_neighbor_erasing_dataset_0(self):
         x = np.linspace(0, 1, 10).reshape((-1, 1))
@@ -363,8 +363,8 @@ class TestGP(unittest.TestCase):
 
         ds.append(x_, y_)
 
-        self.assertTrue(np.isclose(ds.train_x.numpy(), x_final).all())
-        self.assertTrue(np.isclose(ds.train_y.numpy(), y_final).all())
+        self.assertTrue(np.isclose(ds.train_x.cpu().numpy(), x_final).all())
+        self.assertTrue(np.isclose(ds.train_y.cpu().numpy(), y_final).all())
 
     def test_neighbor_erasing_dataset_1(self):
         x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 1))
@@ -380,27 +380,27 @@ class TestGP(unittest.TestCase):
         y_ = np.exp(-x_ ** 2).reshape(-1)
 
         gp.append_data(x_, y_)
-        distances = np.abs(gp.train_x.numpy().reshape((-1, 1)) - x_.squeeze())
+        distances = np.abs(gp.train_x.cpu().numpy().reshape((-1, 1)) - x_.squeeze())
 
         self.assertTrue(np.all(
             distances[:-len(x_), :] >= r
         ))
-        self.assertTrue((gp.train_x.numpy()[-len(x_):, :] == x_).all())
+        self.assertTrue((gp.train_x.cpu().numpy()[-len(x_):, :] == x_).all())
         # Set to True to plot
         if False:
             import matplotlib.pyplot as plt
             plt.figure()
             plt.scatter(
-                gp.train_x.numpy()[-len(x_):],
-                gp.train_x.numpy()[-len(x_):],
+                gp.train_x.cpu().numpy()[-len(x_):],
+                gp.train_x.cpu().numpy()[-len(x_):],
                 color='r',
             )
             plt.scatter(
-                gp.train_x.numpy()[:-len(x_)],
-                gp.train_x.numpy()[:-len(x_)],
+                gp.train_x.cpu().numpy()[:-len(x_)],
+                gp.train_x.cpu().numpy()[:-len(x_)],
                 color='b'
             )
-            plt.show()
+            # plt.show()
 
     def test_neighbor_erasing_dataset_2(self):
         x = np.linspace(0, 1, 100, dtype=np.float32).reshape((-1, 1))
@@ -423,9 +423,9 @@ class TestGP(unittest.TestCase):
 
         gp.append_data(x__, y__)
 
-        all_present_x_ = all(x_ex.tolist() in gp.train_x.numpy().tolist()
+        all_present_x_ = all(x_ex.tolist() in gp.train_x.cpu().numpy().tolist()
                              for x_ex in x_)
-        all_present_x__ = all(x__ex.tolist() in gp.train_x.numpy().tolist()
+        all_present_x__ = all(x__ex.tolist() in gp.train_x.cpu().numpy().tolist()
                               for x__ex in x__)
 
         self.assertTrue(all_present_x_ and all_present_x__)
@@ -446,9 +446,9 @@ class TestGP(unittest.TestCase):
 
         gp.append_data(x_, y_, make_forget=make_forget)
 
-        all_present_x = all(x_ex.tolist() in gp.train_x.numpy().tolist()
+        all_present_x = all(x_ex.tolist() in gp.train_x.cpu().numpy().tolist()
                             for x_ex in x)
-        all_present_x_ = all(x_ex.tolist() in gp.train_x.numpy().tolist()
+        all_present_x_ = all(x_ex.tolist() in gp.train_x.cpu().numpy().tolist()
                              for x_ex in x_)
 
         self.assertTrue(all_present_x and all_present_x_)
@@ -467,7 +467,7 @@ class TestGP(unittest.TestCase):
         y_ = np.exp(-x_query ** 2)
         x_query = x_query.reshape((-1, 1)) + lin.reshape((1, -1))
 
-        pred = gp.predict(x_query).mean.numpy()
+        pred = gp.predict(x_query).mean.cpu().numpy()
         self.assertEqual(pred.shape, (27,))
         self.assertTrue(np.all(np.abs(pred - y_) < tol))
 
@@ -526,7 +526,7 @@ class TestValueStructureGP(unittest.TestCase):
         gp = self.get_gp(n=n_train, gamma=gamma)
         test_x, test_y = self.get_truth(n=n_test, gamma=gamma)
         pred_y = gp.predict(test_x)
-        mean_y = pred_y.mean.numpy()
+        mean_y = pred_y.mean.cpu().numpy()
         if np.max(np.abs(mean_y - test_y)) > tol:
             self.plot_test_pred(test_x, test_y, pred_y)
         self.assertLess(np.max(np.abs(mean_y - test_y)), tol,
@@ -539,16 +539,16 @@ class TestValueStructureGP(unittest.TestCase):
         idxsort = np.argsort(test_x)
         test_x = test_x[idxsort]
         test_y = test_y.reshape(-1)[idxsort]
-        mean_y = pred_y.mean.numpy().reshape(-1)[idxsort]
+        mean_y = pred_y.mean.cpu().numpy().reshape(-1)[idxsort]
         lower, upper = pred_y.confidence_region()
-        lower = lower.detach().numpy()[idxsort]
-        upper = upper.detach().numpy()[idxsort]
+        lower = lower.detach().cpu().numpy()[idxsort]
+        upper = upper.detach().cpu().numpy()[idxsort]
         plt.plot(test_x, test_y, label='truth')
         plt.plot(test_x, mean_y, label='prediction')
         plt.fill_between(test_x, lower, upper, alpha=0.5)
         plt.legend(loc='best')
         plt.grid(True)
-        plt.show()
+        # plt.show()
 
     def test_predictions_constant(self):
         self.run_test_on_mode(self.CONSTANT, n_train=150, n_test=1, gamma=0.5)
@@ -558,3 +558,8 @@ class TestValueStructureGP(unittest.TestCase):
         self.run_test_on_mode(self.LINEAR, n_train=300, n_test=1, gamma=0.5, tol=0.1)
         # Poor performance in the following test: why?
         self.run_test_on_mode(self.LINEAR, n_train=300, n_test=10, gamma=0.5, tol=0.15)
+
+
+if __name__ == '__main__':
+    unittest.main()
+

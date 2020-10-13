@@ -140,5 +140,9 @@ class TestGPQLearning(unittest.TestCase):
         self.assertEqual(query.shape, (5, 2))
         self.assertTrue(np.all(query[:, 0] == 0.5))
 
-        pred = gpqlearning.gp.predict(query).mean.numpy()
+        pred = gpqlearning.gp.predict(query).mean.cpu().numpy()
         self.assertEqual(pred.shape, (5,))
+
+
+if __name__ == '__main__':
+        unittest.main()

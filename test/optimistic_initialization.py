@@ -109,7 +109,7 @@ class OptimisticSimulation(Simulation):
                 n_samples += 1
                 n_steps += 1
                 old_state = self.agent.state
-                new_state, reward, failed = self.agent.step()
+                new_state, reward, failed, _ = self.agent.step()
                 action = self.agent.last_action
 
                 self.on_run_iteration(
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         gamma_cautious=0.8,
         lambda_cautious=0.0,
         shape=(201, 151),
-        every=25
+        every=500
     )
     optimize = True
     load_hyper = False

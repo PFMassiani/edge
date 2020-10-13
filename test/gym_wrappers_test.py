@@ -109,7 +109,7 @@ class GymEnvironmentWrappers(unittest.TestCase):
             new_state, reward, failed, _ = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)
-            env.gym_env.render()
+            # env.gym_env.render()
             if env.done:
                 print('Episode Return: %.3f \t Episode Cost: %.3f' % (
                 ep_ret, ep_cost))
@@ -126,7 +126,7 @@ class GymEnvironmentWrappers(unittest.TestCase):
             new_state, reward, failed, _ = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)
-            env.gym_env.render()
+            # env.gym_env.render()
             if env.done:
                 print('Episode Return: %.3f \t Episode Cost: %.3f' % (ep_ret, ep_cost))
                 ep_ret, ep_cost = 0, 0
