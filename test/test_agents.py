@@ -45,7 +45,7 @@ class TestQLearner(unittest.TestCase):
             failed = agent.failed
             n_steps = 0
             while not failed and n_steps < 50:
-                new_state, reward, failed = agent.step()
+                new_state, reward, failed, _ = agent.step()
                 n_steps += 1
 
         q_values = agent.Q_model[:, :].reshape(
@@ -88,7 +88,7 @@ class TestSafetyLearner(unittest.TestCase):
             failed = agent.failed
             n_steps = 0
             while not failed and n_steps < 50:
-                new_state, reward, failed = agent.step()
+                new_state, reward, failed, _ = agent.step()
                 n_steps += 1
 
         safety_values = agent.safety_model[:, :].reshape(

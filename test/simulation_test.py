@@ -78,7 +78,7 @@ class ToySimulation(Simulation):
                 n_samples += 1
                 n_steps += 1
                 old_state = self.agent.state
-                new_state, reward, failed = self.agent.step()
+                new_state, reward, failed, _ = self.agent.step()
 
                 action = self.agent.last_action
                 print(f'Step {n_samples}/{self.max_samples} - {old_state} '

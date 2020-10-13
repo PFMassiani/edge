@@ -106,7 +106,7 @@ class GymEnvironmentWrappers(unittest.TestCase):
 
         ep_ret, ep_cost = 0, 0
         for t in range(100):
-            new_state, reward, failed = random_agent.step()
+            new_state, reward, failed, _ = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)
             env.gym_env.render()
@@ -123,7 +123,7 @@ class GymEnvironmentWrappers(unittest.TestCase):
 
         ep_ret, ep_cost = 0, 0
         for t in range(100):
-            new_state, reward, failed = random_agent.step()
+            new_state, reward, failed, _ = random_agent.step()
             ep_ret += reward
             ep_cost += env.info.get('cost', 0)
             env.gym_env.render()
