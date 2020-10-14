@@ -9,6 +9,7 @@ from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor, \
     LazyEvaluatedKernelTensor
 from torch import Size, logical_not
 from .tensorwrap import ensure_tensor
+from edge.utils import device
 
 
 class DiscountedPredictionStrategy(DefaultPredictionStrategy):
@@ -164,10 +165,12 @@ class ValueStructureKernel(Kernel):
 
         # TODO make this more general by replacing the 1 with num_tasks
         diag_part = CatLazyTensor(
-            eye_tm1, ZeroLazyTensor(tm1, 1), dim=-1
+            eye_tm1, ZeroLazyTensor(tm1, 1, device=device), dim=-1,
+            output_device=device
         )
         superdiag_part = CatLazyTensor(
-            ZeroLazyTensor(tm1, 1), gamma_tm1, dim=-1
+            ZeroLazyTensor(tm1, 1, device=device), gamma_tm1, dim=-1,
+            output_device=device
         )
         discount_tensor = diag_part + superdiag_part
         return discount_tensor

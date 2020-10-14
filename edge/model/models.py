@@ -117,9 +117,9 @@ class GPModel(ContinuousModel):
 
         output = (mean,) if return_covar or return_covar_matrix else mean
         if return_covar:
-            output += (prediction.variance.detach().numpy(),)
+            output += (prediction.variance.detach().cpu().numpy(),)
         if return_covar_matrix:
-            output += (prediction.covariance_matrix.detach().numpy(),)
+            output += (prediction.covariance_matrix.detach().cpu().numpy(),)
         return output
 
     def fit(self, epochs, train_x=None, train_y=None, **optimizer_kwargs):
@@ -205,8 +205,8 @@ class GPModel(ContinuousModel):
         save_path = str(save_path)
         np.savez(
             save_path,
-            inputs=self.gp.train_x.numpy(),
-            targets=self.gp.train_y.numpy()
+            inputs=self.gp.train_x.cpu().numpy(),
+            targets=self.gp.train_y.cpu().numpy()
         )
 
     def load_samples(self, load_path):

@@ -256,6 +256,8 @@ class LanderHyperOptimization(ModelLearningSimulation):
                                      train_t, True)
             except Exception as e:
                 logging.critical(f'train_agent({n}) failed:\n{str(e)}')
+                import pudb
+                pudb.post_mortem()
             try:
                 test_t = self.test_agent(n)
                 self.log_performance(n, self.testing_dataset, 'Testing',
@@ -289,7 +291,7 @@ if __name__ == '__main__':
         name=f'optim_{seed}',
         penalty=None,
         control_frequency=2,  # Higher increases the number of possible episodes
-        n_episodes_train=45,
+        n_episodes_train=40,
         n_episodes_test=20,
         n_trainings=10
     )

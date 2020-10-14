@@ -63,6 +63,9 @@ class GP(gpytorch.models.ExactGP):
         self.optimizer = torch.optim.Adam
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood
 
+        self.to(device)
+        self.likelihood.to(device)
+
     def initialize(self, **kwargs):
         if self.has_value_structure:
             change_info = [('covar_module.', ['covar_module', 'base_kernel']),
@@ -406,7 +409,7 @@ class NeighborErasingDataset(Dataset):
                             'parallelization: expect poor performance.')
         super(NeighborErasingDataset, self).__init__(train_x, train_y, **kwargs)
         self.radius = radius
-        self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool)
+        self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool, device=device)
         self._kdtree = self._create_kdtree()
 
     def append(self, append_x, append_y, **kwargs):

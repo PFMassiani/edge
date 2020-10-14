@@ -15,6 +15,9 @@ from edge.model.inference.value_structure_kernel import ValueStructureKernel
 from edge.utils import constraint_from_tuple
 
 
+DEBUG = False
+
+
 class TestTensorwrap(unittest.TestCase):
     def check_tensor(self, *args, **kwargs):
         for a in args:
@@ -558,6 +561,33 @@ class TestValueStructureGP(unittest.TestCase):
         self.run_test_on_mode(self.LINEAR, n_train=300, n_test=1, gamma=0.5, tol=0.1)
         # Poor performance in the following test: why?
         self.run_test_on_mode(self.LINEAR, n_train=300, n_test=10, gamma=0.5, tol=0.15)
+
+    def test_fast_computation(self):
+        from edge.utils import device, cuda
+        if device != cuda:
+                self.assertTrue(False, "This test should be run with device=cuda. "
+                                       "See edge.utils.device.py to set this.")
+
+        x = np.linspace(0, 1, 9000, dtype=np.float32).reshape((-1, 1))
+        y = np.exp(-x ** 2).reshape(-1)
+        gp = MaternGP(
+            x, y, noise_constraint=(0, 1e-3), value_structure_discount_factor=0.5
+        )
+        x_ = np.linspace(0, 1, 20, dtype=np.float32).reshape((-1, 1))
+        y_ = np.exp(-x_ ** 2).reshape(-1)
+
+        #with gpytorch.settings.fast_computations(solves=False):
+        try:
+            pred = gp.predict(x_).mean.cpu().numpy()
+        except Exception as e:
+            if DEBUG:
+                try:
+                    import pudb
+                    pudb.post_mortem()
+                except ImportError:
+                    pass
+            self.assertTrue(False, f'Prediction failed with the following error: {str(e)}')
+        self.assertTrue(True)
 
 
 if __name__ == '__main__':
