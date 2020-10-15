@@ -1,6 +1,6 @@
 import torch
 from gpytorch.kernels import Kernel, ProductKernel
-from .tensorwrap import ensure_tensor
+from edge.model.inference.tensorwrap import ensure_tensor
 from edge.utils import device
 
 

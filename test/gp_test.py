@@ -11,7 +11,7 @@ from edge.model.inference import tensorwrap
 from edge.model.inference.tensorwrap import ensure_tensor
 from edge.model.inference import MaternGP, GP
 from edge.model.inference.inference import NeighborErasingDataset
-from edge.model.inference.value_structure_kernel import ValueStructureKernel
+from edge.model.inference.kernels.value_structure_kernel import ValueStructureKernel
 from edge.utils import constraint_from_tuple
 
 
@@ -525,7 +525,7 @@ class TestValueStructureGP(unittest.TestCase):
 
     def run_test_on_mode(self, mode, n_train, n_test, gamma, tol=1e-2):
         self.mode = mode
-        self.noise = 0.01
+        self.noise = 0.001
         gp = self.get_gp(n=n_train, gamma=gamma)
         test_x, test_y = self.get_truth(n=n_test, gamma=gamma)
         pred_y = gp.predict(test_x)
@@ -558,9 +558,9 @@ class TestValueStructureGP(unittest.TestCase):
         self.run_test_on_mode(self.CONSTANT, n_train=150, n_test=10, gamma=0.5)
 
     def test_predictions_linear(self):
-        self.run_test_on_mode(self.LINEAR, n_train=300, n_test=1, gamma=0.5, tol=0.1)
+        self.run_test_on_mode(self.LINEAR, n_train=150, n_test=1, gamma=0.5, tol=0.1)
         # Poor performance in the following test: why?
-        self.run_test_on_mode(self.LINEAR, n_train=300, n_test=10, gamma=0.5, tol=0.15)
+        self.run_test_on_mode(self.LINEAR, n_train=150, n_test=10, gamma=0.5, tol=0.15)
 
     def test_fast_computation(self):
         from edge.utils import device, cuda

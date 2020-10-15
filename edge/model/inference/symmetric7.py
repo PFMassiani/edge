@@ -1,11 +1,10 @@
 import gpytorch
-import torch
 import math
 
 from edge.utils import atleast_2d, constraint_from_tuple
 from .inference import GP
-from .custom_kernels import ConjugateKernel, ProductDecompositionKernel
-from .tensorwrap import tensorwrap, ensure_tensor
+from edge.model.inference.kernels.custom_kernels import ConjugateKernel, ProductDecompositionKernel
+from .tensorwrap import tensorwrap
 
 
 def get_prior_and_constraint(prior, constraint):

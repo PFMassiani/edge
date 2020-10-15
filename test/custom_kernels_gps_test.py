@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import math
 
-from edge.model.inference.custom_kernels_gps import SymmetricMaternCosGP
+from edge.model.inference.symmetric7 import SymmetricMaternCosGP
 
 
 def get_gp(x, y):

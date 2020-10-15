@@ -5,10 +5,9 @@ from gpytorch.utils.memoize import cached
 from gpytorch import settings, delazify
 from gpytorch.kernels import Kernel
 from gpytorch.means import Mean
-from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor, \
-    LazyEvaluatedKernelTensor
-from torch import Size, logical_not
-from .tensorwrap import ensure_tensor
+from gpytorch.lazy import LazyEvaluatedKernelTensor
+from .lazy import BidiagonalLazyTensor
+import torch
 from edge.utils import device
 
 
@@ -37,7 +36,7 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
 
         # We can only use the labels up to t-1
         inputs_shape = self.train_prior_dist.mean.shape
-        tm1_noise_shape = Size(
+        tm1_noise_shape = torch.Size(
             inputs_shape[:-1] + (inputs_shape[-1] - 1,)
         )
         # This part is adapted from GaussianLikelihood.marginal. The difference
@@ -79,7 +78,7 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
         # gpytorch.models.exact_prediction_strategies.DefaultPredictionStrategy
 
         inputs_shape = self.train_prior_dist.mean.shape
-        tm1_noise_shape = Size(
+        tm1_noise_shape = torch.Size(
             inputs_shape[:-1] + (inputs_shape[-1] - 1,)
         )
         noise_covar = self.likelihood._shaped_noise_covar(
@@ -152,27 +151,12 @@ class ValueStructureKernel(Kernel):
 
     def _discount_tensor(self, train_inputs=None, t=None):
         tm1 = len(train_inputs[0]) - 1 if t is None else t - 1
-
-        eye_tm1 = DiagLazyTensor(ensure_tensor([1.] * tm1))
-        gamma_tm1 = DiagLazyTensor(
-            ensure_tensor([- self.discount_factor] * tm1)
-        )
-        if self.dataset.has_is_terminal:
-            terminal_filter = DiagLazyTensor(
-                logical_not(self.dataset.is_terminal[:tm1])
-            )
-            gamma_tm1 = terminal_filter.matmul(gamma_tm1)
-
-        # TODO make this more general by replacing the 1 with num_tasks
-        diag_part = CatLazyTensor(
-            eye_tm1, ZeroLazyTensor(tm1, 1, device=device), dim=-1,
-            output_device=device
-        )
-        superdiag_part = CatLazyTensor(
-            ZeroLazyTensor(tm1, 1, device=device), gamma_tm1, dim=-1,
-            output_device=device
-        )
-        discount_tensor = diag_part + superdiag_part
+        superdiag = torch.tensor([
+            -self.discount_factor if not self.dataset.is_terminal[i] else 0
+            for i in range(tm1)
+        ], dtype=torch.float, device=device)
+        discount_tensor = BidiagonalLazyTensor(superdiag, upper=True,
+                                               square=False)
         return discount_tensor
 
 

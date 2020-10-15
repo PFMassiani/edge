@@ -3,9 +3,9 @@ import gpytorch
 import torch
 from sklearn.neighbors import KDTree
 
-from edge.utils import atleast_2d, dynamically_import, device, cuda, cpu
+from edge.utils import atleast_2d, dynamically_import, device, cuda
 from .tensorwrap import tensorwrap, ensure_tensor
-from .value_structure_kernel import ValueStructureKernel, ValueStructureMean
+from edge.model.inference.kernels.value_structure_kernel import ValueStructureKernel, ValueStructureMean
 
 
 class GP(gpytorch.models.ExactGP):
