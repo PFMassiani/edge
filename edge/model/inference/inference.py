@@ -1,4 +1,3 @@
-import numpy as np
 import gpytorch
 import torch
 from sklearn.neighbors import KDTree
