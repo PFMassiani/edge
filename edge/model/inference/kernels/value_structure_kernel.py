@@ -47,8 +47,10 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
         mvn = self.likelihood(self.train_prior_dist, self.train_inputs)
         train_mean = mvn.loc
         train_train_covar = self.discount_tensor.matmul(
-            train_train_nonoise_covar.matmul(
-                self.discount_tensor.transpose(-1, -2)
+            # train_train_nonoise_covar.matmul(
+            #     self.discount_tensor.transpose(-1, -2)
+            self.discount_tensor.transpose(-1, -2).left_matmul(
+                train_train_nonoise_covar
             )
         ) + noise_covar
 

@@ -3,7 +3,7 @@ from gpytorch.lazy import LazyTensor
 from gpytorch.utils.memoize import cached
 
 
-def bidiagonal_pseudoinverse(off_diag, square):
+def upper_bidiagonal_pseudoinverse(off_diag, square):
     if off_diag.ndimension() > 1:
         return [bidiagonal_pseudoinverse(batch, square) for batch in off_diag]
     else:
@@ -66,30 +66,33 @@ class BidiagonalLazyTensor(LazyTensor):
         )
 
         # Off diag
-        extract_off_diag = (slice(1,  None, None), alldim) if self.square and self.upper else\
-                           (slice(None, -1, None), alldim) if self.square and not self.upper else\
+        extract_off_diag = (slice(1,  None, None), alldim) if self.upper else\
+                           (slice(None, -1, None), alldim) if self.square else\
                            (alldim, alldim)
         extract_off_diag = batch_slices + extract_off_diag
         off_diag_rhs = rhs[extract_off_diag]
         off_diag_res = DiagLazyTensor(self._off_diag).matmul(off_diag_rhs)
-        zero_row = torch.zeros(
-            *batch_size, 1, rhs.size(-1), dtype=rhs.dtype, device=rhs.device
-        )
-        to_cat = (off_diag_res, zero_row) if self.square and self.upper else \
-                 (zero_row, off_diag_res)
-        off_diag_res = torch.cat(to_cat, dim=-2)
+        if (not self.square) and self.upper:
+            pass
+        else:
+            zero_row = torch.zeros(
+                *batch_size, 1, rhs.size(-1), dtype=rhs.dtype, device=rhs.device
+            )
+            to_cat = (off_diag_res, zero_row) if self.upper else \
+                     (zero_row, off_diag_res)
+            off_diag_res = torch.cat(to_cat, dim=-2)
 
         # Diag
-        if (not self.square) and self.upper:
+        if self.square:
+            diag_res = rhs
+        elif self.upper:
             extract_diag = batch_slices + (slice(None, -1, None), alldim)
             diag_res = rhs[extract_diag]
-        elif (not self.square) and not self.upper:
+        else:
             zero_row = torch.zeros(
                 *batch_size, 1, rhs.size(-1), dtype=rhs.dtype, device=rhs.device
             )
             diag_res = torch.cat((rhs, zero_row), dim=-2)
-        else:
-            diag_res = rhs
 
         res = diag_res + off_diag_res
         if is_vector:
@@ -100,7 +103,7 @@ class BidiagonalLazyTensor(LazyTensor):
         is_vector = rhs.ndimension() == 1
         if is_vector:
             rhs = rhs.unsqueeze(-1)
-        pseudoinverse = bidiagonal_pseudoinverse(self._off_diag, self.square)
+        pseudoinverse = upper_bidiagonal_pseudoinverse(self._off_diag, self.square)
         pseudoinverse = torch.tensor(
             pseudoinverse, dtype=self.dtype, device=rhs.device
         )
@@ -110,6 +113,30 @@ class BidiagonalLazyTensor(LazyTensor):
         if is_vector:
             res = res.squeeze(-1)
         return res
+
+    def _get_indices(self, row_index, col_index, *batch_indices):
+        print('CALLED _GET_INDICES')
+        batch_lens = tuple(len(indices) for indices in batch_indices)
+        # diag_res = torch.ones(*batch_lens, row_index.numel(), dtype=self.dtype, device=self.device)
+        nrows = row_index.numel()
+        ncols = col_index.numel()
+        target_shape = [max(rdim, cdim) for rdim, cdim in zip(row_index.shape, col_index.shape)]
+        row_index_in_shape = tuple(torch.nonzero(torch.tensor(row_index.shape) == nrows)[0])
+        col_index_in_shape = tuple(torch.nonzero(torch.tensor(col_index.shape) == ncols)[-1])  # `-1` ensures that the indices are different
+        diag_res = torch.ones(*batch_lens, *target_shape, dtype=self.dtype, device=self.device)
+        if self.upper:
+            off_diag_res = self._off_diag[row_index].flatten().expand(*batch_lens, ncols, nrows).clone().transpose(-1, -2)
+        else:
+            off_diag_res = self._off_diag[col_index].flatten().expand(*batch_lens, nrows, ncols).clone() 
+        off_diag_res = off_diag_res.reshape(target_shape)
+ 
+        sign = 1 if self.upper else -1
+        diag_res = diag_res * torch.eq(row_index, col_index).to(device=self.device, dtype=self.dtype)
+        off_diag_res = off_diag_res * torch.eq(row_index + sign, col_index).to(device=self.device, dtype=self.dtype)
+        return diag_res + off_diag_res
+
+    def left_matmul(self, other):
+        return self.transpose(-1, -2).matmul(other.transpose(-1, -2)).transpose(-1, -2)
 
     @cached
     def evaluate(self):
