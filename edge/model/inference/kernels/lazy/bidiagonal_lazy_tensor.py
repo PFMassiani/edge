@@ -5,7 +5,8 @@ from gpytorch.utils.memoize import cached
 
 def upper_bidiagonal_pseudoinverse(off_diag, square):
     if off_diag.ndimension() > 1:
-        return [bidiagonal_pseudoinverse(batch, square) for batch in off_diag]
+        return [upper_bidiagonal_pseudoinverse(batch, square)
+                for batch in off_diag]
     else:
         ncols = off_diag.size(-1)
         nrows = ncols if square else ncols + 1
@@ -103,7 +104,8 @@ class BidiagonalLazyTensor(LazyTensor):
         is_vector = rhs.ndimension() == 1
         if is_vector:
             rhs = rhs.unsqueeze(-1)
-        pseudoinverse = upper_bidiagonal_pseudoinverse(self._off_diag, self.square)
+        pseudoinverse = upper_bidiagonal_pseudoinverse(self._off_diag,
+                                                       self.square)
         pseudoinverse = torch.tensor(
             pseudoinverse, dtype=self.dtype, device=rhs.device
         )
@@ -115,28 +117,37 @@ class BidiagonalLazyTensor(LazyTensor):
         return res
 
     def _get_indices(self, row_index, col_index, *batch_indices):
-        print('CALLED _GET_INDICES')
         batch_lens = tuple(len(indices) for indices in batch_indices)
-        # diag_res = torch.ones(*batch_lens, row_index.numel(), dtype=self.dtype, device=self.device)
         nrows = row_index.numel()
         ncols = col_index.numel()
-        target_shape = [max(rdim, cdim) for rdim, cdim in zip(row_index.shape, col_index.shape)]
-        row_index_in_shape = tuple(torch.nonzero(torch.tensor(row_index.shape) == nrows)[0])
-        col_index_in_shape = tuple(torch.nonzero(torch.tensor(col_index.shape) == ncols)[-1])  # `-1` ensures that the indices are different
-        diag_res = torch.ones(*batch_lens, *target_shape, dtype=self.dtype, device=self.device)
+        target_shape = [max(rdim, cdim)
+                        for rdim, cdim in zip(row_index.shape, col_index.shape)]
+        diag_res = torch.ones(
+            *batch_lens, *target_shape, dtype=self.dtype, device=self.device
+        )
         if self.upper:
-            off_diag_res = self._off_diag[row_index].flatten().expand(*batch_lens, ncols, nrows).clone().transpose(-1, -2)
+            off_diag_res = self._off_diag[row_index].flatten().expand(
+                *batch_lens, ncols, nrows
+            ).clone().transpose(-1, -2)
         else:
-            off_diag_res = self._off_diag[col_index].flatten().expand(*batch_lens, nrows, ncols).clone() 
+            off_diag_res = self._off_diag[col_index].flatten().expand(
+                *batch_lens, nrows, ncols
+            ).clone()
         off_diag_res = off_diag_res.reshape(target_shape)
  
         sign = 1 if self.upper else -1
-        diag_res = diag_res * torch.eq(row_index, col_index).to(device=self.device, dtype=self.dtype)
-        off_diag_res = off_diag_res * torch.eq(row_index + sign, col_index).to(device=self.device, dtype=self.dtype)
+        diag_res = diag_res * torch.eq(row_index, col_index).to(
+            device=self.device, dtype=self.dtype
+        )
+        off_diag_res = off_diag_res * torch.eq(row_index + sign, col_index).to(
+            device=self.device, dtype=self.dtype
+        )
         return diag_res + off_diag_res
 
     def left_matmul(self, other):
-        return self.transpose(-1, -2).matmul(other.transpose(-1, -2)).transpose(-1, -2)
+        return self.transpose(-1, -2).matmul(
+            other.transpose(-1, -2)
+        ).transpose(-1, -2)
 
     @cached
     def evaluate(self):
