@@ -6,7 +6,7 @@ from gpytorch import settings, delazify
 from gpytorch.kernels import Kernel
 from gpytorch.means import Mean
 from gpytorch.lazy import LazyEvaluatedKernelTensor
-from .lazy import BidiagonalLazyTensor
+from .lazy import BidiagonalLazyTensor, BidiagonalQuadraticLazyTensor
 import torch
 from edge.utils import device
 
@@ -46,13 +46,17 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
         )
         mvn = self.likelihood(self.train_prior_dist, self.train_inputs)
         train_mean = mvn.loc
-        train_train_covar = self.discount_tensor.matmul(
-            # train_train_nonoise_covar.matmul(
-            #     self.discount_tensor.transpose(-1, -2)
-            self.discount_tensor.transpose(-1, -2).left_matmul(
-                train_train_nonoise_covar
-            )
+        train_train_covar = BidiagonalQuadraticLazyTensor(
+            bidiagonal_tensor=self.discount_tensor,
+            center_tensor=train_train_nonoise_covar
         ) + noise_covar
+        # train_train_covar = self.discount_tensor.matmul(
+        #     # train_train_nonoise_covar.matmul(
+        #     #     self.discount_tensor.transpose(-1, -2)
+        #     self.discount_tensor.transpose(-1, -2).left_matmul(
+        #         train_train_nonoise_covar
+        #     )
+        # ) + noise_covar
 
         # Careful! Possible source of error. The mean is computed using labels
         # up to t, but we only use the ones up to t-1 later -> Check this is ok
@@ -87,11 +91,17 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
             base_shape=tm1_noise_shape
         )
         train_train_nonoise_covar = self.train_prior_dist.lazy_covariance_matrix
-        train_train_covar = self.discount_tensor.matmul(
-            train_train_nonoise_covar.matmul(
-                self.discount_tensor.transpose(-1, -2)
-            )
+        train_train_covar = BidiagonalQuadraticLazyTensor(
+            bidiagonal_tensor=self.discount_tensor,
+            center_tensor=train_train_nonoise_covar
         ) + noise_covar
+        # train_train_covar = self.discount_tensor.matmul(
+        #     # train_train_nonoise_covar.matmul(
+        #     #     self.discount_tensor.transpose(-1, -2)
+        #     self.discount_tensor.transpose(-1, -2).left_matmul(
+        #         train_train_nonoise_covar
+        #     )
+        # ) + noise_covar
 
         train_train_covar_inv_root = delazify(
             self.discount_tensor.transpose(-1, -2).matmul(
