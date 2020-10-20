@@ -9,15 +9,18 @@
 #             hyperparameters = f(n of trainings)
 import time
 import functools
+import gc
 import numpy as np
 from pathlib import Path
 import logging
 from gpytorch import settings
+import torch
 
 from edge.simulation import ModelLearningSimulation
 from edge.dataset import Dataset
 from edge.model.value_models import MaternGPSARSA
 from edge.utils.logging import config_msg
+from edge.utils import device, cuda
 from edge.envs.continuous_cartpole import ContinuousCartPole
 
 # noinspection PyUnresolvedReferences
@@ -26,7 +29,7 @@ from cartpole_agent import CartpoleSARSALearner
 GAMMA = 0.99
 XI = 0.01
 TRAINING = 'Training number'
-DEBUG = True 
+DEBUG = False 
 FAST_COMPS_SOLVES = True
 
 
@@ -34,8 +37,13 @@ def timeit(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         t0 = time.time()
-        out = f(*args, **kwargs)
-        t1 = time.time()
+        try:
+            out = f(*args, **kwargs)
+            t1 = time.time()
+        except Exception as e:
+            t1 = time.time()
+            print(f'Function {f.__name__} failed after {t1 - t0:.3f} s')
+            raise e
         if out is None:
             return t1 - t0
         else:
@@ -89,10 +97,11 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
         self.y_seed = np.array([1, 1])
         # Initialization from previous optimization
         self.lengthscale_means = (
-            0.5, 0.5, 0.2, 0.5, 0.1
+            0.508, 0.6, 0.12, 0.69, 0.1
         )
-        self.outputscale_mean = 10.
-        self.noise_mean = 1.
+        self.outputscale_mean = 34.
+        self.noise_mean = 0.139
+        self.agent = None
         self.create_new_agent()
 
         output_directory = Path(__file__).parent.resolve()
@@ -103,6 +112,8 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
         self.n_episodes_train = n_episodes_train
         self.n_episodes_test = n_episodes_test
         self.n_trainings = n_trainings
+
+        self.lr = 0.1
 
         self.training_dataset = Dataset(group_name=TRAINING, name='train')
         self.testing_dataset = Dataset(group_name=TRAINING, name='test')
@@ -122,9 +133,9 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
         self.noise_mean = params['likelihood.noise_covar.noise']
 
     def create_new_agent(self):
-        outputscale_var = 25.
-        lengthscale_vars = (1., 1., 0.1, 1., 0.1)
-        noise_var = 1.
+        outputscale_var = 10.
+        lengthscale_vars = (0.1, 0.1, 0.1, 0.1, 0.1)
+        noise_var = 0.1
         outputscale_prior = (self.outputscale_mean, outputscale_var)
         lengthscale_prior = tuple(zip(self.lengthscale_means, lengthscale_vars))
         noise_prior = (self.noise_mean, noise_var)
@@ -139,10 +150,12 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
             'value_structure_discount_factor': GAMMA,
         }
         # Make sure previous agent is cleared from memory
-        try:
+        if self.agent is not None:
             del self.agent
-        except AttributeError:
-            pass
+            torch.cuda.empty_cache()
+            gc.collect()
+            self.log_memory()
+ 
         self.agent = CartpoleSARSALearner(
             env=self.env,
             xi=XI,
@@ -194,12 +207,12 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
 
     @timeit
     def fit_hyperparameters(self, n_train):
-        for lr in [1, 0.1, 0.01, 0.001]:
-            self.agent.fit_models(
-                train_x=None, train_y=None,  # Fit on the GP's dataset
-                epochs=50,
-                lr=lr
-            )
+        self.agent.fit_models(
+            train_x=None, train_y=None,  # Fit on the GP's dataset
+            epochs=200,
+            lr=self.lr
+        )
+        self.lr /= 5
         params = get_hyperparameters(self.agent.Q_model.gp)
         params[TRAINING] = n_train
         self.hyperparameters_dataset.add_entry(**params)
@@ -239,6 +252,11 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
                    f'Computation time: {duration:.3f} s')
         logging.info(header + message)
 
+    def log_memory(self):
+        if device == cuda:
+            message = ('Memory usage\n' + torch.cuda.memory_summary())
+            logging.info(message)
+
     @timeit
     def checkpoint(self):
         self.training_dataset.save(self.data_path)
@@ -248,31 +266,33 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
     @timeit
     def run(self):
         for n in range(self.n_trainings):
-            times = {}
             logging.info(f'======== TRAINING {n+1}/{self.n_trainings} ========')
             self.reset_agent()
             try:
                 train_t = self.train_agent(n)
-            except Exception as e:
+            except RuntimeError as e:
                 train_t = np.nan
                 logging.critical(f'train_agent({n}) failed:\n{str(e)}')
+                self.log_memory()
                 if DEBUG:
                     import pudb
                     pudb.post_mortem()
+                torch.cuda.empty_cache()
             finally:
                 self.log_performance(n, self.training_dataset, 'Training',
                                      train_t, True)
             try:
                 test_t = self.test_agent(n)
-            except Exception as e:
+            except RuntimeError as e:
                 test_t = np.nan
                 logging.critical(f'test_agent({n}) failed:\n{str(e)}')
+                torch.cuda.empty_cache()
             finally:
                 self.log_performance(n, self.testing_dataset, 'Testing',
                                      test_t, False)
             try:
                 fit_t = self.fit_hyperparameters(n)
-            except Exception as e:
+            except RuntimeError as e:
                 logging.critical(f'fit_hyperparameters({n}) failed:\n{str(e)}')
                 fit_t = np.nan
             self.log_hyperparameters(fit_t)
@@ -294,12 +314,12 @@ class CartPoleHyperOptimization(ModelLearningSimulation):
 if __name__ == '__main__':
     seed = int(time.time())
     sim = CartPoleHyperOptimization(
-        name=f'bidiag_{seed}',
+        name=f'test_{seed}',
         penalty=None,
         control_frequency=2,  # Higher increases the number of possible episodes
         n_episodes_train=60,
-        n_episodes_test=20,
-        n_trainings=10
+        n_episodes_test=30,
+        n_trainings=5
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))
