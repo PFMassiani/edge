@@ -9,6 +9,7 @@ rc('text', usetex=True)
 plt.rc('text', usetex=True)
 plt.rc('font', family='serif')
 
+gname = 'Cycle'
 
 def exp_has_safety(exppath):
     safetypath = exppath / 'models' / 'safety_model'
@@ -16,21 +17,20 @@ def exp_has_safety(exppath):
 
 
 def compute_test_series(test):
-    meas = 'measurement'
-    groups = test.df.groupby([meas, test.EPISODE])
-    reward = groups.sum().groupby([meas]).mean()[test.REWARD]
+    groups = test.df.groupby([gname, test.EPISODE])
+    reward = groups.sum().groupby([gname]).mean()[test.REWARD]
     failures = (groups[test.FAILED].any().astype({test.FAILED: float})
-                    .groupby([meas]).mean())
-    return reward, failures
+                    .groupby([gname]).mean())
+    return reward.reset_index(drop=True), failures.reset_index(drop=True)
 
 def compute_train_series(train, window=10):
-    groups = train.df.groupby([train.EPISODE])
+    groups = train.df.groupby([gname, train.EPISODE])
     reward = groups.sum()[train.REWARD].rolling(window=window)
     failures = (groups[test.FAILED].any().astype({train.FAILED: float})
                 .rolling(window=window))
     reward = reward.mean()
     failures = failures.mean()
-    return reward, failures
+    return reward.reset_index(drop=True), failures.reset_index(drop=True)
 
 def plot_series(train_r, train_f, test_r, test_f, has_safety):
     title = f"{'with' if has_safety else 'without'} safety model"
@@ -57,25 +57,28 @@ def plot_series(train_r, train_f, test_r, test_f, has_safety):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--expname', help='Name of the experiment', type=str,
+                        default='learning')
     parser.add_argument('--expnum', help='Number of the full_test experiment',
                         type=int)
     parser.add_argument('--full', help='Full name of the experiment, if not a '
                                        'full_test experiment')
     args = parser.parse_args()
+    expname = args.expname
     expnum = args.expnum
     full = args.full
     if expnum is None and full is None:
         raise ValueError('Please specify either `expnum` or `full`')
 
-    expname = full if expnum is None else f'lander_{expnum}'
+    expname = full if expnum is None else f'{expname}_{expnum}'
     exppath = Path(__file__).absolute().parent / expname
 
     has_safety = exp_has_safety(exppath)
 
     datapath = exppath / 'data'
     figpath = exppath / 'figs'
-    trainpath = datapath / 'training_samples.csv'
-    testpath = datapath / 'testing_samples.csv'
+    trainpath = datapath / 'train.csv'
+    testpath = datapath / 'test.csv'
 
     train = Dataset.load(trainpath)
     test = Dataset.load(testpath)
