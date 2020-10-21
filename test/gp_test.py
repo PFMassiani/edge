@@ -128,11 +128,12 @@ class TestGP(unittest.TestCase):
                          loaded.covar_module.outputscale)
 
         save_data = tempfile.NamedTemporaryFile(suffix='.pth').name
-        model.save(save_file, save_data=save_data)
-        self.assertTrue(os.path.isfile(save_file))
+        model.save_dataset(save_data)
         self.assertTrue(os.path.isfile(save_data))
+        # load a new GP with different seed, then load the dataset
         x2 = np.linspace(2, 3, 11)
-        loaded = MaternGP.load(save_file, x2, y, save_data)
+        loaded = MaternGP.load(save_file, x2, y)
+        loaded.load_dataset(save_data)
         self.assertTrue(torch.all(torch.eq(model.train_x, loaded.train_x)))
 
     def test_hyper_optimization_0(self):

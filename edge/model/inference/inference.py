@@ -184,14 +184,13 @@ class GP(gpytorch.models.ExactGP):
         self._set_gp_data_to_dataset()
         return self
 
-    def save(self, save_path, save_data=None):
+    def save(self, save_path):
         """
         Saves the GP in PyTorch format, and optionally the Dataset object.
         PyTorch does NOT save samples or class structure. Such a model cannot
         be loaded by a simple "file.open" method.
         See the GP.load method for more information.
         :param save_path: str or Path: where to save the GP model
-        :param save_data: str or Path: where to save the Dataset
         """
         save_path = str(save_path)
         if not save_path.endswith('.pth'):
@@ -207,22 +206,27 @@ class GP(gpytorch.models.ExactGP):
 
         torch.save(save_dict, save_path)
 
-        if save_data:
-            self.dataset.save(save_data)
-
+    def save_dataset(self, save_path):
+        """
+        Saves a dataset, using the method implemented in the dataset class.
+        :param save_data: str or Path: where to save the Dataset
+        """
+        save_path = str(save_path)
+        if not save_path.endswith('.pth'):
+            save_path += '.pth'
+        self.dataset.save(save_path)
 
     # Careful: composing decorators with @staticmethod can be tricky. The @staticmethod decorator should be the last
     # one, because it does NOT return a method but an observer object
     @staticmethod
     @tensorwrap('train_x', 'train_y')
-    def load(load_path, train_x, train_y, load_dataset=None):
+    def load(load_path, train_x, train_y):
         """
-        Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y. If `load_dataset` evaluates to true, it will then load and replace with a saved dataset.
+        Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y.
         This method may fail if the GP was saved with an older version of the code.
         :param load_path: str or Path: the path to the file where the GP is saved
         :param train_x: np.ndarray: training input data. Should be 2D, and interpreted as a list of points.
         :param train_y: np.ndarray: training output data. Should be 1D, or of shape (train_x.shape[0], 1).
-        :param load_dataset: optional str or Path to a file where the dataset is saved.
         :return: GP: an instance of the appropriate subclass of GP
         """
         load_path = str(load_path)
@@ -242,10 +246,16 @@ class GP(gpytorch.models.ExactGP):
         )
         model.load_state_dict(save_dict['state_dict'])
 
-        if load_dataset:
-            model.dataset.load(load_dataset)
-
         return model
+
+    def load_dataset(self, load_path):
+        """
+        Loads and sets `train_x` and `train_y`.
+        :param load_path: str or Path: the path to the data file
+        """
+        load_path = str(load_path)
+        self.dataset.load(load_path)
+        self._set_gp_data_to_dataset()
 
 
 class Dataset:
