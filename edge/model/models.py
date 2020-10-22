@@ -179,7 +179,7 @@ class GPModel(ContinuousModel):
         """
         raise NotImplementedError
 
-    def save(self, save_folder):
+    def save(self, save_folder, save_data=False):
         """
         Saves the model in the given folder. The GP is saved in the file GPModel.GP_SAVE_NAME, and the model itself in
         GPModel.SAVE_NAME.
@@ -189,7 +189,7 @@ class GPModel(ContinuousModel):
         gp_save_path = str(save_path / GPModel.GP_SAVE_NAME)
         model_save_path = str(save_path / GPModel.SAVE_NAME)
 
-        self.gp.save(gp_save_path)
+        self.gp.save(gp_save_path, save_data)
         try:
             state_dict = self.state_dict
             with open(model_save_path, 'w') as f:
@@ -220,7 +220,7 @@ class GPModel(ContinuousModel):
         self.set_data(train_x, train_y)
 
     @staticmethod
-    def load(load_folder):
+    def load(load_folder, env, x_seed, y_seed, load_data=False):
         """ Abstract method
         Loads the model and the GP saved by the GPModel.save method. Note that this method may fail if the save was
         made with an older version of the code.

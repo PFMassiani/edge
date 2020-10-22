@@ -8,6 +8,10 @@ from .tensorwrap import tensorwrap, ensure_tensor
 from edge.model.inference.kernels.value_structure_kernel import ValueStructureKernel, ValueStructureMean
 
 
+def data_path_from_gp_path(gp_path):
+    return gp_path[:-4] + '_data.pt'
+
+
 class GP(gpytorch.models.ExactGP):
     """
     Base class for Gaussian Processes. Provides a wrapping around GPyTorch to encapsulate it from the rest of the code.
@@ -225,16 +229,18 @@ class GP(gpytorch.models.ExactGP):
         self._set_gp_data_to_dataset()
         return self
 
-    def save(self, save_path):
+    def save(self, save_path, save_data=False):
         """
-        Saves the GP in PyTorch format.
-        PyTorch does NOT save samples or class structure. Such a model cannot be loaded by a simple "file.open" method.
+        Saves the GP in PyTorch format, and optionally the Dataset object.
+        PyTorch does NOT save samples or class structure. Such a model cannot
+        be loaded by a simple "file.open" method.
         See the GP.load method for more information.
-        :param save_path: str or Path: the path of the file where to save the model
+        :param save_path: str or Path: where to save the GP model
+        :param save_data: bool: whether to save the Dataset as well
         """
-        save_path = str(save_path)
+        gp_save_path = str(save_path)
         if not save_path.endswith('.pth'):
-            save_path += '.pth'
+            gp_save_path += '.pth'
 
         # In order to be able to load dynamically the model - that is, load it from the GP.load method - we need to know
         # the name of the true class of the GP
@@ -246,22 +252,33 @@ class GP(gpytorch.models.ExactGP):
 
         torch.save(save_dict, save_path)
 
+        if save_data:
+            data_save_path = data_path_from_gp_path(gp_save_path)
+            self.dataset.save(data_save_path)
+
     # Careful: composing decorators with @staticmethod can be tricky. The @staticmethod decorator should be the last
     # one, because it does NOT return a method but an observer object
     @staticmethod
     @tensorwrap('train_x', 'train_y')
-    def load(load_path, train_x, train_y):
+    def load(load_path, train_x, train_y, load_data=False):
         """
-        Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y.
+        Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y. If `load_dataset` evaluates to true, it will then load and replace with a saved dataset.
         This method may fail if the GP was saved with an older version of the code.
         :param load_path: str or Path: the path to the file where the GP is saved
         :param train_x: np.ndarray: training input data. Should be 2D, and interpreted as a list of points.
         :param train_y: np.ndarray: training output data. Should be 1D, or of shape (train_x.shape[0], 1).
+        :param load_dataset: optional str or Path to a file where the dataset is saved.
         :return: GP: an instance of the appropriate subclass of GP
         """
         load_path = str(load_path)
         save_dict = torch.load(load_path)
         classname = save_dict['classname']
+
+        if load_data:
+            data_path = data_path_from_gp_path(load_path)
+            ds = Dataset.load(data_path)
+            train_x = ds.train_x
+            train_y = ds.train_y
 
         # We know the name of the true class of the GP, so we can dynamically import it. This is ugly and not robust,
         # but it avoids having to redefine the load method in every subclass
@@ -275,6 +292,10 @@ class GP(gpytorch.models.ExactGP):
             **construction_parameters
         )
         model.load_state_dict(save_dict['state_dict'])
+
+        if load_data:
+            model.dataset = ds
+
         return model
 
 
@@ -349,6 +370,29 @@ class Dataset:
                 self.is_terminal,
                 self._get_is_terminal(kwargs, append_y.shape[0])
             ))
+
+    def save(self, save_path):
+        save_path = str(save_path)
+        if not save_path.endswith('.pt'):
+            save_path += '.pt'
+        save_dict = {
+            'train_x': self.train_x,
+            'train_y': self.train_y,
+        }
+        if self.has_is_terminal:
+            save_dict['is_terminal'] = self.is_terminal
+        torch.save(save_dict, save_path)
+
+    @staticmethod
+    def load(load_path):
+        load_path = str(load_path)
+        save_dict = torch.load(load_path)
+        ds = Dataset(save_dict.pop('train_x'), save_dict.pop('train_y'))
+        # Dynamically set attributes so we allow loading attributes other than
+        # train_x and train_y (like is_terminal)
+        for aname, aval in save_dict.items():
+            setattr(ds, aname, aval)
+        return ds
 
 
 class TimeForgettingDataset(Dataset):

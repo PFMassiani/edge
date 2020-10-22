@@ -132,6 +132,12 @@ class TestGP(unittest.TestCase):
         self.assertEqual(model.covar_module.outputscale,
                          loaded.covar_module.outputscale)
 
+        # save_data = tempfile.NamedTemporaryFile(suffix='.pth').name
+        model.save(save_file, save_data=True)
+        x2 = np.linspace(2, 3, 11)
+        loaded = MaternGP.load(save_file, x2, y, load_data=True)
+        self.assertTrue(torch.all(torch.eq(model.train_x, loaded.train_x)))
+
     def test_hyper_optimization_0(self):
         warnings.simplefilter('ignore', gpytorch.utils.warnings.GPInputWarning)
 
