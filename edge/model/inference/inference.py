@@ -50,7 +50,7 @@ class GP(gpytorch.models.ExactGP):
             dataset_params = {}
             create_dataset = Dataset
         dataset_params['has_is_terminal'] = self.has_value_structure
-        self.dataset = create_dataset(train_x, train_y, **dataset_params)
+        self._dataset = create_dataset(train_x, train_y, **dataset_params)
 
         super(GP, self).__init__(train_x, train_y, likelihood)
 
@@ -124,6 +124,16 @@ class GP(gpytorch.models.ExactGP):
             return (1,)
         else:
             return shape_y[1:]
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, new_dataset):
+        self._dataset = new_dataset
+        if self.has_value_structure:
+            self.covar_module.dataset = new_dataset
 
     # This is a simple redefinition of super().__call__().
     # The goal here is to add the @tensorwrap decorator, so the parameters used to call the GP are automatically

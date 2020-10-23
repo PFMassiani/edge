@@ -47,8 +47,8 @@ class MaternGPSARSA(GPSARSA):
         model = MaternGPSARSA(
             env=env,
             # Only basic arguments for GP construction: it is overwritten later
-            x_seed=gp.train_x.cpu().numpy() if load_data else x_seed,
-            y_seed=gp.train_y.cpu().numpy() if load_data else y_seed,
+            train_x=gp.train_x.cpu().numpy() if load_data else x_seed,
+            train_y=gp.train_y.cpu().numpy() if load_data else y_seed,
             value_structure_discount_factor=0.
         )
         model.gp = gp
