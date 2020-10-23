@@ -1,25 +1,67 @@
+from pathlib import Path
+import numpy as np
+import logging
 import time
 import functools
-import gc
-import numpy as np
-from pathlib import Path
-import logging
 from gpytorch import settings
 import torch
 
 from edge.simulation import ModelLearningSimulation
 from edge.dataset import Dataset
 from edge.model.value_models import MaternGPSARSA
-from edge.utils.logging import config_msg
-from edge.utils import device, cuda
 from edge.envs.continuous_cartpole import ContinuousCartPole
+from edge.utils import cuda, device
+from edge.utils.logging import config_msg
 
 # noinspection PyUnresolvedReferences
 from cartpole_agent import CartpoleSARSALearner
 
+
 CYCLE = 'Cycle'
-DEBUG = False 
+TRAINING = 'Training number'
+DEBUG = False
 FAST_COMPS_SOLVES = True
+
+
+class MaternGPSARSALoadingSimulation(ModelLearningSimulation):
+    def load_agent(self, env, xi, sname, mname):
+        # TODO add case where the Agent has a safety model
+        self.agent = CartpoleSARSALearner(
+            env=env,
+            xi=xi,
+            keep_seed_in_data=True,
+            q_gp_params={
+                'train_x': np.array([[0, 0, 0, 0, 0.] * 2]),
+                'train_y': np.array([0, 0.]),
+                'value_structure_discount_factor': 0.9,
+            },
+            s_gp_params=None,
+            gamma_cautious=None,
+            lambda_cautious=None,
+            gamma_optimistic=None
+        )
+
+        load_folder = Path(__file__).parent.resolve() / sname / 'models' / \
+                      'Q_model' / mname
+        self.agent.Q_model = MaternGPSARSA.load(
+            env=env,
+            load_folder=load_folder,
+            x_seed=np.array([[0, 0, 0, 0, 0.] * 2]),
+            y_seed=np.array([0, 0.]),
+            load_data=True
+        )
+
+    def load_training_dataset(self, sname, dname, group=None):
+        dpath = Path(__file__).parent.resolve() / sname / 'data' / dname
+        ds = Dataset.load(dpath, group_name=GROUP_NAME)
+        if group is not None:
+            ds.df = ds.df.loc[ds.df.loc[:, ds.group_name] == group]
+        self.training_dataset = ds
+
+    def save_q_model(self, name):
+        savepath = self.local_models_path / 'Q_model' / name
+        savepath.mkdir(exist_ok=True, parents=True)
+        self.agent.Q_model.save(savepath, save_data=True)
 
 
 def timeit(f):
@@ -32,6 +74,10 @@ def timeit(f):
         except Exception as e:
             t1 = time.time()
             print(f'Function {f.__name__} failed after {t1 - t0:.3f} s')
+            if DEBUG:
+                print('Entering debugging mode')
+                import pudb
+                pudb.post_mortem()
             raise e
         if out is None:
             return t1 - t0
@@ -69,38 +115,21 @@ def avg_reward_and_failure(df):
     return r, f
 
 
-class CartPoleLearning(ModelLearningSimulation):
+class CartPoleLoading(MaternGPSARSALoadingSimulation):
     def __init__(self, name, shape, penalty, xi, control_frequency,
-                 lengthscales_means, outputscale_mean, noise_mean,
-                 n_episodes_train, n_episodes_test, n_train_test,
-                 discount_rate, q_x_seed, q_y_seed,
-                 use_safety_model, s_x_seed, s_y_seed,
-                 gamma_cautious, lambda_cautious, gamma_optimistic,
-                 ):
+                 load_sname, load_mname, load_dataset_name, load_group,
+                 n_episodes_train, n_episodes_test, n_train_test):
         self.env = ContinuousCartPole(
-            discretization_shape=(10, 10, 10, 10, 10),  # This does not matter
+            discretization_shape=shape,  # This does not matter
             control_frequency=control_frequency,
         )
         self.xi = xi
-        self.q_x_seed = q_x_seed
-        self.q_y_seed = q_y_seed
-        self.discount_rate = discount_rate
-        self.s_x_seed = s_x_seed
-        self.s_y_seed = s_y_seed
-        self.use_safety_model = use_safety_model
-        self.gamma_cautious = gamma_cautious
-        self.lambda_cautious = lambda_cautious
-        self.gamma_optimistic = gamma_optimistic
-
-        self.lengthscale_means = lengthscales_means
-        self.outputscale_mean = outputscale_mean
-        self.noise_mean = noise_mean
 
         self.agent = None
-        self.create_new_agent()
+        self.load_agent(self.env, xi, load_sname, load_mname)
 
         output_directory = Path(__file__).parent.resolve()
-        super(CartPoleLearning, self).__init__(
+        super(CartPoleLoading, self).__init__(
             output_directory, name, {}
         )
 
@@ -108,47 +137,21 @@ class CartPoleLearning(ModelLearningSimulation):
         self.n_episodes_test = n_episodes_test
         self.n_train_test = n_train_test
 
-        self.training_dataset = Dataset(group_name=CYCLE, name=f'train')
-        self.testing_dataset = Dataset(group_name=CYCLE, name=f'test')
+        self.load_training_dataset(load_sname, load_dataset_name, load_group)
+        self.testing_dataset = Dataset(group_name=GROUP_NAME, name=f'test')
 
-    def create_new_agent(self):
-        outputscale_var = 10.
-        lengthscale_vars = (0.1, 0.1, 0.1, 0.1, 0.1)
-        noise_var = 0.1
-        outputscale_prior = (self.outputscale_mean, outputscale_var)
-        lengthscale_prior = tuple(zip(self.lengthscale_means, lengthscale_vars))
-        noise_prior = (self.noise_mean, noise_var)
-        q_gp_params = {
-            'train_x': self.q_x_seed,
-            'train_y': self.q_y_seed,
-            'outputscale_prior': outputscale_prior,
-            'lengthscale_prior': lengthscale_prior,
-            'noise_prior': noise_prior,
-            'dataset_type': None,
-            'dataset_params': None,
-            'value_structure_discount_factor': self.discount_rate,
-        }
-        s_gp_params = {
-            'train_x': self.s_x_seed,
-            'train_y': self.s_y_seed,
-            'outputscale_prior': outputscale_prior,
-            'lengthscale_prior': lengthscale_prior,
-            'noise_prior': noise_prior,
-            'dataset_type': None,
-            'dataset_params': None,
-            'value_structure_discount_factor': None,
-        }
-        self.log_memory() 
-        self.agent = CartpoleSARSALearner(
-            env=self.env,
-            xi=self.xi,
-            keep_seed_in_data=True,
-            q_gp_params=q_gp_params,
-            s_gp_params=s_gp_params if self.use_safety_model else None,
-            gamma_cautious=self.gamma_cautious if self.use_safety_model else None,
-            lambda_cautious=self.lambda_cautious if self.use_safety_model else None,
-            gamma_optimistic=self.gamma_optimistic if self.use_safety_model else None
-        )
+    def adapt_training_dataset(self):
+        # Reset episodes
+        ds = self.training_dataset
+        df = self.training_dataset.df
+        df[ds.EPISODE] = df[ds.EPISODE].diff().fillna(value=0).\
+            astype(bool).astype(int).cumsum()
+        # Remove group_name if not episode
+        if ds.group_name != ds.EPISODE:
+            ds.df = df.drop(columns=[ds.group_name])
+            ds.columns = ds.columns_wo_group
+            ds.columns_wo_group = [cname for cname in ds.columns
+                                   if cname != ds.EPISODE]
 
     def run_episode(self, n_episode):
         with settings.fast_computations(solves=FAST_COMPS_SOLVES):
@@ -177,7 +180,7 @@ class CartPoleLearning(ModelLearningSimulation):
         for n in range(self.n_episodes_train):
             self.reset_agent_state()
             episode = self.run_episode(n)
-            self.training_dataset.add_group(episode, group_number=n_train)
+            self.training_dataset.add_group(episode, group_number=None)
 
     @timeit
     def test_agent(self, n_test):
@@ -208,6 +211,10 @@ class CartPoleLearning(ModelLearningSimulation):
             message = ('Memory usage\n' + torch.cuda.memory_summary())
             logging.info(message)
 
+    def log_samples(self):
+        n_samples = self.agent.Q_model.gp.train_x.shape[0]
+        logging.info(f'Training dataset size: {n_samples}')
+
     @timeit
     def checkpoint(self, n):
         self.training_dataset.save(self.data_path)
@@ -218,15 +225,13 @@ class CartPoleLearning(ModelLearningSimulation):
     def run(self):
         for n in range(self.n_train_test):
             logging.info(f'========= CYCLE {n+1}/{self.n_train_test} ========')
+            self.log_samples()
             try:
                 train_t = self.train_agent(n)
             except RuntimeError as e:
                 train_t = np.nan
                 logging.critical(f'train_agent({n}) failed:\n{str(e)}')
                 self.log_memory()
-                if DEBUG:
-                    import pudb
-                    pudb.post_mortem()
                 torch.cuda.empty_cache()
             finally:
                 self.log_performance(n, self.training_dataset, 'Training',
@@ -244,62 +249,32 @@ class CartPoleLearning(ModelLearningSimulation):
             logging.info(f'Checkpointing time: {chkpt_t:.3f} s')
 
     def load_models(self, skip_local=False):
-        if not skip_local:
-            load_path = self.local_models_path / 'Q_model'
-        else:
-            load_path = self.models_path / 'Q_model'
-        self.agent.Q_model = MaternGPSARSA.load(load_path, self.env,
-                                                self.q_x_seed, self.q_y_seed)
+        pass
 
-    def save_q_model(self, name):
-        savepath = self.local_models_path / 'Q_model' / name
-        savepath.mkdir(exist_ok=True, parents=True)
-        self.agent.Q_model.save(savepath, save_data=True)
+    def get_models_to_save(self):
+        return {'Q_model': self.agent.Q_model}
 
 
 if __name__ == '__main__':
-    q_x_seed = np.array([
-        [   0,   0,     0,    0, 0],
-        [-0.1, -0.1, 0.05, 0.01, 0]
-    ])
-    q_y_seed = np.array([1, 1])
-    s_x_seed = np.array([
-        [0, 0,    0, 0, 0],
-        [0, 0, -0.4, 0, 0],
-        [0, 0,  0.4, 0, 0]
-    ])
-    s_y_seed = np.array([10, 0.1, 0.1])
-
-    lengthscales = (0.508, 0.6, 0.12, 0.69, 0.1)
-    outputscale = 34.
-    noise = 0.139 
-
+    GROUP_NAME = TRAINING
     seed = int(time.time())
-    sim = CartPoleLearning(
-        name=f'learning_{seed}',
+    load_seed = 1603449858
+    sim = CartPoleLoading(
+        name=f'load_{seed}',
         shape=(10, 10, 10, 10, 10),
         penalty=None,
         xi=0.01,
-        control_frequency=2,  # Higher increases the number of possible episodes
-        lengthscales_means=lengthscales,
-        outputscale_mean=outputscale,
-        noise_mean=noise,
-        n_episodes_train=4,
-        n_episodes_test=1,
-        n_train_test=1,
-        discount_rate=0.9,
-        q_x_seed=q_x_seed,
-        q_y_seed=q_y_seed,
-        use_safety_model=False,
-        s_x_seed=s_x_seed,
-        s_y_seed=s_y_seed,
-        gamma_cautious=0.75,  # TODO vary during simulation
-        lambda_cautious=0.05,  # TODO vary during simulation
-        gamma_optimistic=0.6  # TODO vary during simulation
+        control_frequency=2,
+        load_sname=f'process_{load_seed}',
+        load_mname='Q_model_0',
+        load_dataset_name='train_0.csv',
+        load_group=0,
+        n_episodes_train=60,
+        n_episodes_test=30,
+        n_train_test=5
     )
-
-    logging.info(config_msg(f'Random seed: {seed}'))
     sim.set_seed(value=seed)
+    logging.info(config_msg(f'Random seed: {seed}'))
     run_t = sim.run()
-    logging.info(f'Done.\nSimulation duration: {run_t:.2f} s')
-
+    logging.info(f'Simulation duration: {run_t:.2f} s')
+    sim.save_models()

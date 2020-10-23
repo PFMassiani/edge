@@ -263,10 +263,11 @@ class CartPoleProcess(ModelLearningSimulation):
             logging.info(message)
 
     @timeit
-    def checkpoint(self):
+    def checkpoint(self, n):
         self.training_dataset.save(self.data_path)
         self.testing_dataset.save(self.data_path)
         self.hyperparameters_dataset.save(self.data_path)
+        self.save_q_model(f'Q_model_{n}')
 
     @timeit
     def run(self):
@@ -299,7 +300,7 @@ class CartPoleProcess(ModelLearningSimulation):
             logging.critical(f'fit_hyperparameters({n}) failed:\n{str(e)}')
             fit_t = np.nan
         self.log_hyperparameters(fit_t)
-        chkpt_t = self.checkpoint()
+        chkpt_t = self.checkpoint(n)
         logging.info(f'Checkpointing time: {chkpt_t:.3f} s')
 
     def load_models(self, skip_local=False):
@@ -309,6 +310,11 @@ class CartPoleProcess(ModelLearningSimulation):
             load_path = self.models_path / 'Q_model'
         self.agent.Q_model = MaternGPSARSA.load(load_path, self.env,
                                                 self.x_seed, self.y_seed)
+
+    def save_q_model(self, name):
+        savepath = self.local_models_path / 'Q_model' / name
+        savepath.mkdir(exist_ok=True, parents=True)
+        self.agent.Q_model.save(savepath, save_data=True)
 
     def get_models_to_save(self):
         return {'Q_model': self.agent.Q_model}
