@@ -9,31 +9,41 @@
 #             hyperparameters = f(n of trainings)
 import time
 import functools
+import gc
 import numpy as np
 from pathlib import Path
 import logging
+from gpytorch import settings
+import torch
 
 from edge.simulation import ModelLearningSimulation
 from edge.dataset import Dataset
 from edge.model.value_models import MaternGPSARSA
 from edge.utils.logging import config_msg
+from edge.utils import device, cuda
+from edge.envs.continuous_cartpole import ContinuousCartPole
 
 # noinspection PyUnresolvedReferences
-from lander_agent import LanderSARSALearner
-# noinspection PyUnresolvedReferences
-from lander_env import PenalizedLunarLander
+from cartpole_agent import CartpoleSARSALearner
 
 GAMMA = 0.99
 XI = 0.01
 TRAINING = 'Training number'
+DEBUG = False 
+FAST_COMPS_SOLVES = True
 
 
 def timeit(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         t0 = time.time()
-        out = f(*args, **kwargs)
-        t1 = time.time()
+        try:
+            out = f(*args, **kwargs)
+            t1 = time.time()
+        except Exception as e:
+            t1 = time.time()
+            print(f'Function {f.__name__} failed after {t1 - t0:.3f} s')
+            raise e
         if out is None:
             return t1 - t0
         else:
@@ -70,38 +80,40 @@ def avg_reward_and_failure(df):
     return r, f
 
 
-class LanderHyperOptimization(ModelLearningSimulation):
+class CartPoleHyperOptimization(ModelLearningSimulation):
     def __init__(self, name, penalty, control_frequency,
                  n_episodes_train, n_episodes_test, n_trainings):
-        self.env = PenalizedLunarLander(
-            shape=(10, 10, 10, 10, 10, 10, 10, 10),  # This does not matter
+        self.env = ContinuousCartPole(
+            discretization_shape=(10, 10, 10, 10, 10),  # This does not matter
             control_frequency=control_frequency,
-            penalty_level=penalty
         )
         # STATE SPACE:
         # X, Y, V_X, V_Y, THETA, dTHETA/dt, (CTCT_L, CTCT_R)
         # Note: the last two dimensions are removed compare to standard Gym
         self.x_seed = np.array([
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 1.4, 0, 0, 0, 0, 0]
+            [   0,   0,     0,    0, 0],
+            [-0.1, -0.1, 0.05, 0.01, 0]
         ])
-        self.y_seed = np.array([200, 100])
+        self.y_seed = np.array([1, 1])
         # Initialization from previous optimization
         self.lengthscale_means = (
-            1.6595, 0.7095, 2.1915, 0.7012, 0.9737, 1.0271, 1.4368
+            0.508, 0.6, 0.12, 0.69, 0.1
         )
-        self.outputscale_mean = 100.
-        self.noise_mean = 8.
+        self.outputscale_mean = 34.
+        self.noise_mean = 0.139
+        self.agent = None
         self.create_new_agent()
 
         output_directory = Path(__file__).parent.resolve()
-        super(LanderHyperOptimization, self).__init__(
+        super(CartPoleHyperOptimization, self).__init__(
             output_directory, name, {}
         )
 
         self.n_episodes_train = n_episodes_train
         self.n_episodes_test = n_episodes_test
         self.n_trainings = n_trainings
+
+        self.lr = 0.1
 
         self.training_dataset = Dataset(group_name=TRAINING, name='train')
         self.testing_dataset = Dataset(group_name=TRAINING, name='test')
@@ -121,9 +133,9 @@ class LanderHyperOptimization(ModelLearningSimulation):
         self.noise_mean = params['likelihood.noise_covar.noise']
 
     def create_new_agent(self):
-        outputscale_var = 1.
-        lengthscale_vars = (1., 1., 1., 1., 1., 1., 1.)
-        noise_var = 1.
+        outputscale_var = 10.
+        lengthscale_vars = (0.1, 0.1, 0.1, 0.1, 0.1)
+        noise_var = 0.1
         outputscale_prior = (self.outputscale_mean, outputscale_var)
         lengthscale_prior = tuple(zip(self.lengthscale_means, lengthscale_vars))
         noise_prior = (self.noise_mean, noise_var)
@@ -138,16 +150,17 @@ class LanderHyperOptimization(ModelLearningSimulation):
             'value_structure_discount_factor': GAMMA,
         }
         # Make sure previous agent is cleared from memory
-        try:
+        if self.agent is not None:
             del self.agent
-        except AttributeError:
-            pass
-        self.agent = LanderSARSALearner(
+            torch.cuda.empty_cache()
+            gc.collect()
+            self.log_memory()
+ 
+        self.agent = CartpoleSARSALearner(
             env=self.env,
             xi=XI,
             keep_seed_in_data=True,
             q_gp_params=gp_params,
-            kernel='matern'
         )
 
     @timeit
@@ -156,15 +169,16 @@ class LanderHyperOptimization(ModelLearningSimulation):
         self.create_new_agent()
 
     def run_episode(self, n_episode):
-        episode = {cname: []
-                   for cname in self.training_dataset.columns_wo_group}
-        done = self.env.done
-        while not done:
-            old_state = self.agent.state
-            new_state, reward, failed, done = self.agent.step()
-            action = self.agent.last_action
-            append_to_episode(self.training_dataset, episode, old_state, action,
-                              new_state, reward, failed, done)
+        with settings.fast_computations(solves=FAST_COMPS_SOLVES):
+            episode = {cname: []
+                       for cname in self.training_dataset.columns_wo_group}
+            done = self.env.done
+            while not done:
+                old_state = self.agent.state
+                new_state, reward, failed, done = self.agent.step()
+                action = self.agent.last_action
+                append_to_episode(self.training_dataset, episode, old_state, action,
+                                  new_state, reward, failed, done)
         len_episode = len(episode[self.training_dataset.REWARD])
         episode[self.training_dataset.EPISODE] = [n_episode] * len_episode
         return episode
@@ -193,12 +207,12 @@ class LanderHyperOptimization(ModelLearningSimulation):
 
     @timeit
     def fit_hyperparameters(self, n_train):
-        for lr in [1, 0.1, 0.01, 0.001]:
-            self.agent.fit_models(
-                train_x=None, train_y=None,  # Fit on the GP's dataset
-                epochs=50,
-                lr=lr
-            )
+        self.agent.fit_models(
+            train_x=None, train_y=None,  # Fit on the GP's dataset
+            epochs=200,
+            lr=self.lr
+        )
+        self.lr /= 5
         params = get_hyperparameters(self.agent.Q_model.gp)
         params[TRAINING] = n_train
         self.hyperparameters_dataset.add_entry(**params)
@@ -238,39 +252,52 @@ class LanderHyperOptimization(ModelLearningSimulation):
                    f'Computation time: {duration:.3f} s')
         logging.info(header + message)
 
+    def log_memory(self):
+        if device == cuda:
+            message = ('Memory usage\n' + torch.cuda.memory_summary())
+            logging.info(message)
+
     @timeit
-    def checkpoint(self):
+    def checkpoint(self, n):
         self.training_dataset.save(self.data_path)
         self.testing_dataset.save(self.data_path)
         self.hyperparameters_dataset.save(self.data_path)
+        self.save_q_model(f'Q_model_{n}')
 
     @timeit
     def run(self):
         for n in range(self.n_trainings):
-            times = {}
             logging.info(f'======== TRAINING {n+1}/{self.n_trainings} ========')
             self.reset_agent()
             try:
                 train_t = self.train_agent(n)
+            except RuntimeError as e:
+                train_t = np.nan
+                logging.critical(f'train_agent({n}) failed:\n{str(e)}')
+                self.log_memory()
+                if DEBUG:
+                    import pudb
+                    pudb.post_mortem()
+                torch.cuda.empty_cache()
+            finally:
                 self.log_performance(n, self.training_dataset, 'Training',
                                      train_t, True)
-            except Exception as e:
-                logging.critical(f'train_agent({n}) failed:\n{str(e)}')
-                import pudb
-                pudb.post_mortem()
             try:
                 test_t = self.test_agent(n)
+            except RuntimeError as e:
+                test_t = np.nan
+                logging.critical(f'test_agent({n}) failed:\n{str(e)}')
+                torch.cuda.empty_cache()
+            finally:
                 self.log_performance(n, self.testing_dataset, 'Testing',
                                      test_t, False)
-            except Exception as e:
-                logging.critical(f'test_agent({n}) failed:\n{str(e)}')
             try:
                 fit_t = self.fit_hyperparameters(n)
-            except Exception as e:
+            except RuntimeError as e:
                 logging.critical(f'fit_hyperparameters({n}) failed:\n{str(e)}')
                 fit_t = np.nan
             self.log_hyperparameters(fit_t)
-            chkpt_t = self.checkpoint()
+            chkpt_t = self.checkpoint(n)
             logging.info(f'Checkpointing time: {chkpt_t:.3f} s')
 
     def load_models(self, skip_local=False):
@@ -284,16 +311,21 @@ class LanderHyperOptimization(ModelLearningSimulation):
     def get_models_to_save(self):
         return {'Q_model': self.agent.Q_model}
 
+    def save_q_model(self, name):
+        savepath = self.local_models_path / 'Q_model' / name
+        savepath.mkdir(exist_ok=True, parents=True)
+        self.agent.Q_model.save(savepath, save_data=True)
+
 
 if __name__ == '__main__':
     seed = int(time.time())
-    sim = LanderHyperOptimization(
-        name=f'optim_{seed}',
+    sim = CartPoleHyperOptimization(
+        name=f'test_{seed}',
         penalty=None,
         control_frequency=2,  # Higher increases the number of possible episodes
-        n_episodes_train=40,
-        n_episodes_test=20,
-        n_trainings=10
+        n_episodes_train=60,
+        n_episodes_test=30,
+        n_trainings=5
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))

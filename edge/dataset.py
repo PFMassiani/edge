@@ -82,7 +82,7 @@ class Dataset:
         return dflt_idx if dflt_idx in list(df.columns) else Dataset._INDEX
 
     @staticmethod
-    def load(filepath, *array_cast):
+    def load(filepath, *array_cast, group_name=None):
         if len(array_cast) == 0:
             array_cast = Dataset.DEFAULT_ARRAY_CAST
         filepath = Path(filepath)
@@ -92,6 +92,10 @@ class Dataset:
         idxkey = Dataset._get_index_key(df)
         df = df.set_index(idxkey)
         df.index.name = Dataset._INDEX
-        ds = Dataset(list(df.columns))
+
+        name = filepath.stem
+        cols = [cname for cname in df.columns if (group_name is None) or
+                                                 (cname != group_name)]
+        ds = Dataset(*cols, group_name=group_name, name=name)
         ds.df = df
         return ds

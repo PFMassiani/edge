@@ -5,9 +5,10 @@ from gpytorch.utils.memoize import cached
 from gpytorch import settings, delazify
 from gpytorch.kernels import Kernel
 from gpytorch.means import Mean
-from gpytorch.lazy import DiagLazyTensor, ZeroLazyTensor, CatLazyTensor, \
-    LazyEvaluatedKernelTensor
-from torch import tensor, Size, logical_not
+from gpytorch.lazy import LazyEvaluatedKernelTensor
+from .lazy import BidiagonalLazyTensor, BidiagonalQuadraticLazyTensor
+import torch
+from edge.utils import device
 
 
 class DiscountedPredictionStrategy(DefaultPredictionStrategy):
@@ -35,7 +36,7 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
 
         # We can only use the labels up to t-1
         inputs_shape = self.train_prior_dist.mean.shape
-        tm1_noise_shape = Size(
+        tm1_noise_shape = torch.Size(
             inputs_shape[:-1] + (inputs_shape[-1] - 1,)
         )
         # This part is adapted from GaussianLikelihood.marginal. The difference
@@ -45,12 +46,17 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
         )
         mvn = self.likelihood(self.train_prior_dist, self.train_inputs)
         train_mean = mvn.loc
-        # TODO error when evaluating self.discount_tensor
-        train_train_covar = self.discount_tensor.matmul(
-            train_train_nonoise_covar.matmul(
-                self.discount_tensor.transpose(-1, -2)
-            )
+        train_train_covar = BidiagonalQuadraticLazyTensor(
+            bidiagonal_tensor=self.discount_tensor,
+            center_tensor=train_train_nonoise_covar
         ) + noise_covar
+        # train_train_covar = self.discount_tensor.matmul(
+        #     # train_train_nonoise_covar.matmul(
+        #     #     self.discount_tensor.transpose(-1, -2)
+        #     self.discount_tensor.transpose(-1, -2).left_matmul(
+        #         train_train_nonoise_covar
+        #     )
+        # ) + noise_covar
 
         # Careful! Possible source of error. The mean is computed using labels
         # up to t, but we only use the ones up to t-1 later -> Check this is ok
@@ -78,18 +84,24 @@ class DiscountedPredictionStrategy(DefaultPredictionStrategy):
         # gpytorch.models.exact_prediction_strategies.DefaultPredictionStrategy
 
         inputs_shape = self.train_prior_dist.mean.shape
-        tm1_noise_shape = Size(
+        tm1_noise_shape = torch.Size(
             inputs_shape[:-1] + (inputs_shape[-1] - 1,)
         )
         noise_covar = self.likelihood._shaped_noise_covar(
             base_shape=tm1_noise_shape
         )
         train_train_nonoise_covar = self.train_prior_dist.lazy_covariance_matrix
-        train_train_covar = self.discount_tensor.matmul(
-            train_train_nonoise_covar.matmul(
-                self.discount_tensor.transpose(-1, -2)
-            )
+        train_train_covar = BidiagonalQuadraticLazyTensor(
+            bidiagonal_tensor=self.discount_tensor,
+            center_tensor=train_train_nonoise_covar
         ) + noise_covar
+        # train_train_covar = self.discount_tensor.matmul(
+        #     # train_train_nonoise_covar.matmul(
+        #     #     self.discount_tensor.transpose(-1, -2)
+        #     self.discount_tensor.transpose(-1, -2).left_matmul(
+        #         train_train_nonoise_covar
+        #     )
+        # ) + noise_covar
 
         train_train_covar_inv_root = delazify(
             self.discount_tensor.transpose(-1, -2).matmul(
@@ -151,23 +163,12 @@ class ValueStructureKernel(Kernel):
 
     def _discount_tensor(self, train_inputs=None, t=None):
         tm1 = len(train_inputs[0]) - 1 if t is None else t - 1
-
-        eye_tm1 = DiagLazyTensor(tensor([1.] * tm1))
-        gamma_tm1 = DiagLazyTensor(tensor([- self.discount_factor] * tm1))
-        if self.dataset.has_is_terminal:
-            terminal_filter = DiagLazyTensor(
-                logical_not(self.dataset.is_terminal[:tm1])
-            )
-            gamma_tm1 = terminal_filter.matmul(gamma_tm1)
-
-        # TODO make this more general by replacing the 1 with num_tasks
-        diag_part = CatLazyTensor(
-            eye_tm1, ZeroLazyTensor(tm1, 1), dim=-1
-        )
-        superdiag_part = CatLazyTensor(
-            ZeroLazyTensor(tm1, 1), gamma_tm1, dim=-1
-        )
-        discount_tensor = diag_part + superdiag_part
+        superdiag = torch.tensor([
+            -self.discount_factor if not self.dataset.is_terminal[i] else 0
+            for i in range(tm1)
+        ], dtype=torch.float, device=device)
+        discount_tensor = BidiagonalLazyTensor(superdiag, upper=True,
+                                               square=False)
         return discount_tensor
 
 
@@ -190,13 +191,14 @@ class LazyEvaluatedValueStructureKernelTensor(LazyEvaluatedKernelTensor):
             ) + end_append
         return size
 
+
 class ValueStructureMean(Mean):
     def __init__(self, base_mean):
         super(ValueStructureMean, self).__init__()
         self.base_mean = base_mean
 
-    def forward(self, input):
-        res = self.base_mean.forward(input)
+    def forward(self, x):
+        res = self.base_mean.forward(x)
         if self.training:
             res = res[:-1]
         return res

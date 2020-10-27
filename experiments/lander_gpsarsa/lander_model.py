@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from edge.model.value_models.gpsarsa import GPSARSA
-from edge.model.inference.custom_kernels_gps import SymmetricMaternCosGP, GloballySymmetricMaternCosGP
+from edge.model.inference.symmetric7 import SymmetricMaternCosGP, GloballySymmetricMaternCosGP
 from edge.model.safety_models import SafetyMeasure
 
 

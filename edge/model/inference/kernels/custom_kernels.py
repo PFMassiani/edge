@@ -1,6 +1,7 @@
 import torch
 from gpytorch.kernels import Kernel, ProductKernel
-from .tensorwrap import ensure_tensor
+from edge.model.inference.tensorwrap import ensure_tensor
+from edge.utils import device
 
 
 def get_index_and_name(name):
@@ -42,7 +43,8 @@ class ProductDecompositionKernel(ProductKernel):
         n_kernels = len(self.base_kernels)
         total_dims = sum(n_dims)
         self.masks = [
-            torch.zeros(total_dims, dtype=bool) for _ in range(n_kernels)
+            torch.zeros(total_dims, dtype=bool, device=device)
+            for _ in range(n_kernels)
         ]
         start = 0
         for n in range(n_kernels):

@@ -113,13 +113,13 @@ class GPModel(ContinuousModel):
         :return: the mean value of the GP at these points, and if return_covar=True, the covariance at these points
         """
         prediction = self.gp.predict(x)
-        mean = prediction.mean.numpy()
+        mean = prediction.mean.cpu().numpy()
 
         output = (mean,) if return_covar or return_covar_matrix else mean
         if return_covar:
-            output += (prediction.variance.detach().numpy(),)
+            output += (prediction.variance.detach().cpu().numpy(),)
         if return_covar_matrix:
-            output += (prediction.covariance_matrix.detach().numpy(),)
+            output += (prediction.covariance_matrix.detach().cpu().numpy(),)
         return output
 
     def fit(self, epochs, train_x=None, train_y=None, **optimizer_kwargs):
@@ -179,7 +179,7 @@ class GPModel(ContinuousModel):
         """
         raise NotImplementedError
 
-    def save(self, save_folder):
+    def save(self, save_folder, save_data=False):
         """
         Saves the model in the given folder. The GP is saved in the file GPModel.GP_SAVE_NAME, and the model itself in
         GPModel.SAVE_NAME.
@@ -189,7 +189,7 @@ class GPModel(ContinuousModel):
         gp_save_path = str(save_path / GPModel.GP_SAVE_NAME)
         model_save_path = str(save_path / GPModel.SAVE_NAME)
 
-        self.gp.save(gp_save_path)
+        self.gp.save(gp_save_path, save_data)
         try:
             state_dict = self.state_dict
             with open(model_save_path, 'w') as f:
@@ -205,8 +205,8 @@ class GPModel(ContinuousModel):
         save_path = str(save_path)
         np.savez(
             save_path,
-            inputs=self.gp.train_x.numpy(),
-            targets=self.gp.train_y.numpy()
+            inputs=self.gp.train_x.cpu().numpy(),
+            targets=self.gp.train_y.cpu().numpy()
         )
 
     def load_samples(self, load_path):
@@ -220,7 +220,7 @@ class GPModel(ContinuousModel):
         self.set_data(train_x, train_y)
 
     @staticmethod
-    def load(load_folder):
+    def load(load_folder, env, x_seed, y_seed, load_data=False):
         """ Abstract method
         Loads the model and the GP saved by the GPModel.save method. Note that this method may fail if the save was
         made with an older version of the code.

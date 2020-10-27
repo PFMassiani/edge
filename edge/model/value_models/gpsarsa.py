@@ -39,16 +39,16 @@ class MaternGPSARSA(GPSARSA):
         return {}
 
     @staticmethod
-    def load(load_folder, env, x_seed, y_seed):
+    def load(load_folder, env, x_seed, y_seed, load_data=False):
         load_path = Path(load_folder)
         gp_load_path = str(load_path / GPModel.GP_SAVE_NAME)
 
-        gp = MaternGP.load(gp_load_path, x_seed, y_seed)
+        gp = MaternGP.load(gp_load_path, x_seed, y_seed, load_data)
         model = MaternGPSARSA(
             env=env,
             # Only basic arguments for GP construction: it is overwritten later
-            x_seed=x_seed,
-            y_seed=y_seed,
+            train_x=gp.train_x.cpu().numpy() if load_data else x_seed,
+            train_y=gp.train_y.cpu().numpy() if load_data else y_seed,
             value_structure_discount_factor=0.
         )
         model.gp = gp

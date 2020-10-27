@@ -2,11 +2,23 @@ import torch
 from inspect import signature
 from decorator import decorator
 
+from edge.utils import device as default_device
 
-def ensure_tensor(x, dtype=torch.float):
+
+def ensure_tensor(x, dtype=torch.float, device=None):
+    """
+    Ensures that `x` is a tensor with the correct `dtype` and on the device
+    specified by edge.utils.device
+    :param x: tensor-like object
+    :param dtype: the wanted torch.dtype
+    :return: a tensor representing x with the correct dtype and device. If x
+        already satisfies these requirements, then x is returned directly.
+    """
+    if device is None:
+        device = default_device
     if not torch.is_tensor(x):
-        x = torch.tensor(x).type(dtype)
-    return x
+        x = torch.tensor(x, device=device).type(dtype)
+    return x.to(device)
 
 
 def tensorwrap(*deco_args):

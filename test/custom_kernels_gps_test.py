@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import math
 
-from edge.model.inference.custom_kernels_gps import SymmetricMaternCosGP
+from edge.model.inference.symmetric7 import SymmetricMaternCosGP
 
 
 def get_gp(x, y):
@@ -60,13 +60,17 @@ class SymmetricMaternCosGPTest(unittest.TestCase):
         z = np.arange(21).reshape(-1, 7)
         z[:, -1] = [0, 1, 2]
         x = z[(0, 1), :]
-        x_test = z[2, :].reshape(1, 6)
+        x_test = z[2, :].reshape(1, 7)
         y = x.sum(axis=1)
         model = get_gp(x, y)
 
-        y_test = model.forward(x_test)
+        y_test = model.predict(x_test)
         mean = y_test.mean
         covar = y_test.covariance_matrix
 
         self.assertEqual(mean.shape[0], 1)
         self.assertEqual(tuple(covar.shape), (1, 1))
+
+if __name__ == '__main__':
+    unittest.main()
+

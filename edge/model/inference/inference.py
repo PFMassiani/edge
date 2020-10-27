@@ -1,10 +1,15 @@
+import logging
 import gpytorch
 import torch
 from sklearn.neighbors import KDTree
 
-from edge.utils import atleast_2d, dynamically_import
+from edge.utils import atleast_2d, dynamically_import, device, cuda
 from .tensorwrap import tensorwrap, ensure_tensor
-from .value_structure_kernel import ValueStructureKernel, ValueStructureMean
+from edge.model.inference.kernels.value_structure_kernel import ValueStructureKernel, ValueStructureMean
+
+
+def data_path_from_gp_path(gp_path):
+    return gp_path[:-4] + '_data.pt'
 
 
 class GP(gpytorch.models.ExactGP):
@@ -45,7 +50,7 @@ class GP(gpytorch.models.ExactGP):
             dataset_params = {}
             create_dataset = Dataset
         dataset_params['has_is_terminal'] = self.has_value_structure
-        self.dataset = create_dataset(train_x, train_y, **dataset_params)
+        self._dataset = create_dataset(train_x, train_y, **dataset_params)
 
         super(GP, self).__init__(train_x, train_y, likelihood)
 
@@ -61,6 +66,9 @@ class GP(gpytorch.models.ExactGP):
 
         self.optimizer = torch.optim.Adam
         self.mll = gpytorch.mlls.ExactMarginalLogLikelihood
+
+        self.to(device)
+        self.likelihood.to(device)
 
     def initialize(self, **kwargs):
         if self.has_value_structure:
@@ -116,6 +124,16 @@ class GP(gpytorch.models.ExactGP):
             return (1,)
         else:
             return shape_y[1:]
+
+    @property
+    def dataset(self):
+        return self._dataset
+
+    @dataset.setter
+    def dataset(self, new_dataset):
+        self._dataset = new_dataset
+        if self.has_value_structure:
+            self.covar_module.dataset = new_dataset
 
     # This is a simple redefinition of super().__call__().
     # The goal here is to add the @tensorwrap decorator, so the parameters used to call the GP are automatically
@@ -184,8 +202,8 @@ class GP(gpytorch.models.ExactGP):
         """
         outputs_shape = (0,) if len(self.train_y.shape) == 1 else \
                         (0, self.train_y.shape[1])
-        empty_x = torch.empty((0, self.train_x.shape[1]))
-        empty_y = torch.empty(outputs_shape)
+        empty_x = torch.empty((0, self.train_x.shape[1]), device=device)
+        empty_y = torch.empty(outputs_shape, device=device)
         self.train_x = empty_x
         self.train_y = empty_y
         if self.dataset.has_is_terminal:
@@ -221,16 +239,18 @@ class GP(gpytorch.models.ExactGP):
         self._set_gp_data_to_dataset()
         return self
 
-    def save(self, save_path):
+    def save(self, save_path, save_data=False):
         """
-        Saves the GP in PyTorch format.
-        PyTorch does NOT save samples or class structure. Such a model cannot be loaded by a simple "file.open" method.
+        Saves the GP in PyTorch format, and optionally the Dataset object.
+        PyTorch does NOT save samples or class structure. Such a model cannot
+        be loaded by a simple "file.open" method.
         See the GP.load method for more information.
-        :param save_path: str or Path: the path of the file where to save the model
+        :param save_path: str or Path: where to save the GP model
+        :param save_data: bool: whether to save the Dataset as well
         """
-        save_path = str(save_path)
+        gp_save_path = str(save_path)
         if not save_path.endswith('.pth'):
-            save_path += '.pth'
+            gp_save_path += '.pth'
 
         # In order to be able to load dynamically the model - that is, load it from the GP.load method - we need to know
         # the name of the true class of the GP
@@ -242,22 +262,33 @@ class GP(gpytorch.models.ExactGP):
 
         torch.save(save_dict, save_path)
 
+        if save_data:
+            data_save_path = data_path_from_gp_path(gp_save_path)
+            self.dataset.save(data_save_path)
+
     # Careful: composing decorators with @staticmethod can be tricky. The @staticmethod decorator should be the last
     # one, because it does NOT return a method but an observer object
     @staticmethod
     @tensorwrap('train_x', 'train_y')
-    def load(load_path, train_x, train_y):
+    def load(load_path, train_x, train_y, load_data=False):
         """
-        Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y.
+        Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y. If `load_dataset` evaluates to true, it will then load and replace with a saved dataset.
         This method may fail if the GP was saved with an older version of the code.
         :param load_path: str or Path: the path to the file where the GP is saved
         :param train_x: np.ndarray: training input data. Should be 2D, and interpreted as a list of points.
         :param train_y: np.ndarray: training output data. Should be 1D, or of shape (train_x.shape[0], 1).
+        :param load_dataset: optional str or Path to a file where the dataset is saved.
         :return: GP: an instance of the appropriate subclass of GP
         """
         load_path = str(load_path)
-        save_dict = torch.load(load_path)
+        save_dict = torch.load(load_path, map_location=device)
         classname = save_dict['classname']
+
+        if load_data:
+            data_path = data_path_from_gp_path(load_path)
+            ds = Dataset.load(data_path)
+            train_x = ds.train_x
+            train_y = ds.train_y
 
         # We know the name of the true class of the GP, so we can dynamically import it. This is ugly and not robust,
         # but it avoids having to redefine the load method in every subclass
@@ -271,6 +302,10 @@ class GP(gpytorch.models.ExactGP):
             **construction_parameters
         )
         model.load_state_dict(save_dict['state_dict'])
+
+        if load_data:
+            model.dataset = ds
+
         return model
 
 
@@ -295,7 +330,7 @@ class Dataset:
             default_constr = torch.zeros
         else:
             default_constr = torch.ones
-        return default_constr(n, dtype=torch.bool)
+        return default_constr(n, dtype=torch.bool, device=device)
 
     def _get_is_terminal(self, kwargs, n_default, default=False):
         return ensure_tensor(
@@ -346,6 +381,29 @@ class Dataset:
                 self._get_is_terminal(kwargs, append_y.shape[0])
             ))
 
+    def save(self, save_path):
+        save_path = str(save_path)
+        if not save_path.endswith('.pt'):
+            save_path += '.pt'
+        save_dict = {
+            'train_x': self.train_x,
+            'train_y': self.train_y,
+        }
+        if self.has_is_terminal:
+            save_dict['is_terminal'] = self.is_terminal
+        torch.save(save_dict, save_path)
+
+    @staticmethod
+    def load(load_path):
+        load_path = str(load_path)
+        save_dict = torch.load(load_path, map_location=device)
+        ds = Dataset(save_dict.pop('train_x'), save_dict.pop('train_y'))
+        # Dynamically set attributes so we allow loading attributes other than
+        # train_x and train_y (like is_terminal)
+        for aname, aval in save_dict.items():
+            setattr(ds, aname, aval)
+        return ds
+
 
 class TimeForgettingDataset(Dataset):
     """
@@ -359,8 +417,8 @@ class TimeForgettingDataset(Dataset):
         :param train_y: torch.Tensor, the training output data
         :param keep: int, how many points to keep in
         """
-        super(TimeForgettingDataset, self).__init__(train_x, train_y, **kwargs)
         self.keep = keep
+        super(TimeForgettingDataset, self).__init__(train_x, train_y, **kwargs)
         self._train_x = train_x[-self.keep:]
         self._train_y = train_y[-self.keep:]
 
@@ -399,40 +457,47 @@ class NeighborErasingDataset(Dataset):
         :param train_y: torch.Tensor the training output data
         :param radius: float, the maximal distance at which old points will be removed when sampling a new point
         """
+        if device == cuda:
+            logging.warning('You are using a NeighborErasingDataset on the GPU.'
+                            ' This Dataset uses scipy, which does not allow '
+                            'parallelization: expect poor performance.')
         super(NeighborErasingDataset, self).__init__(train_x, train_y, **kwargs)
         self.radius = radius
-        self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool)
+        self.forgettable = torch.ones(self.train_x.shape[0], dtype=bool, device=device)
         self._kdtree = self._create_kdtree()
 
     def append(self, append_x, append_y, **kwargs):
         forgettable = kwargs.get('forgettable')
         if forgettable is None:
-            forgettable = torch.ones(append_x.shape[0], dtype=bool)
+            forgettable = torch.ones(append_x.shape[0], dtype=bool,
+                                     device=device)
         else:
-            forgettable = torch.tensor(forgettable, dtype=bool)
+            forgettable = torch.tensor(forgettable, dtype=bool, device=device)
         make_forget = kwargs.get('make_forget')
         if make_forget is None:
-            make_forget = torch.ones(append_x.shape[0], dtype=bool)
+            make_forget = torch.ones(append_x.shape[0], dtype=bool,
+                                     device=device)
         else:
-            make_forget = torch.tensor(make_forget, dtype=bool)
+            make_forget = torch.tensor(make_forget, dtype=bool, device=device)
 
         if make_forget.any():
             lists_indices_to_forget = self._kdtree.query_radius(
-                append_x[make_forget].numpy(),
+                append_x[make_forget].cpu().numpy(),
                 r=self.radius
             )
-            lists_indices_to_forget = list(map(
-                torch.tensor,
-                lists_indices_to_forget
-            ))
+            lists_indices_to_forget = [
+                ensure_tensor(indices_to_forget, torch.long)
+                for indices_to_forget in lists_indices_to_forget
+            ]
             indices_to_forget = torch.cat(lists_indices_to_forget)
         else:
-            indices_to_forget = torch.tensor([], dtype=int)
+            indices_to_forget = ensure_tensor([], torch.long)
 
         to_forget_is_forgettable = self.forgettable[indices_to_forget]
         indices_to_forget = indices_to_forget[to_forget_is_forgettable]
 
-        keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool)
+        keeping_filter = torch.ones(self.train_x.shape[0], dtype=bool,
+                                    device=device)
         keeping_filter[indices_to_forget] = False
 
         train_x_without_neighbors = self.train_x[keeping_filter]
@@ -457,5 +522,5 @@ class NeighborErasingDataset(Dataset):
         self._kdtree = self._create_kdtree()
 
     def _create_kdtree(self):
-        kdtree = KDTree(self.train_x.numpy(), leaf_size=40)  # This is expensive
+        kdtree = KDTree(self.train_x.cpu().numpy(), leaf_size=40)  # Expensive
         return kdtree

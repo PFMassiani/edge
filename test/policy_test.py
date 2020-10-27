@@ -83,8 +83,8 @@ class ExpectedImprovementTest(unittest.TestCase):
         truth = f(x, noise=0)
         for i in range(n_iter):
             prediction = gp.predict(actions)
-            mean = prediction.mean.numpy()
-            covar = prediction.variance.detach().numpy()
+            mean = prediction.mean.cpu().numpy()
+            covar = prediction.variance.detach().cpu().numpy()
             action = ei_policy.get_action(mean, covar, best_sample)
 
             # Plotting
@@ -96,10 +96,10 @@ class ExpectedImprovementTest(unittest.TestCase):
                 truth=truth,
                 mean=mean,
                 acquisition=acquisition,
-                lower=lower.numpy(),
-                upper=upper.numpy(),
-                x_samples=gp.train_x.numpy(),
-                y_samples=gp.train_y.numpy(),
+                lower=lower.cpu().numpy(),
+                upper=upper.cpu().numpy(),
+                x_samples=gp.train_x.cpu().numpy(),
+                y_samples=gp.train_y.cpu().numpy(),
                 sample=action,
                 constraints=None,
             )
@@ -136,8 +136,8 @@ class ExpectedImprovementTest(unittest.TestCase):
         ).squeeze()
         for i in range(n_iter):
             prediction = gp.predict(actions)
-            mean = prediction.mean.numpy()
-            covar = prediction.variance.detach().numpy()
+            mean = prediction.mean.cpu().numpy()
+            covar = prediction.variance.detach().cpu().numpy()
             action = ei_policy.get_action(mean, covar, best_sample,
                                           constraints=constraints)
 
@@ -150,10 +150,10 @@ class ExpectedImprovementTest(unittest.TestCase):
                 truth=truth,
                 mean=mean,
                 acquisition=acquisition,
-                lower=lower.numpy(),
-                upper=upper.numpy(),
-                x_samples=gp.train_x.numpy(),
-                y_samples=gp.train_y.numpy(),
+                lower=lower.cpu().numpy(),
+                upper=upper.cpu().numpy(),
+                x_samples=gp.train_x.cpu().numpy(),
+                y_samples=gp.train_y.cpu().numpy(),
                 sample=action,
                 constraints=constraints,
             )
