@@ -281,7 +281,7 @@ class GP(gpytorch.models.ExactGP):
         :return: GP: an instance of the appropriate subclass of GP
         """
         load_path = str(load_path)
-        save_dict = torch.load(load_path)
+        save_dict = torch.load(load_path, map_location=device)
         classname = save_dict['classname']
 
         if load_data:
@@ -396,7 +396,7 @@ class Dataset:
     @staticmethod
     def load(load_path):
         load_path = str(load_path)
-        save_dict = torch.load(load_path)
+        save_dict = torch.load(load_path, map_location=device)
         ds = Dataset(save_dict.pop('train_x'), save_dict.pop('train_y'))
         # Dynamically set attributes so we allow loading attributes other than
         # train_x and train_y (like is_terminal)

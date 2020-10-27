@@ -164,6 +164,7 @@ class CartPoleLoading(MaternGPSARSALoadingSimulation):
                 action = self.agent.last_action
                 append_to_episode(self.training_dataset, episode, old_state, action,
                                   new_state, reward, failed, done)
+                self.env.gym_env.render()
         len_episode = len(episode[self.training_dataset.REWARD])
         episode[self.training_dataset.EPISODE] = [n_episode] * len_episode
         return episode
@@ -247,6 +248,7 @@ class CartPoleLoading(MaternGPSARSALoadingSimulation):
                                      test_t, header=False, limit_episodes=None)
             chkpt_t = self.checkpoint(n)
             logging.info(f'Checkpointing time: {chkpt_t:.3f} s')
+        self.env.gym_env.close()
 
     def load_models(self, skip_local=False):
         pass
@@ -258,20 +260,21 @@ class CartPoleLoading(MaternGPSARSALoadingSimulation):
 if __name__ == '__main__':
     GROUP_NAME = TRAINING
     seed = int(time.time())
-    load_seed = 1603449858
+    load_seed = 1603450444
+    group_num = 4
     sim = CartPoleLoading(
-        name=f'load_{seed}',
+        name=f'render',#_{seed}',
         shape=(10, 10, 10, 10, 10),
         penalty=None,
         xi=0.01,
         control_frequency=2,
-        load_sname=f'process_{load_seed}',
-        load_mname='Q_model_0',
-        load_dataset_name='train_0.csv',
-        load_group=0,
-        n_episodes_train=60,
+        load_sname=f'process_saved_{load_seed}',
+        load_mname=f'Q_model_{group_num}',
+        load_dataset_name=f'train_{group_num}.csv',
+        load_group=group_num,
+        n_episodes_train=0,
         n_episodes_test=30,
-        n_train_test=5
+        n_train_test=1
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))

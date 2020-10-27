@@ -50,11 +50,12 @@ class BidiagonalLazyTensor(LazyTensor):
 
     def _matmul(self, rhs):
         # We decompose the result in two parts: diag_res and off_diag_res
-        # diag_res is the result of eye(p) * rhs, where p = self.size(-1) + 1 or
-        #   self.size(-1) depending on self.square and rhs is masked accordingly
-        # off_diag_res is the result of diag(self._off_diag) * rhs, where the
-        #   first or last row of rhs is removed, and possibly concatenated with
-        #   a row of 0 at the first or last row depending on self.square
+        # Approximately:
+        # diag_res is the result of eye(p) * rhs
+        # off_diag_res is the result of diag(self._off_diag) * rhs
+        # To get the correct result, all matrices in these two products may be
+        # masked or concatenated with rows or columns of zeros depending on
+        # self.square and self.upper
         from gpytorch.lazy import DiagLazyTensor
         is_vector = rhs.ndimension() == 1
         if is_vector:
@@ -134,7 +135,7 @@ class BidiagonalLazyTensor(LazyTensor):
                 *batch_lens, nrows, ncols
             ).clone()
         off_diag_res = off_diag_res.reshape(target_shape)
- 
+
         sign = 1 if self.upper else -1
         diag_res = diag_res * torch.eq(row_index, col_index).to(
             device=self.device, dtype=self.dtype
@@ -145,6 +146,13 @@ class BidiagonalLazyTensor(LazyTensor):
         return diag_res + off_diag_res
 
     def left_matmul(self, other):
+        """
+        Performs the `A * self` operation by exploiting the structure of `self`,
+        where * is matrix product and A is a Tensor or LazyTensor. This is more
+        efficient than `A.matmul(self)` if `A` does not have structure.
+        :param other:
+        :return:
+        """
         return self.transpose(-1, -2).matmul(
             other.transpose(-1, -2)
         ).transpose(-1, -2)
