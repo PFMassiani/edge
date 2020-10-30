@@ -26,7 +26,7 @@ class SafetyMeasure(GPModel):
         super(SafetyMeasure, self).__init__(env, gp)
         self.gamma_measure = gamma_measure
 
-    def update(self, state, action, new_state, reward, failed):
+    def update(self, state, action, new_state, reward, failed, done):
         """
         Updates the underlying GP with the measure computation update
         :param state: the previous state
@@ -46,7 +46,9 @@ class SafetyMeasure(GPModel):
 
         stateaction = self.env.stateaction_space[state, action]
         self.gp.append_data(stateaction, update_value, forgettable=[not failed],
-                            make_forget=[not failed])
+                            make_forget=[not failed],
+                            unskippable=[failed])
+        return update_value
 
     def measure(self, state, lambda_threshold=0, gamma_threshold=None):
         """
@@ -67,6 +69,11 @@ class SafetyMeasure(GPModel):
                            for k in range(self.env.action_space.index_dim)])
 
         return np.atleast_1d(level_set.mean(mean_axes))
+
+    def is_in_level_set(self, state, action, lambda_threshold, gamma_threshold):
+        measure, covar = self.query((state, action), return_covar=True)
+        level_value = norm.cdf((measure - lambda_threshold) / np.sqrt(covar))
+        return np.squeeze(level_value > gamma_threshold)
 
     def level_set(self, state, lambda_threshold, gamma_threshold,
                   return_proba=False, return_covar=False, return_measure=False,
