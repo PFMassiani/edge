@@ -51,10 +51,8 @@ class Dataset:
             return [[arg] for arg in args]
 
     def add_entry(self, *args, **kwargs):
-        entry = dict(zip(self.columns, self._list_wrap(
-            self._complete_args(args)
-        )))
-        entry.update(self._list_wrap(kwargs))
+        entry = {kw: [arg] for kw, arg in zip(self.columns, args)}
+        entry.update({kw: [arg] for kw, arg in kwargs.items()})
         self.df = self.df.append(pd.DataFrame(entry), ignore_index=True)
 
     def add_group(self, group, group_number=None):

@@ -25,3 +25,17 @@ def dynamically_import(name):
     for comp in components[1:]:
         mod = getattr(mod, comp)
     return mod
+
+
+def get_hyperparameters(gp, constraints=False):
+    params = {}
+    for name, param, constraint \
+            in gp.named_parameters_and_constraints():
+        transformed = np.around(
+            constraint.transform(param).cpu().detach().numpy().squeeze(),
+            decimals=4
+        )
+        entry = transformed if not constraints else (transformed, constraint)
+        key = ''.join(name.split('raw_'))
+        params[key] = entry
+    return params
