@@ -16,6 +16,7 @@ class MaternGP(GP):
                  lengthscale_prior=None, lengthscale_constraint=None,
                  outputscale_prior=None, outputscale_constraint=None,
                  hyperparameters_initialization=None,
+                 mean_constant=None,
                  dataset_type=None, dataset_params=None,
                  value_structure_discount_factor=None):
         """
@@ -52,13 +53,19 @@ class MaternGP(GP):
             'lengthscale_constraint': lengthscale_constraint,
             'outputscale_prior': outputscale_prior,
             'outputscale_constraint': outputscale_constraint,
+            'mean_constant': mean_constant,
             'dataset_type': dataset_type,
             'dataset_params': dataset_params,
             'value_structure_discount_factor': value_structure_discount_factor,
         }
 
-        # Using a ConstantMean here performs much worse than a ZeroMean
-        mean_module = gpytorch.means.ZeroMean()
+        if mean_constant is None:
+            mean_module = gpytorch.means.ZeroMean()
+        else:
+            mean_constant = float(mean_constant)
+            mean_module = gpytorch.means.ConstantMean()
+            mean_module.initialize(constant=torch.tensor([mean_constant]))
+            mean_module.requires_grad = False  # Not trainable
 
         if lengthscale_prior is not None:
             try:
