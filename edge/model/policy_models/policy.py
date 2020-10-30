@@ -39,4 +39,4 @@ class RandomPolicy(Policy):
             return p
         n_available = prod(action_space.shape)
         chosen_action = np.random.choice(n_available)
-        return np.unravel_index(chosen_action, action_space.shape)
+        return action_space[np.unravel_index(chosen_action, action_space.shape)]

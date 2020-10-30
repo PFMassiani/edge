@@ -5,6 +5,7 @@ from .policy import Policy, RandomPolicy
 from .greedy import ConstrainedEpsilonGreedy, EpsilonGreedy
 from .safety import SafetyMaximization, SafetyActiveSampling
 from .gaussian_policy import GaussianPolicy
+from .bayesian import ExpectedImprovementPolicy, SafetyInformationMaximization
 try:
     from .multilayer_perceptron import MLPPolicy, MultilayerPerceptron
 except ImportError:
