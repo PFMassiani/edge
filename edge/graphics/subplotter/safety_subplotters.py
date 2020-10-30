@@ -100,13 +100,13 @@ class SafetyTruthSubplotter(Subplotter):
         super(SafetyTruthSubplotter, self).__init__(colors)
         self.ground_truth = ground_truth
         self.states = squeeze(
-            self.ground_truth.stateaction_space.state_space[:]
+            self.ground_truth.env.stateaction_space.state_space[:]
         )
         self.actions = squeeze(
-            self.ground_truth.stateaction_space.action_space[:]
+            self.ground_truth.env.stateaction_space.action_space[:]
         )
 
-        stateaction_grid = self.ground_truth.stateaction_space[:, :]
+        stateaction_grid = self.ground_truth.env.stateaction_space[:, :]
         self.states_grid = stateaction_grid[:, :, 0]
         self.actions_grid = stateaction_grid[:, :, 1]
 

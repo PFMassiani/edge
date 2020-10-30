@@ -62,8 +62,9 @@ class SafetyPlotter(Plotter):
         S_optimistic = Q_optimistic.mean(axis=1)
         return Q_optimistic, Q_cautious, S_optimistic
 
-    def on_run_iteration(self, state, action, new_state, reward, failed):
-        self.sample_subplotter.incur_sample(state, action, failed)
+    def on_run_iteration(self, state, action, new_state, reward, failed,
+                         color=None):
+        self.sample_subplotter.incur_sample(state, action, failed, color)
 
 
 class DetailedSafetyPlotter(Plotter):

@@ -7,7 +7,7 @@ from edge.model.policy_models import RandomPolicy
 class RandomAgent(Agent):
     def __init__(self, env):
         super(RandomAgent, self).__init__(env)
-        self.policy = RandomPolicy(env)
+        self.policy = RandomPolicy(env.stateaction_space)
 
     def get_next_action(self):
         return self.policy.get_action(self.state)
