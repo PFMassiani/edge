@@ -199,14 +199,16 @@ class ContinuousCartPole(GymEnvironmentWrapper):
         self.reward_accumulator += reward
         return new_state, reward, failed
 
-    def linearization(self, discrete_time=True):
+    def linearization(self, discrete_time=True, **perturbations):
         # The full equations are taken from
         # https://coneural.org/florian/papers/05_cart_pole.pdf
         # which is the source given by OpenAI Gym for the dynamics
-        g = self.gym_env.gravity
-        m = self.gym_env.total_mass
-        eta = self.gym_env.masspole / m
-        l = self.gym_env.length * 2  # Gym stores half the pole's length
+        g = self.gym_env.gravity * perturbations.get('g', 1)
+        m = self.gym_env.masscart * perturbations.get('mcart', 1) + \
+            self.gym_env.masspole * perturbations.get('mpole', 1)
+        eta = (self.gym_env.masspole * perturbations.get('mpole', 1)) / m
+        # Gym stores half the pole's length
+        l = self.gym_env.length * 2 * perturbations.get('l', 1)
         a12 = g * eta / (eta - 4 / 3)
         a32 = (g / l) / (4 / 3 - eta)
         A = np.array([[0, 1, 0, 0],
