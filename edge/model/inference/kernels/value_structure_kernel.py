@@ -11,6 +11,21 @@ import torch
 from edge.utils import device
 
 
+def discount_tensor(discount_factor, is_terminal, train_inputs=None, t=None,
+                    upper=True, square=False):
+        tm1 = len(train_inputs[0]) - 1 if t is None else t - 1
+        try:
+            superdiag = torch.tensor([
+                -discount_factor if not is_terminal[i] else 0
+                for i in range(tm1)
+            ], dtype=torch.float, device=device)
+        except IndexError as e:
+            raise e
+        discount_tensor = BidiagonalLazyTensor(superdiag, upper=upper,
+                                               square=square)
+        return discount_tensor
+
+
 class DiscountedPredictionStrategy(DefaultPredictionStrategy):
     def __init__(self, train_inputs, train_prior_dist, train_labels, likelihood,
                  discount_tensor, is_terminal, root=None, inv_root=None):
@@ -127,7 +142,9 @@ class ValueStructureKernel(Kernel):
             train_inputs=train_inputs,
             train_prior_dist=train_prior_dist,
             train_labels=train_labels,
-            discount_tensor=self._discount_tensor(train_inputs),
+            discount_tensor=discount_tensor(self.discount_factor,
+                                            self.dataset.is_terminal,
+                                            train_inputs),
             is_terminal=self.dataset.is_terminal,
             likelihood=likelihood,
         )
@@ -151,7 +168,10 @@ class ValueStructureKernel(Kernel):
         if self.training:
             # In this case, the prediction strategy is not called in the
             # calling class: we need to do it here
-            discount_tensor = self._discount_tensor(t=x1.shape[0]).evaluate()
+            discount_tensor = self._discount_tensor(self.discount_factor,
+                                                    self.dataset.is_terminal,
+                                                    t=x1.shape[0]
+                                                    ).evaluate()
             res = discount_tensor.matmul(
                 res.matmul(
                     discount_tensor.transpose(-1, -2)
@@ -160,16 +180,6 @@ class ValueStructureKernel(Kernel):
             return res
         else:
             return res
-
-    def _discount_tensor(self, train_inputs=None, t=None):
-        tm1 = len(train_inputs[0]) - 1 if t is None else t - 1
-        superdiag = torch.tensor([
-            -self.discount_factor if not self.dataset.is_terminal[i] else 0
-            for i in range(tm1)
-        ], dtype=torch.float, device=device)
-        discount_tensor = BidiagonalLazyTensor(superdiag, upper=True,
-                                               square=False)
-        return discount_tensor
 
 
 class LazyEvaluatedValueStructureKernelTensor(LazyEvaluatedKernelTensor):
@@ -193,12 +203,19 @@ class LazyEvaluatedValueStructureKernelTensor(LazyEvaluatedKernelTensor):
 
 
 class ValueStructureMean(Mean):
-    def __init__(self, base_mean):
+    def __init__(self, base_mean, discount_factor, dataset):
         super(ValueStructureMean, self).__init__()
         self.base_mean = base_mean
+        self.discount_factor = discount_factor
+        self.dataset = dataset
 
     def forward(self, x):
         res = self.base_mean.forward(x)
         if self.training:
-            res = res[:-1]
+            discount = discount_tensor(self.discount_factor,
+                                       self.dataset.is_terminal,
+                                       t=x.shape[0],
+                                       square=False
+                                       )
+            res = discount.matmul(res)
         return res

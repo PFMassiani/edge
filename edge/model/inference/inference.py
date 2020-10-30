@@ -30,6 +30,7 @@ class GP(gpytorch.models.ExactGP):
         :param dataset_type: Possible values:
             * 'timeforgetting': use a TimeForgettingDataset
             * 'neighborerasing': use a NeighborErasingDataset
+            * 'downsampling': use a DownsamplingDataset
             * anything else: use a standard Dataset
         :param dataset_params: dictionary or None. The entries are passed as keyword arguments to the constructor of
             the chosen dataset.
@@ -46,6 +47,8 @@ class GP(gpytorch.models.ExactGP):
             create_dataset = TimeForgettingDataset
         elif dataset_type == 'neighborerasing':
             create_dataset = NeighborErasingDataset
+        elif dataset_type == 'downsampling':
+            create_dataset = DownsamplingDataset
         else:
             dataset_params = {}
             create_dataset = Dataset
@@ -55,7 +58,11 @@ class GP(gpytorch.models.ExactGP):
         super(GP, self).__init__(train_x, train_y, likelihood)
 
         if self.has_value_structure:
-            mean_module = ValueStructureMean(base_mean=mean_module)
+            mean_module = ValueStructureMean(
+                base_mean=mean_module,
+                discount_factor=value_structure_discount_factor,
+                dataset=self.dataset
+            )
             covar_module = ValueStructureKernel(
                 base_kernel=covar_module,
                 discount_factor=value_structure_discount_factor,
@@ -134,6 +141,7 @@ class GP(gpytorch.models.ExactGP):
         self._dataset = new_dataset
         if self.has_value_structure:
             self.covar_module.dataset = new_dataset
+            self.mean_module.dataset = new_dataset
 
     # This is a simple redefinition of super().__call__().
     # The goal here is to add the @tensorwrap decorator, so the parameters used to call the GP are automatically
@@ -381,28 +389,38 @@ class Dataset:
                 self._get_is_terminal(kwargs, append_y.shape[0])
             ))
 
-    def save(self, save_path):
-        save_path = str(save_path)
-        if not save_path.endswith('.pt'):
-            save_path += '.pt'
-        save_dict = {
+    @property
+    def state_dict(self):
+        state_dict = {
             'train_x': self.train_x,
             'train_y': self.train_y,
         }
         if self.has_is_terminal:
-            save_dict['is_terminal'] = self.is_terminal
-        torch.save(save_dict, save_path)
+            state_dict['is_terminal'] = self.is_terminal
+        return state_dict
+
+    def save(self, save_path):
+        save_path = str(save_path)
+        if not save_path.endswith('.pt'):
+            save_path += '.pt'
+        torch.save(self.state_dict, save_path)
 
     @staticmethod
-    def load(load_path):
+    def _load_with_class(load_path, constructor):
         load_path = str(load_path)
         save_dict = torch.load(load_path, map_location=device)
-        ds = Dataset(save_dict.pop('train_x'), save_dict.pop('train_y'))
+        train_x = save_dict.pop('train_x')
+        train_y = save_dict.pop('train_y')
+        ds = constructor(train_x, train_y, **save_dict)
         # Dynamically set attributes so we allow loading attributes other than
         # train_x and train_y (like is_terminal)
         for aname, aval in save_dict.items():
             setattr(ds, aname, aval)
         return ds
+
+    @staticmethod
+    def load(load_path):
+        return Dataset._load_with_class(load_path, Dataset)
 
 
 class TimeForgettingDataset(Dataset):
@@ -441,6 +459,22 @@ class TimeForgettingDataset(Dataset):
         else:
             new_is_terminal = ensure_tensor(new_is_terminal)
         self._is_terminal = new_is_terminal[-self.keep:]
+
+    @property
+    def state_dict(self):
+        state_dict = {
+            'train_x': self.train_x,
+            'train_y': self.train_y,
+            'keep': self.keep
+        }
+        if self.has_is_terminal:
+            state_dict['is_terminal'] = self.is_terminal
+        return state_dict
+
+    @staticmethod
+    def load(load_path):
+        return TimeForgettingDataset._load_with_class(load_path,
+                                                      TimeForgettingDataset)
 
 
 class NeighborErasingDataset(Dataset):
@@ -524,3 +558,82 @@ class NeighborErasingDataset(Dataset):
     def _create_kdtree(self):
         kdtree = KDTree(self.train_x.cpu().numpy(), leaf_size=40)  # Expensive
         return kdtree
+
+    @property
+    def state_dict(self):
+        state_dict = {
+            'train_x': self.train_x,
+            'train_y': self.train_y,
+            'forgettable': self.forgettable,
+            'radius': self.radius
+        }
+        if self.has_is_terminal:
+            state_dict['is_terminal'] = self.is_terminal
+        return state_dict
+
+    @staticmethod
+    def load(load_path):
+        return NeighborErasingDataset._load_with_class(load_path,
+                                                       NeighborErasingDataset)
+
+
+class DownsamplingDataset(Dataset):
+    """
+    This dataset only appends data every `append_every` points
+    Note: no condition is enforced when assigning `train_x` and `train_y`
+    """
+    def __init__(self, train_x, train_y, append_every, **kwargs):
+        super().__init__(train_x, train_y, **kwargs)
+        self.append_every = append_every
+        self.__append_attempts = 0
+
+    @Dataset.train_x.setter
+    def train_x(self, new_train_x):
+        self._train_x = new_train_x
+        self.__append_attempts = 0
+
+    @Dataset.train_y.setter
+    def train_y(self, new_train_y):
+        self._train_y = new_train_y
+        self.__append_attempts = 0
+
+    def append(self, append_x, append_y, **kwargs):
+        unskippable = kwargs.pop('unskippable', None)
+        if unskippable is None:
+            unskippable = torch.zeros_like(append_y, dtype=bool, device=device)
+        else:
+            unskippable = ensure_tensor(unskippable, torch.bool)
+        attempt_len = append_x.shape[0]
+        append_mask = ensure_tensor([
+            (i + self.__append_attempts + 1) % self.append_every == 0
+            for i in range(append_x.shape[0])
+        ], dtype=torch.bool)
+        append_mask = torch.logical_or(append_mask, unskippable)
+        append_x = append_x[append_mask]
+        append_y = append_y[append_mask]
+        for kw, arg in kwargs.items():
+            try:
+                kwargs[kw] = torch.tensor(arg, device=device)[append_mask]
+            except TypeError:
+                pass
+        if append_x.shape[0] > 0:
+            super().append(append_x, append_y, **kwargs)
+        self.__append_attempts += attempt_len
+        self.__append_attempts %= self.append_every
+
+    @property
+    def state_dict(self):
+        state_dict = {
+            'train_x': self.train_x,
+            'train_y': self.train_y,
+            'append_every': self.append_every,
+            '__append_attempts': self.__append_attempts,
+        }
+        if self.has_is_terminal:
+            state_dict['is_terminal'] = self.is_terminal
+        return state_dict
+
+    @staticmethod
+    def load(load_path):
+        return DownsamplingDataset._load_with_class(load_path,
+                                                    DownsamplingDataset)
