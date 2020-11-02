@@ -94,7 +94,7 @@ class OfflineSafetyLearner(Agent):
                 lambda_threshold=0,
                 gamma_threshold=self.gamma_measure
             )
-            measures[faileds] = 0
+        measures[faileds] = 0
         stateactions = np.hstack((states, actions))
         self.safety_model.gp.append_data(
             stateactions,
