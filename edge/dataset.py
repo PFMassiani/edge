@@ -56,15 +56,16 @@ class Dataset:
         self.df = self.df.append(pd.DataFrame(entry), ignore_index=True)
 
     def add_group(self, group, group_number=None):
-        if group_number is None:
-            group_number = self.df[self.group_name].max() + 1
-            if pd.isna(group_number):
-                group_number = 0
-        group_length = len(group[list(group.keys())[0]])
-        group = group.copy()
-        group.update({
-            self.group_name: [group_number]*group_length
-        })
+        if group.get(self.group_name) is None:
+            if group_number is None:
+                group_number = self.df[self.group_name].max() + 1
+                if pd.isna(group_number):
+                    group_number = 0
+            group_length = len(group[list(group.keys())[0]])
+            group = group.copy()
+            group.update({
+                self.group_name: [group_number]*group_length
+            })
         self.df = self.df.append(pd.DataFrame(group), ignore_index=True)
 
     def save(self, filepath):
