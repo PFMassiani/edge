@@ -64,7 +64,7 @@ class MaternGP(GP):
         else:
             mean_constant = float(mean_constant)
             mean_module = gpytorch.means.ConstantMean()
-            mean_module.initialize(constant=torch.tensor([mean_constant]))
+            mean_module.initialize(constant=ensure_tensor([mean_constant]))
             mean_module.requires_grad = False  # Not trainable
 
         if lengthscale_prior is not None:
