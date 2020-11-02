@@ -48,13 +48,19 @@ class Agent:
         """
         raise NotImplementedError
 
-    def fit_models(self):
+    def fit_models(self, train_x, train_y, epochs, **optimizer_kwargs):
         """ Abstract method
         Fits the models to the problem. This method should typically be called before the Agent starts learning and
         updating its models. Its purpose is to fit the hyperparameters to the problem. In that case, the method will
         require additional data, coming from system knowledge or previous experiments.
         """
-        raise NotImplementedError
+        for model in self.models:
+            model.fit(
+                train_x=train_x,
+                train_y=train_y,
+                epochs=epochs,
+                **optimizer_kwargs
+            )
 
     def reset(self, s=None):
         """
