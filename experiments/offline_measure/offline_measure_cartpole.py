@@ -202,7 +202,19 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
 
         episodes, rewards, states, actions, new_states, faileds, dones = \
             self.extract_variables_from_batch(self.training_dataset.df)
-        new_measures = offline_learner.safety_model.measure(state=new_states)
+        try:
+            new_measures = offline_learner.safety_model.measure(
+                state=new_states
+            )
+        except RuntimeError as e:
+            logging.error(f'Measure computation failed with error:\n{str(e)}\n'
+                          f'Number of states: {len(episodes)}\nMemory status:')
+            self.log_memory()
+            logging.error('Re-trying with cleared cache.')
+            if device == cuda:
+                torch.cuda.empty_cache()
+            new_measures = offline_learner.safety_model.measure(
+                state=new_states)
 
         self.save_safety_model(offline_learner, name=f'safety_model_{n_optim}')
         self.checkpoint_safety_dataset(
@@ -290,6 +302,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                 logging.critical(f'iterate_measure failed on iteration {n}:\n'
                                  f'{str(e)}')
                 self.log_memory()
+                raise e
             finally:
                 if device == cuda:
                     torch.cuda.empty_cache()
