@@ -20,7 +20,7 @@ class ContinuousCartPoleEnv(gym.Env):
         'video.frames_per_second': 50
     }
 
-    def __init__(self):
+    def __init__(self, max_theta_init=0.05):
         self.gravity = 9.8
         self.masscart = 1.0
         self.masspole = 0.1
@@ -31,6 +31,7 @@ class ContinuousCartPoleEnv(gym.Env):
         self.tau = 0.02  # seconds between state updates
         self.min_action = -1.0
         self.max_action = 1.0
+        self.max_theta_init = max_theta_init
 
         # Angle at which to fail the episode
         self.theta_threshold_radians = 12 * 2 * math.pi / 360
@@ -105,6 +106,8 @@ Any further steps are undefined behavior.
 
     def reset(self):
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(4,))
+        self.state[2] = self.np_random.uniform(low=-self.max_theta_init,
+                                               high=self.max_theta_init)
         self.steps_beyond_done = None
         return np.array(self.state)
 
@@ -167,11 +170,11 @@ Any further steps are undefined behavior.
 
 
 class ContinuousCartPole(GymEnvironmentWrapper):
-    def __init__(self, discretization_shape, control_frequency=4):
-        gym_env = ContinuousCartPoleEnv()
+    def __init__(self, discretization_shape, control_frequency=4,
+                 max_theta_init=0.05):
+        gym_env = ContinuousCartPoleEnv(max_theta_init=max_theta_init)
         super(ContinuousCartPole, self).__init__(
-            gym_env, discretization_shape, control_frequency=control_frequency
-        )
+            gym_env, discretization_shape, control_frequency=control_frequency)
 
     def is_failure_state(self, state):
         x = state[0]

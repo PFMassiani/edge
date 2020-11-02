@@ -24,12 +24,14 @@ REMAINING_T = 'Remaining time'
 
 class OfflineMeasureSimulation(ModelLearningSimulation):
     def __init__(self, name, shape, control_frequency, perturbations,
+                 max_theta_init,
                  gamma_measure,
                  n_episodes, checkpoint_dataset_every, n_optimizations,
                  render=False):
         self.env = ContinuousCartPole(
             discretization_shape=shape,  # This matters for the GP
             control_frequency=control_frequency,
+            max_theta_init=max_theta_init
         )
         self.agent = DLQRController(
             env=self.env,
@@ -318,14 +320,15 @@ if __name__ == '__main__':
     # seed = 1
     sim = OfflineMeasureSimulation(
         name=f'offline_{seed}',
-        shape=(10, 10, 10, 10, 41),
+        shape=(50, 50, 50, 50, 41),
         control_frequency=2,
-        perturbations={'g': 1, 'mcart': 1, 'mpole': 1, 'l': 1/5},
+        perturbations={'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1},
+        max_theta_init=0.7,
         gamma_measure=(0.6, 0.7),
         n_episodes=5,
         checkpoint_dataset_every=2,
-        n_optimizations=5,
-        render=False
+        n_optimizations=0,
+        render=True
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))
