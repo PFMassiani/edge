@@ -132,7 +132,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                 self.checkpoint_dataset(n)
                 self.log_performance(
                     self.training_dataset,
-                    f'Checkpoint {n}/{self.n_episodes-1}',
+                    f'Checkpoint {n+1}/{self.n_episodes}',
                     header=True,
                     limit_episodes=self.checkpoint_dataset_every
                 )
@@ -313,11 +313,10 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                                  f'{str(e)}')
                 self.log_memory()
                 raise e
-            finally:
-                if device == cuda:
-                    torch.cuda.empty_cache()
-                self.log_measures(measures, iterate_t, diff, n, header=True)
-                gc.collect()
+            if device == cuda:
+                torch.cuda.empty_cache()
+            self.log_measures(measures, iterate_t, diff, n, header=True)
+            gc.collect()
         if self.render:
             self.env.gym_env.close()
 
@@ -330,11 +329,11 @@ if __name__ == '__main__':
         shape=(50, 50, 50, 50, 41),
         control_frequency=2,
         perturbations={'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1},
-        max_theta_init=0.7,
+        max_theta_init=0.5,
         gamma_measure=(0.6, 0.7),
-        n_episodes=5,
-        checkpoint_dataset_every=2,
-        n_optimizations=2,
+        n_episodes=15,
+        checkpoint_dataset_every=5,
+        n_optimizations=10,
         render=False
     )
     sim.set_seed(value=seed)
