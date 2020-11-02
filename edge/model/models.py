@@ -86,10 +86,21 @@ class ContinuousModel(Model):
         :param index: tuple: the index
         :return: np.ndarray of stateactions
         """
-        return self.env.stateaction_space[index].reshape(
-            (-1, self.env.stateaction_space.data_length)
-        )
-
+        if isinstance(index, tuple):
+            return self.env.stateaction_space[index].reshape(
+                (-1, self.env.stateaction_space.data_length)
+            )
+        else:  # `index` is a `list` of indexes
+            out = None
+            for i in index:
+                query_part = self.env.stateaction_space[i].reshape(
+                    (-1, self.env.stateaction_space.data_length)
+                )
+                if out is None:
+                    out = query_part
+                else:
+                    out = np.vstack((out, query_part))
+            return out
 
 class GPModel(ContinuousModel):
     GP_SAVE_NAME = 'gp.pth'  # name of file containing the GP when saving

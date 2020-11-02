@@ -114,12 +114,18 @@ class SafetyMeasure(GPModel):
 
         if state is None:
             # Unspecfied state means the whole state space
-            state = slice(None, None, None)
-        action = slice(None, None, None)
+            index = (slice(None, None, None), slice(None, None, None))
+        elif state.ndim > 1 and state.shape[0] > 1:
+            # This means `state` is a list of states
+            index = [
+                (*s.reshape(-1, 1), slice(None, None, None)) for s in state
+            ]
+        else:
+            index = (*state.reshape(-1, 1), slice(None, None, None))
         output_shape = (-1,) + self.env.action_space.shape
 
         query_out = self.query(
-            tuple(self.env.stateaction_space.get_stateaction(state, action)),
+            index,
             return_covar=True,
             return_covar_matrix=return_covar_matrix,
         )
