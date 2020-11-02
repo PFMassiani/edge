@@ -82,10 +82,10 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             'lengthscale_prior': lengthscale_prior,
             'noise_prior': noise_prior,
             'mean_constant': 1,
-            'dataset_type': None,
-            'dataset_params': None,
-            # 'dataset_type': 'downsampling',
-            # 'dataset_params': {'append_every': 10},
+            # 'dataset_type': None,
+            # 'dataset_params': None,
+            'dataset_type': 'downsampling',
+            'dataset_params': {'append_every': 5},
             # 'dataset_type': 'neighborerasing',
             # 'dataset_params': {'radius': 0.01},
             'value_structure_discount_factor': None,
@@ -171,7 +171,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             df = self.training_dataset.df
         max_t = df[REMAINING_T].max()
         for remaining_t in range(max_t + 1):
-            self.iteratively_set_data(offline_learner, df, remaining_t)
+            self.iteratively_set_data(offline_learner, df, remaining_t,
+                                      measures)
 
     def fit_hyperparameters(self, offline_learner, n_optim):
         for lr in [1, 0.1, 0.01, 0.001]:

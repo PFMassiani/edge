@@ -96,7 +96,13 @@ class OfflineSafetyLearner(Agent):
             )
             measures[faileds] = 0
         stateactions = np.hstack((states, actions))
-        self.safety_model.gp.append_data(stateactions, measures)
+        self.safety_model.gp.append_data(
+            stateactions,
+            measures,
+            forgettable=~faileds,
+            make_forget=~faileds,
+            unskippable=dones
+        )
 
     def update_models(self, state, action, new_state, reward, failed, done):
         pass
