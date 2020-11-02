@@ -219,13 +219,18 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             new_measures = offline_learner.safety_model.measure(
                 state=new_states)
 
+        if previous_measures is not None:
+            diff = np.linalg.norm(previous_measures - new_measures)
+        else:
+            diff = None
+
         self.save_safety_model(offline_learner, name=f'safety_model_{n_optim}')
         self.checkpoint_safety_dataset(
             n_optim, episodes, rewards, states, actions, new_states, faileds,
             dones, new_measures
         )
 
-        return new_measures
+        return new_measures, diff
 
     def log_performance(self, ds, name_in_log, duration=None, header=True,
                         limit_episodes=None):
@@ -243,15 +248,16 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             message += f'\nComputation time: {duration:.3f} s'
         logging.info(header + message)
 
-    def log_measures(self, measures, iterate_t, n_optim, header=True):
+    def log_measures(self, measures, iterate_t, diff, n_optim, header=True):
         header = f'-------- Measure --------\n' if header else ''
         message = (f'--- Iteration {n_optim+1}/{self.n_optimizations}\n'
                    f'Average measure: {measures.mean():.4f}\n'
                    f'Nonzero measure # of points: '
                    f'{len(measures[measures>0])}/{len(measures)}\n'
                    f'Nonzero measure proportion: '
-                   f'{len(measures[measures>0])/len(measures)*100:.3f} %\n'
-                   f'Computation time: {iterate_t:.3f} s')
+                   f'{len(measures[measures>0])/len(measures)*100:.3f} %\n')
+        message += f'Measure variation: {diff:.5f}\n' if diff else ''
+        message += f'Computation time: {iterate_t:.3f} s'
         logging.info(header + message)
 
     def log_memory(self):
@@ -299,7 +305,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.info(f'========= OPTIMIZATION {n+1}/{self.n_optimizations}'
                          f' ========')
             try:
-                measures, iterate_t = self.iterate_measure(n, measures)
+                out, iterate_t = self.iterate_measure(n, measures)
+                measures, diff = out
             except RuntimeError as e:
                 iterate_t = np.nan
                 logging.critical(f'iterate_measure failed on iteration {n}:\n'
@@ -309,7 +316,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             finally:
                 if device == cuda:
                     torch.cuda.empty_cache()
-                self.log_measures(measures, iterate_t, n, header=True)
+                self.log_measures(measures, iterate_t, diff, n, header=True)
                 gc.collect()
         if self.render:
             self.env.gym_env.close()
@@ -327,8 +334,8 @@ if __name__ == '__main__':
         gamma_measure=(0.6, 0.7),
         n_episodes=5,
         checkpoint_dataset_every=2,
-        n_optimizations=0,
-        render=True
+        n_optimizations=2,
+        render=False
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))
