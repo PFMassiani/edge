@@ -1,5 +1,6 @@
 from gpytorch import constraints
 from numbers import Number
+import numpy as np
 
 
 def atleast_2d(ten):
@@ -27,14 +28,17 @@ def dynamically_import(name):
     return mod
 
 
-def get_hyperparameters(gp, constraints=False):
+def get_hyperparameters(gp, constraints=False, around=None):
     params = {}
     for name, param, constraint \
             in gp.named_parameters_and_constraints():
-        transformed = np.around(
-            constraint.transform(param).cpu().detach().numpy().squeeze(),
-            decimals=4
-        )
+        if constraint is not None:
+            transformed = constraint.transform(param).cpu().detach().numpy().\
+                          squeeze()
+        else:
+            transformed = param.cpu().detach().numpy().squeeze()
+        if around is not None:
+            transformed = np.around(transformed, around=around)
         entry = transformed if not constraints else (transformed, constraint)
         key = ''.join(name.split('raw_'))
         params[key] = entry
