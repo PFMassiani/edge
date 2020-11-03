@@ -36,6 +36,14 @@ def final_param_value(mean_module, param_name, param):
     else:
         return param
 
+
+def system_agnostic_mean_path(mean_path):
+    ROOT_DIR = Path(__file__).parent.parent.parent.parent
+    mean_path = str(mean_path)
+    mean_path = mean_path.split('edge')[-1]
+    return ROOT_DIR / mean_path
+
+
 class GPMeanMaternGP(MaternGP):
     @tensorwrap('train_x', 'train_y')
     def __init__(self, train_x, train_y, mean_path, nu=2.5,
@@ -44,7 +52,7 @@ class GPMeanMaternGP(MaternGP):
                  outputscale_prior=None, outputscale_constraint=None,
                  hyperparameters_initialization=None,
                  dataset_type=None, dataset_params=None,
-                 value_structure_discount_factor=None):
+                 value_structure_discount_factor=None, **kwargs):
         """
         Initializer
         :param train_x: training input data. Should be 2D, and interpreted as a list of points.
@@ -76,7 +84,8 @@ class GPMeanMaternGP(MaternGP):
         }
 
         train_x = atleast_2d(train_x)
-        mean_gp = GP.load(mean_path, train_x, train_y, load_data=True)
+        mean_gp = GP.load(system_agnostic_mean_path(mean_path),
+                          train_x, train_y, load_data=True)
         lengthscale_prior = final_param_value(
             mean_gp, 'lengthscale', lengthscale_prior
         )
@@ -110,9 +119,15 @@ class GPMeanMaternGP(MaternGP):
     @property
     def structure_dict(self):
         structure_dict = super().structure_dict.copy()
+        structure_dict.pop('mean_constant')
         structure_dict.update(self.__structure_dict)
         return structure_dict
 
+    @staticmethod
+    def load(load_path, train_x, train_y, load_data=False):
+        return MaternGP.load(
+            load_path, train_x, train_y, load_data, GPMeanMaternGP
+        )
 
 class LearnedMeanMaternSafety(SafetyMeasure):
     def __init__(self, env, gamma_measure, x_seed, y_seed, gp_params=None):
@@ -125,8 +140,9 @@ class LearnedMeanMaternSafety(SafetyMeasure):
     def load(load_folder, env, gamma_measure, x_seed, y_seed):
         load_path = Path(load_folder)
         gp_load_path = str(load_path / LearnedMeanMaternSafety.GP_SAVE_NAME)
-        gp = MaternGP.load(gp_load_path, x_seed, y_seed)
+        gp = GPMeanMaternGP.load(gp_load_path, x_seed, y_seed)
         model = LearnedMeanMaternSafety(env, gamma_measure=gamma_measure,
-                                        x_seed=x_seed, y_seed=y_seed)
+                                        x_seed=x_seed, y_seed=y_seed,
+                                        gp_params=gp.structure_dict)
         model.gp = gp
         return model

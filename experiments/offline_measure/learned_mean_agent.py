@@ -9,8 +9,9 @@ from learned_mean_model import LearnedMeanMaternSafety
 
 class ControlledSafetyLearner(Agent):
     def __init__(self, env, s_gp_params, gamma_cautious, lambda_cautious,
-                 gamma_optimistic, is_free_from_safety=False,
-                 always_update_safety=False, learn_safety=True,
+                 gamma_optimistic, checks_safety=True, learn_safety=True,
+                 is_free_from_safety=False, always_update_safety=False,
+                 safety_model=None,
                  *models):
         self.gamma_cautious_s, self.gamma_cautious_e = gamma_cautious
         self.lambda_cautious_s, self.lambda_cautious_e = lambda_cautious
@@ -18,21 +19,25 @@ class ControlledSafetyLearner(Agent):
         self.gamma_cautious = self.gamma_cautious_s
         self.lambda_cautious = self.lambda_cautious_s
 
-        x_seed = s_gp_params.pop('train_x')
-        y_seed = s_gp_params.pop('train_y')
-        self.safety_model = LearnedMeanMaternSafety(
-            env,
-            gamma_measure=self.gamma_optimistic_s,
-            x_seed=x_seed,
-            y_seed=y_seed,
-            gp_params=s_gp_params
-        )
+        if safety_model is not None:
+            self.safety_model = safety_model
+        else:
+            x_seed = s_gp_params.pop('train_x')
+            y_seed = s_gp_params.pop('train_y')
+            self.safety_model = LearnedMeanMaternSafety(
+                env,
+                gamma_measure=self.gamma_optimistic_s,
+                x_seed=x_seed,
+                y_seed=y_seed,
+                gp_params=s_gp_params
+            )
 
         super().__init__(env, self.safety_model, *models)
         self.safety_learning_policy = SafetyInformationMaximization(
             env.stateaction_space
         )
         self.safety_update = None
+        self.checks_safety = checks_safety
         self.followed_controller = None
         self.always_update_safety = always_update_safety
         self.violated_constraint = None
@@ -71,33 +76,34 @@ class ControlledSafetyLearner(Agent):
         self.followed_controller = True
         self.violated_constraint = False
         action = self.get_controller_action()
-        controller_is_cautious = self.safety_model.is_in_level_set(
-            self.state, action, self.lambda_cautious, self.gamma_cautious
-        )
-        if not controller_is_cautious:
-            if self.is_free_from_safety:
-                self.violated_constraint = True
-            else:
-                cautious_set, covar_matrix = self.safety_model.level_set(
-                    self.state,
-                    lambda_threshold=self.lambda_cautious,
-                    gamma_threshold=self.gamma_cautious,
-                    return_proba=False,
-                    return_covar=False,
-                    return_covar_matrix=True,
-                )
-                cautious_set = cautious_set.squeeze()
-                if cautious_set.any():
-                    action_idx = self.env.action_space.get_index_of(
-                        action, around_ok=True
-                    )
-                    action = self.safety_learning_policy.get_action(
-                        covar_matrix[action_idx, :].squeeze(), cautious_set
-                    )
-                    self.followed_controller = False
-                else:
-                    # Keep following the initial controller if no action is safe
+        if self.checks_safety:
+            controller_is_cautious = self.safety_model.is_in_level_set(
+                self.state, action, self.lambda_cautious, self.gamma_cautious
+            )
+            if not controller_is_cautious:
+                if self.is_free_from_safety:
                     self.violated_constraint = True
+                else:
+                    cautious_set, covar_matrix = self.safety_model.level_set(
+                        self.state,
+                        lambda_threshold=self.lambda_cautious,
+                        gamma_threshold=self.gamma_cautious,
+                        return_proba=False,
+                        return_covar=False,
+                        return_covar_matrix=True,
+                    )
+                    cautious_set = cautious_set.squeeze()
+                    if cautious_set.any():
+                        action_idx = self.env.action_space.get_index_of(
+                            action, around_ok=True
+                        )
+                        action = self.safety_learning_policy.get_action(
+                            covar_matrix[action_idx, :].squeeze(), cautious_set
+                        )
+                        self.followed_controller = False
+                    else:
+                        # Keep following the initial controller if no action is safe
+                        self.violated_constraint = True
         return action
 
     def update_models(self, state, action, next_state, reward, failed, done):
@@ -126,7 +132,8 @@ class ControlledSafetyLearner(Agent):
 
 class DLQRSafetyLearner(ControlledSafetyLearner):
     def __init__(self, env, s_gp_params, gamma_cautious, lambda_cautious,
-                 gamma_optimistic, perturbations=None):
+                 gamma_optimistic, perturbations=None, safety_model=None,
+                 **kwargs):
         perturbations = perturbations if perturbations is not None else {}
         A, B = env.linearization(discrete_time=True, **perturbations)
         n, p = B.shape
@@ -136,7 +143,22 @@ class DLQRSafetyLearner(ControlledSafetyLearner):
         self.dlqr_policy = DLQRPolicy(env.stateaction_space, A, B, Q, R)
 
         super().__init__(env, s_gp_params, gamma_cautious, lambda_cautious,
-                         gamma_optimistic)
+                         gamma_optimistic, safety_model=safety_model, **kwargs)
 
     def get_controller_action(self, *args, **kwargs):
         return self.dlqr_policy(self.state)
+
+    @staticmethod
+    def load(load_path, env, x_seed, y_seed, gamma_cautious, lambda_cautious,
+             gamma_optimistic, perturbations=None, **kwargs):
+        safety_model = LearnedMeanMaternSafety.load(
+            load_path, env, gamma_optimistic, x_seed, y_seed
+        )
+        return DLQRSafetyLearner(
+            env, {},
+            (gamma_cautious, gamma_cautious),
+            (lambda_cautious, lambda_cautious),
+            (gamma_optimistic, gamma_optimistic),
+            perturbations, safety_model=safety_model,
+            **kwargs
+        )
