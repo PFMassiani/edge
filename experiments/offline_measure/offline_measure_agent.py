@@ -12,7 +12,6 @@ def affine_interpolation(t, start, end):
 
 
 class DLQRController(Agent):
-    # TODO allow model perturbation
     def __init__(self, env, perturbations=None):
         perturbations = perturbations if perturbations is not None else {}
         A, B = env.linearization(discrete_time=True, **perturbations)

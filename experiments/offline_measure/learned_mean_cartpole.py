@@ -1,8 +1,10 @@
 from pathlib import Path
-import logging
 import time
+import logging
 import numpy as np
+import pandas as pd
 import torch
+import gc
 
 from edge.envs.continuous_cartpole import ContinuousCartPole
 from edge.simulation import ModelLearningSimulation
@@ -12,12 +14,11 @@ from edge.utils import device, cuda, timeit, average_performances,\
     append_to_episode as general_append
 
 # noinspection PyUnresolvedReferences
-from fixed_controller_agent import DLQRSafetyLearner
+from learned_mean_agent import DLQRSafetyLearner
 
 
 GROUP_NAME = 'Training'
 SAFETY_NAME = 'Next safety'
-
 
 def append_to_episode(dataset, episode, state, action, new_state, reward,
                       failed, done, safety_update):
@@ -26,70 +27,29 @@ def append_to_episode(dataset, episode, state, action, new_state, reward,
     episode[SAFETY_NAME].append(safety_update)
 
 
-def avg_reward_and_failure(df):
-    r = df.groupby(Dataset.EPISODE)[Dataset.REWARD].sum().mean()
-    f = df.groupby(Dataset.EPISODE)[Dataset.FAILED].any().mean()
-    return r, f
-
-
-class FixedControllerSimulation(ModelLearningSimulation):
-    def __init__(self, name, shape, control_frequency, perturbations,
+class LearnedMeanSimulation(ModelLearningSimulation):
+    def __init__(self, name, shape, control_frequency,
+                 perturbations, max_theta_init,
+                 mean_sim_name, mean_checkpoint_number, load_hypers,
                  gamma_cautious, lambda_cautious, gamma_optimistic,
                  n_episodes_train, n_episodes_test, n_train_test,
-                 load=False, load_sname=None, load_mname=None, load_dname=None,
                  render=False):
         self.env = ContinuousCartPole(
             discretization_shape=shape,  # This matters for the GP
             control_frequency=control_frequency,
+            max_theta_init=max_theta_init
         )
-
-        if load:
-            assert load_sname is not None
-            assert load_mname is not None
-            assert load_dname is not None
-            # TODO load agent
-            self.agent = self.load_agent(load_sname, load_mname)
-        else:
-            x_seed = np.array([[0, 0, 0, 0, 0.]])
-            y_seed = np.array([1.])
-            # Initialization from value GP optimization
-            # TODO choose hyperparameters
-            lengthscale_means = (
-                # 100., 10., 10., 10., 10.
-                # 0.1992, 1.9771, 0.2153, 2.2855, 2.1829  # From value optim
-                0.1992, 1.9771, 0.2153, 2.2855, 2.1829  # s[0] is linear position
-                # 0.508, 0.6, 0.12, 0.69, 0.1
-            )
-            lengthscale_vars = (0.1, 0.1, 0.1, 0.1, 0.1)
-            lengthscale_prior = tuple(zip(lengthscale_means, lengthscale_vars))
-            outputscale_prior = (12.30679988861084, 10.)
-            noise_prior = (0.7161999940872192, 0.1)
-            gp_params = {
-                'train_x': x_seed,
-                'train_y': y_seed,
-                'outputscale_prior': outputscale_prior,
-                'lengthscale_prior': lengthscale_prior,
-                'noise_prior': noise_prior,
-                'mean_constant': 1,
-                # 'dataset_type': None,
-                # 'dataset_params': None,
-                'dataset_type': 'downsampling',
-                'dataset_params': {'append_every': 10},
-                # 'dataset_type': 'neighborerasing',
-                # 'dataset_params': {'radius': 0.01},
-                'value_structure_discount_factor': None,
-            }
-            self.agent = DLQRSafetyLearner(
-                env=self.env,
-                s_gp_params=gp_params,
-                gamma_cautious=gamma_cautious,
-                lambda_cautious=lambda_cautious,
-                gamma_optimistic=gamma_optimistic,
-                perturbations=perturbations,
-            )
+        self.perturbations = perturbations
+        self.gamma_cautious = gamma_cautious
+        self.lambda_cautious = lambda_cautious
+        self.gamma_optimistic = gamma_optimistic
+        self.mean_path = Path(mean_sim_name).resolve() / 'models' / \
+            'safety_model' / f'safety_model_{mean_checkpoint_number}' / 'gp.pth'
+        self.load_hypers = load_hypers
+        self.agent = self.create_agent()
 
         output_directory = Path(__file__).parent.resolve()
-        super(FixedControllerSimulation, self).__init__(
+        super().__init__(
             output_directory, name, {}
         )
         self.n_episodes_train = n_episodes_train
@@ -97,19 +57,54 @@ class FixedControllerSimulation(ModelLearningSimulation):
         self.n_train_test = n_train_test
         self.render = render
 
-        if load:
-            self.training_dataset = self.load_training_dataset(
-                load_sname, load_dname, GROUP_NAME
-            )
-        else:
-            self.training_dataset = Dataset(
-                *Dataset.DEFAULT_COLUMNS, SAFETY_NAME,
-                group_name=GROUP_NAME, name='train'
-            )
-        self.testing_dataset = Dataset(
-                *Dataset.DEFAULT_COLUMNS, SAFETY_NAME,
-                group_name=GROUP_NAME, name=f'test'
+        self.training_dataset = Dataset(
+            *Dataset.DEFAULT_COLUMNS, SAFETY_NAME,
+            group_name=GROUP_NAME, name='train'
         )
+        self.testing_dataset = Dataset(
+            *Dataset.DEFAULT_COLUMNS, SAFETY_NAME,
+            group_name=GROUP_NAME, name=f'test'
+        )
+
+    def create_agent(self):
+        x_seed = np.array([[0, 0, 0, 0, 0.]])
+        y_seed = np.array([1.])
+
+        lengthscale_means = (
+            0.1992, 1.9771, 0.2153, 2.2855, 2.1829  # From value optim
+            # 0.508, 0.6, 0.12, 0.69, 0.1
+        )
+        lengthscale_vars = (0.1, 0.1, 0.1, 0.1, 0.1)
+        lengthscale_prior = None if self.load_hypers \
+            else tuple(zip(lengthscale_means, lengthscale_vars))
+        outputscale_prior = None if self.load_hypers \
+            else (12.307, 10.)
+        noise_prior = None if self.load_hypers \
+            else (0.716, 0.1)
+        gp_params = {
+            'train_x': x_seed,
+            'train_y': y_seed,
+            'outputscale_prior': outputscale_prior,
+            'lengthscale_prior': lengthscale_prior,
+            'noise_prior': noise_prior,
+            'mean_path': self.mean_path,
+            # 'dataset_type': None,
+            # 'dataset_params': None,
+            'dataset_type': 'downsampling',
+            'dataset_params': {'append_every': 10},
+            # 'dataset_type': 'neighborerasing',
+            # 'dataset_params': {'radius': 0.01},
+            'value_structure_discount_factor': None,
+        }
+        offline_learner = DLQRSafetyLearner(
+            env=self.env,
+            s_gp_params=gp_params,
+            gamma_cautious=self.gamma_cautious,
+            lambda_cautious=self.lambda_cautious,
+            gamma_optimistic=self.gamma_optimistic,
+            perturbations=self.perturbations
+        )
+        return offline_learner
 
     def run_episode(self, n_episode):
         episode = {cname: []
@@ -223,27 +218,26 @@ class FixedControllerSimulation(ModelLearningSimulation):
 
 
 if __name__ == '__main__':
-    # seed = int(time.time())
-    seed = 0
-    sim = FixedControllerSimulation(
-        name=f'cartpole_{seed}',
-        shape=(10, 10, 10, 10, 41),
+    seed = int(time.time())
+    # seed = 0
+    sim = LearnedMeanSimulation(
+        name=f'learned_mean_{seed}',
+        shape=(50, 50, 50, 50, 41),
         control_frequency=2,
-        perturbations={'g': 1, 'mcart': 1, 'mpole': 1, 'l': 1/5},
+        perturbations={'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1},
+        max_theta_init=0.5,
+        mean_sim_name='test_1',
+        mean_checkpoint_number=1,
+        load_hypers=None,
         gamma_cautious=(0.6, 0.7),
         lambda_cautious=(0, 0.05),
-        gamma_optimistic=(0.55, 0.7),
-        n_episodes_train=1,
-        n_episodes_test=0,
-        n_train_test=5,
-        load=False,
-        load_sname=None,
-        load_mname=None,
-        load_dname=None,
-        render=True
+        gamma_optimistic=(0.55, 0.65),
+        n_episodes_train=5,
+        n_episodes_test=5,
+        n_train_test=10,
+        render=False
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))
     run_t = sim.run()
     logging.info(f'Simulation duration: {run_t:.2f} s')
-    sim.save_models()

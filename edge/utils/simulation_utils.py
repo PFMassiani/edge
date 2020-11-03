@@ -51,3 +51,7 @@ def average_performances(df, group_name, episode_name, last_n_episodes=None):
         group_key
     )
     return r, f
+
+
+def affine_interpolation(t, start, end):
+    return start + (end - start) * t
