@@ -71,6 +71,18 @@ class OfflineSafetyLearner(Agent):
     def gamma_measure(self, new_gamma_measure):
         self.safety_model.gamma_measure = new_gamma_measure
 
+    @property
+    def gamma_optimistic(self):
+        return self.gamma_measure
+
+    @property
+    def gamma_cautious(self):
+        return min(0.99, self.gamma_measure * 1.1)
+
+    @property
+    def lambda_cautious(self):
+        return 0.
+
     @Agent.training_mode.setter
     def training_mode(self, new_training_mode):
         if new_training_mode:
@@ -103,8 +115,10 @@ class OfflineSafetyLearner(Agent):
             unskippable=dones
         )
 
-    def update_models(self, state, action, new_state, reward, failed, done):
-        pass
+    def update_models(self, state, action, next_state, reward, failed, done,
+                      measure=None):
+        return self.safety_model.update(state, action, next_state, reward,
+                                        failed, done, measure)
 
     def get_next_action(self):
         pass

@@ -163,9 +163,24 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             extract_variables_from_batch(batch)
         if measures is not None:
             measures = measures[fltr.to_numpy()]
-        offline_learner.batch_update_models(states, actions, new_states,
-                                            rewards, faileds, dones,
-                                            measures=measures)
+            iterable = zip(
+                episodes, rewards, states, actions, new_states, faileds, dones,
+                measures
+            )
+        else:
+            iterable = zip(
+                episodes, rewards, states, actions, new_states, faileds, dones
+            )
+        for entry in iterable:
+            if measures is not None:
+                e, r, s, a, s_, f, d, m = entry
+            else:
+                e, r, s, a, s_, f, d = entry
+                m = None
+            offline_learner.update_models(s, a, s_, r, f, d, m)
+        # offline_learner.batch_update_models(states, actions, new_states,
+        #                                     rewards, faileds, dones,
+        #                                     measures=measures)
 
     def set_data(self, offline_learner, measures=None):
         if measures is None:
@@ -207,9 +222,13 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         episodes, rewards, states, actions, new_states, faileds, dones = \
             self.extract_variables_from_batch(self.training_dataset.df)
         try:
-            new_measures = offline_learner.safety_model.measure(
-                state=new_states
-            )
+            new_measures = [
+                offline_learner.safety_model.measure(
+                    state=ns
+                ) for ns in new_states.reshape(
+                    -1, self.env.state_space.data_length
+                )
+            ]
         except RuntimeError as e:
             logging.error(f'Measure computation failed with error:\n{str(e)}\n'
                           f'Number of states: {len(episodes)}\nMemory status:')
@@ -217,8 +236,13 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.error('Re-trying with cleared cache.')
             if device == cuda:
                 torch.cuda.empty_cache()
-            new_measures = offline_learner.safety_model.measure(
-                state=new_states)
+            new_measures = [
+                offline_learner.safety_model.measure(
+                    state=ns
+                ) for ns in new_states.reshape(
+                    -1, self.env.state_space.data_length
+                )
+            ]
         new_measures[faileds] = 0
         assert((new_measures[faileds] == 0).all())
 
@@ -299,14 +323,14 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.critical('collect_dataset failed before completion.'
                              f'Error message:\n{e}')
         finally:
-            self.log_samples()
             self.log_performance(self.training_dataset, 'All training',
                                  duration=col_t, header=True)
+            self.log_samples()
             logging.info('========= DATA COLLECTION COMPLETED ========')
         measures = None
         n = 0
         diff = None
-        tol = 1.
+        tol = 1e-1
         while (diff is None or diff >= tol) and n < self.n_optimizations:
             logging.info(f'========= OPTIMIZATION {n+1}/{self.n_optimizations}'
                          f' ========')
@@ -336,9 +360,9 @@ if __name__ == '__main__':
         shape=(50, 50, 50, 50, 41),
         control_frequency=2,
         perturbations={'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1},
-        max_theta_init=0.5,
-        gamma_measure=(0.6, 0.7),
-        n_episodes=15,
+        max_theta_init=0.4,
+        gamma_measure=(0.7, 0.9),
+        n_episodes=30,
         checkpoint_dataset_every=5,
         n_optimizations=100,
         render=False
