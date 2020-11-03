@@ -65,6 +65,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         return ls, os, nz
 
     def create_offline_learner(self, n_optim):
+        t = 1 if self.n_optimizations == 1 else n_optim / self.n_optimizations
+
         x_seed = np.array([[0, 0, 0, 0, 0.]])
         y_seed = np.array([1.])
 
@@ -83,11 +85,11 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             'outputscale_prior': outputscale_prior,
             'lengthscale_prior': lengthscale_prior,
             'noise_prior': noise_prior,
-            'mean_constant': 1,
+            'mean_constant': 1 - t,
             # 'dataset_type': None,
             # 'dataset_params': None,
             'dataset_type': 'downsampling',
-            'dataset_params': {'append_every': 5},
+            'dataset_params': {'append_every': 2},
             # 'dataset_type': 'neighborerasing',
             # 'dataset_params': {'radius': 0.01},
             'value_structure_discount_factor': None,
@@ -95,7 +97,6 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         offline_learner = OfflineSafetyLearner(self.env, gp_params,
                                                self.gamma_measure)
 
-        t = 1 if self.n_optimizations == 1 else n_optim / self.n_optimizations
         offline_learner.update_safety_params(t=t)
         return offline_learner
 
@@ -180,7 +181,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         for lr in [1, 0.1, 0.01, 0.001]:
             offline_learner.fit_models(
                 train_x=None, train_y=None,  # Fit on the GP's dataset
-                epochs=20,
+                epochs=200,
                 lr=lr
             )
         params = get_hyperparameters(offline_learner.safety_model.gp)
@@ -218,6 +219,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                 torch.cuda.empty_cache()
             new_measures = offline_learner.safety_model.measure(
                 state=new_states)
+        new_measures[faileds] = 0
+        assert((new_measures[faileds] == 0).all())
 
         if previous_measures is not None:
             diff = np.linalg.norm(previous_measures - new_measures)
@@ -301,7 +304,10 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                                  duration=col_t, header=True)
             logging.info('========= DATA COLLECTION COMPLETED ========')
         measures = None
-        for n in range(self.n_optimizations):
+        n = 0
+        diff = None
+        tol = 1.
+        while (diff is None or diff >= tol) and n < self.n_optimizations:
             logging.info(f'========= OPTIMIZATION {n+1}/{self.n_optimizations}'
                          f' ========')
             try:
@@ -317,6 +323,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                 torch.cuda.empty_cache()
             self.log_measures(measures, iterate_t, diff, n, header=True)
             gc.collect()
+            n += 1
         if self.render:
             self.env.gym_env.close()
 
@@ -333,7 +340,7 @@ if __name__ == '__main__':
         gamma_measure=(0.6, 0.7),
         n_episodes=15,
         checkpoint_dataset_every=5,
-        n_optimizations=10,
+        n_optimizations=100,
         render=False
     )
     sim.set_seed(value=seed)
