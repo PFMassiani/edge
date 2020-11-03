@@ -278,7 +278,7 @@ class GP(gpytorch.models.ExactGP):
     # one, because it does NOT return a method but an observer object
     @staticmethod
     @tensorwrap('train_x', 'train_y')
-    def load(load_path, train_x, train_y, load_data=False):
+    def load(load_path, train_x, train_y, load_data=False, cls=None):
         """
         Loads a model saved by the GP.save method, and sets its dataset with train_x, train_y. If `load_dataset` evaluates to true, it will then load and replace with a saved dataset.
         This method may fail if the GP was saved with an older version of the code.
@@ -300,7 +300,8 @@ class GP(gpytorch.models.ExactGP):
 
         # We know the name of the true class of the GP, so we can dynamically import it. This is ugly and not robust,
         # but it avoids having to redefine the load method in every subclass
-        constructor = dynamically_import('edge.model.inference.' + classname)
+        constructor = cls if cls is not None \
+            else dynamically_import('edge.model.inference.' + classname)
         if constructor is None:
             raise NameError(f'Name {classname} not found')
         construction_parameters = save_dict['structure_dict']
