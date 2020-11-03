@@ -26,7 +26,7 @@ class SafetyMeasure(GPModel):
         super(SafetyMeasure, self).__init__(env, gp)
         self.gamma_measure = gamma_measure
 
-    def update(self, state, action, new_state, reward, failed, done):
+    def update(self, state, action, new_state, reward, failed, done, measure=None):
         """
         Updates the underlying GP with the measure computation update
         :param state: the previous state
@@ -35,12 +35,14 @@ class SafetyMeasure(GPModel):
         :param reward: the reward incurred
         :param failed: whether the agent has failed
         """
-        if not failed:
+        if not failed and measure is None:
             update_value = self.measure(
                 state=new_state,
                 lambda_threshold=0,
                 gamma_threshold=self.gamma_measure
             )
+        elif not failed and measure is not None:
+            update_value = np.atleast_1d(measure)
         else:
             update_value = np.array([0.])
 
