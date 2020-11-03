@@ -222,13 +222,13 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         episodes, rewards, states, actions, new_states, faileds, dones = \
             self.extract_variables_from_batch(self.training_dataset.df)
         try:
-            new_measures = [
+            new_measures = np.array([
                 offline_learner.safety_model.measure(
                     state=ns
                 ) for ns in new_states.reshape(
                     -1, self.env.state_space.data_length
                 )
-            ]
+            ], dtype=np.float)
         except RuntimeError as e:
             logging.error(f'Measure computation failed with error:\n{str(e)}\n'
                           f'Number of states: {len(episodes)}\nMemory status:')
@@ -236,13 +236,13 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.error('Re-trying with cleared cache.')
             if device == cuda:
                 torch.cuda.empty_cache()
-            new_measures = [
+            new_measures = np.array([
                 offline_learner.safety_model.measure(
                     state=ns
                 ) for ns in new_states.reshape(
                     -1, self.env.state_space.data_length
                 )
-            ]
+            ], dtype=np.float)
         new_measures[faileds] = 0
         assert((new_measures[faileds] == 0).all())
 

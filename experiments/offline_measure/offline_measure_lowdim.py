@@ -86,8 +86,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         if self.envname == 'hovership':
             x_seed = np.array([[1.3, 0.6], [0, 2]])
             y_seed = np.array([1., 0.])
-            default_ls = (0.1, 0.1)
-            ls_vars = (0.1, 0.1)
+            default_ls = (10, 10)
+            ls_vars = (1, 1)
             default_os = 1
             default_nz = 0.1
         elif self.envname == 'slip':
@@ -217,10 +217,10 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
                                       measures)
 
     def fit_hyperparameters(self, offline_learner, n_optim):
-        for lr in [1, 0.1, 0.01, 0.001]:
+        for lr in [5, 1, 0.1, 0.01]:
             offline_learner.fit_models(
                 train_x=None, train_y=None,  # Fit on the GP's dataset
-                epochs=20,
+                epochs=50,
                 lr=lr
             )
         params = get_hyperparameters(offline_learner.safety_model.gp)
@@ -246,13 +246,13 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         episodes, rewards, states, actions, new_states, faileds, dones = \
             self.extract_variables_from_batch(self.training_dataset.df)
         try:
-            new_measures = [
+            new_measures = np.array([
                 offline_learner.safety_model.measure(
                     state=ns
                 ) for ns in new_states.reshape(
                     -1, self.env.state_space.data_length
                 )
-            ]
+            ], dtype=np.float)
         except RuntimeError as e:
             logging.error(f'Measure computation failed with error:\n{str(e)}\n'
                           f'Number of states: {len(episodes)}\nMemory status:')
@@ -260,8 +260,13 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.error('Re-trying with cleared cache.')
             if device == cuda:
                 torch.cuda.empty_cache()
-            new_measures = offline_learner.safety_model.measure(
-                state=new_states)
+            new_measures = np.array([
+                offline_learner.safety_model.measure(
+                    state=ns
+                ) for ns in new_states.reshape(
+                    -1, self.env.state_space.data_length
+                )
+            ], dtype=np.float)
         new_measures[faileds] = 0
         assert((new_measures[faileds] == 0).all())
 
@@ -360,7 +365,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         measures = None
         n = 0
         diff = None
-        tol = 1e-4
+        tol = 0
         while (diff is None or diff >= tol) and n < self.n_optimizations:
             logging.info(f'========= OPTIMIZATION {n+1}/{self.n_optimizations}'
                          f' ========')
@@ -386,7 +391,7 @@ if __name__ == '__main__':
     envname = 'hovership'
     sim = OfflineMeasureSimulation(
         envname=envname,
-        name=f'offline_{envname}_{seed}_down',
+        name=f'offline_{envname}_{seed}_bad_init',
         shape=None,
         gamma_measure=(0.6, 0.9),
         n_episodes=100,
