@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 import gc
+from math import ceil
 
 from edge.simulation import ModelLearningSimulation
 from edge.dataset import Dataset
@@ -24,12 +25,14 @@ from offline_measure_environments import LowGoalSlip, LowGoalHovership
 GROUP_NAME = 'Training'
 OPTIM = 'Optimization'
 REMAINING_T = 'Remaining time'
+BATCH_SIZE = 128
 
 
 class OfflineMeasureSimulation(ModelLearningSimulation):
     def __init__(self, envname, name, shape,
                  gamma_measure,
-                 n_episodes, checkpoint_dataset_every, n_optimizations):
+                 n_episodes, checkpoint_dataset_every, n_optimizations,
+                 batch_size=BATCH_SIZE):
         self.envname = envname
         shapedict = {} if shape is None else {'shape': shape}
         if envname == 'hovership':
@@ -63,6 +66,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         self.n_episodes = n_episodes
         self.checkpoint_dataset_every = checkpoint_dataset_every
         self.n_optimizations = n_optimizations
+        self.batch_size = batch_size
 
         self.hyperparameters_dataset = None
 
@@ -86,7 +90,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         if self.envname == 'hovership':
             x_seed = np.array([[1.3, 0.6], [0, 2]])
             y_seed = np.array([1., 0.])
-            default_ls = (10, 10)
+            default_ls = (0.1, 0.1)
             ls_vars = (1, 1)
             default_os = 1
             default_nz = 0.1
@@ -246,13 +250,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         episodes, rewards, states, actions, new_states, faileds, dones = \
             self.extract_variables_from_batch(self.training_dataset.df)
         try:
-            new_measures = np.array([
-                offline_learner.safety_model.measure(
-                    state=ns
-                ) for ns in new_states.reshape(
-                    -1, self.env.state_space.data_length
-                )
-            ], dtype=np.float)
+            new_measures = self.measure_safety(new_states, offline_learner)
         except RuntimeError as e:
             logging.error(f'Measure computation failed with error:\n{str(e)}\n'
                           f'Number of states: {len(episodes)}\nMemory status:')
@@ -260,13 +258,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.error('Re-trying with cleared cache.')
             if device == cuda:
                 torch.cuda.empty_cache()
-            new_measures = np.array([
-                offline_learner.safety_model.measure(
-                    state=ns
-                ) for ns in new_states.reshape(
-                    -1, self.env.state_space.data_length
-                )
-            ], dtype=np.float)
+            new_measures = self.measure_safety(new_states, offline_learner)
+
         new_measures[faileds] = 0
         assert((new_measures[faileds] == 0).all())
 
@@ -283,6 +276,20 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         self.plot_safety_measure(offline_learner, n_optim)
 
         return new_measures, diff
+
+    def measure_safety(self, new_states, offline_learner):
+        batches = [
+            new_states[i * self.batch_size : (i + 1) * self.batch_size].reshape(
+                -1, self.env.state_space.data_length
+            ) for i in range(ceil(len(new_states)/self.batch_size))
+        ]
+        measures = [
+            offline_learner.safety_model.measure(
+                state=batch
+            ).reshape(-1) for batch in batches
+        ]
+        measures_nparray = np.hstack(measures)
+        return measures_nparray
 
     def plot_safety_measure(self, offline_learner, n_optim):
         plotter = SafetyPlotter(offline_learner, ground_truth=self.ground_truth)
@@ -391,7 +398,7 @@ if __name__ == '__main__':
     envname = 'hovership'
     sim = OfflineMeasureSimulation(
         envname=envname,
-        name=f'offline_{envname}_{seed}_bad_init',
+        name=f'offline_{envname}_{seed}',
         shape=None,
         gamma_measure=(0.6, 0.9),
         n_episodes=100,

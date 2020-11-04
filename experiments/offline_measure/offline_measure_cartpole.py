@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 import gc
+from math import ceil
 
 from edge.envs.continuous_cartpole import ContinuousCartPole
 from edge.simulation import ModelLearningSimulation
@@ -20,14 +21,14 @@ from offline_measure_agent import DLQRController, OfflineSafetyLearner
 GROUP_NAME = 'Training'
 OPTIM = 'Optimization'
 REMAINING_T = 'Remaining time'
-
+BATCH_SIZE = 128
 
 class OfflineMeasureSimulation(ModelLearningSimulation):
     def __init__(self, name, shape, control_frequency, perturbations,
                  max_theta_init,
                  gamma_measure,
                  n_episodes, checkpoint_dataset_every, n_optimizations,
-                 render=False):
+                 batch_size=BATCH_SIZE, render=False):
         self.env = ContinuousCartPole(
             discretization_shape=shape,  # This matters for the GP
             control_frequency=control_frequency,
@@ -47,6 +48,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         self.checkpoint_dataset_every = checkpoint_dataset_every
         self.n_optimizations = n_optimizations
         self.render = render
+        self.batch_size = batch_size
 
         self.hyperparameters_dataset = None
 
@@ -222,13 +224,7 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         episodes, rewards, states, actions, new_states, faileds, dones = \
             self.extract_variables_from_batch(self.training_dataset.df)
         try:
-            new_measures = np.array([
-                offline_learner.safety_model.measure(
-                    state=ns
-                ) for ns in new_states.reshape(
-                    -1, self.env.state_space.data_length
-                )
-            ], dtype=np.float)
+            new_measures = self.measure_safety(new_states, offline_learner)
         except RuntimeError as e:
             logging.error(f'Measure computation failed with error:\n{str(e)}\n'
                           f'Number of states: {len(episodes)}\nMemory status:')
@@ -236,13 +232,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
             logging.error('Re-trying with cleared cache.')
             if device == cuda:
                 torch.cuda.empty_cache()
-            new_measures = np.array([
-                offline_learner.safety_model.measure(
-                    state=ns
-                ) for ns in new_states.reshape(
-                    -1, self.env.state_space.data_length
-                )
-            ], dtype=np.float)
+            new_measures = self.measure_safety(new_states, offline_learner)
+
         new_measures[faileds] = 0
         assert((new_measures[faileds] == 0).all())
 
@@ -258,6 +249,20 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         )
 
         return new_measures, diff
+
+    def measure_safety(self, new_states, offline_learner):
+        batches = [
+            new_states[i * self.batch_size : (i + 1) * self.batch_size].reshape(
+                -1, self.env.state_space.data_length
+            ) for i in range(ceil(len(new_states)/self.batch_size))
+        ]
+        measures = [
+            offline_learner.safety_model.measure(
+                state=batch
+            ).reshape(-1) for batch in batches
+        ]
+        measures_nparray = np.hstack(measures)
+        return measures_nparray
 
     def log_performance(self, ds, name_in_log, duration=None, header=True,
                         limit_episodes=None):
