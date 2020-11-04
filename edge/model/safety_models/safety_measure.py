@@ -2,6 +2,7 @@ import numpy as np
 from scipy.stats import norm
 from pathlib import Path
 import warnings, contextlib
+import json
 
 from .. import GPModel
 from ..inference import MaternGP
@@ -25,6 +26,12 @@ class SafetyMeasure(GPModel):
         """
         super(SafetyMeasure, self).__init__(env, gp)
         self.gamma_measure = gamma_measure
+
+    @property
+    def state_dict(self):
+        return {
+            'gamma_measure': self.gamma_measure
+        }
 
     def update(self, state, action, new_state, reward, failed, done, measure=None):
         """
@@ -237,6 +244,17 @@ class MaternSafety(SafetyMeasure):
         gp_load_path = str(load_path / GPModel.GP_SAVE_NAME)
 
         gp = MaternGP.load(gp_load_path, x_seed, y_seed)
+
+        if gamma_measure is None:
+            model_save_path = str(load_path / GPModel.SAVE_NAME)
+            try:
+                with open(model_save_path, 'w') as f:
+                    state_dict = json.load(f)
+                gamma_measure = state_dict['gamma_measure']
+            except FileNotFoundError:
+                raise ValueError(f'Could not find file {model_save_path}. '
+                                 f'Specify gamma_measure instead to load this '
+                                 f'model')
 
         model = MaternSafety(env, gamma_measure=gamma_measure,
                              x_seed=x_seed, y_seed=y_seed)

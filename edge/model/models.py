@@ -1,6 +1,7 @@
 import numpy as np
 import json
 from pathlib import Path
+import logging
 
 
 class Model:
@@ -206,7 +207,9 @@ class GPModel(ContinuousModel):
             with open(model_save_path, 'w') as f:
                 json.dump(state_dict, f, indent=4)
         except NotImplementedError:
-            pass
+            logging.warning(f'WARNING: {self.__class__} does not have a '
+                            f'state_dict. The parameterization of the model '
+                            f'may be lost.')
 
     def save_samples(self, save_path):
         """
