@@ -11,6 +11,7 @@ from edge.utils import append_to_episode, average_performances
 from learned_mean_agent import DLQRSafetyLearner
 
 SAFETY_NAME = 'Next safety'
+MODELNUM_NAME = 'Model number'
 
 
 def average_performances(ds):
@@ -46,14 +47,16 @@ def run_episode(agent, ds, render):
     return episode
 
 
-def run(agent, max_episodes, render, log_every):
+def run(agent, max_episodes, render, log_every, performances, modelnum):
     # ds = Dataset(*Dataset.DEFAULT_COLUMNS, SAFETY_NAME)
+    # performances = Dataset(Dataset.REWARD, Dataset.FAILED, name=name)
     ds = Dataset()
     for n_episode in range(max_episodes):
         episode = run_episode(agent, ds, render)
         ds.add_group(episode, group_number=n_episode)
         if (n_episode + 1) % log_every == 0:
-            log_performance(ds, n_episode+1, max_episodes)
+            r, f = log_performance(ds, n_episode+1, max_episodes)
+            performances.add_entry(modelnum, n_episode, r, f)
     if render:
         agent.env.gym_env.close()
 
@@ -65,24 +68,28 @@ def log_performance(ds, n_episode, max_episodes):
                f'Average number of failures: {f * 100:.3f} %\n')
                # f'Average next state safety: {s:.3f} %\n')
     print(header + message)
+    return r, f
+
+
+def get_t_from_modelnum(modelnum, max_modelnum):
+    return 1 if max_modelnum == 0 else modelnum / max_modelnum
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('simname')
-    parser.add_argument('modelnum')
     parser.add_argument('--episodes', default=6)
     parser.add_argument('--render', default=True)
     parser.add_argument('--log', default=2)
 
     args = parser.parse_args()
 
-    simpath = Path(__file__).parent.resolve() / args.simname / 'models' / \
-        'safety_model' / f'safety_model_{args.modelnum}'
+    simpath = Path(__file__).parent.resolve() / args.simname
+    modelspath = 'models' / 'safety_model'
 
-    gamma_cautious = 0.7
-    lambda_cautious = 0.05
-    gamma_optimistic = 0.65
+    gamma_cautious = (0.6, 0.9)
+    lambda_cautious = (0., 0.05)
+    gamma_optimistic = (0.6, 0.9)
     max_theta_init = 0.4
     shape = (50, 50, 50, 50, 41)
     perturbations = {'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1}
@@ -90,23 +97,33 @@ if __name__ == '__main__':
     x_seed = np.array([[0, 0, 0, 0, 0.]])
     y_seed = np.array([1.])
 
-    env = ContinuousCartPole(
-        discretization_shape=shape,  # This matters for the GP
-        control_frequency=control_frequency,
-        max_theta_init=max_theta_init
-    )
+    performances = Dataset(Dataset.EPISODE, Dataset.REWARD, Dataset.FAILED,
+                           group_name=MODELNUM_NAME, name='models_evaluations')
+    max_modelnum = get_max_modelnum(simdir)
+    for modelnum in get_modelnum_iter(simdir):
+        safetypath = modelspath / f'safety_model_{modelnum}'
+        env = ContinuousCartPole(
+            discretization_shape=shape,  # This matters for the GP
+            control_frequency=control_frequency,
+            max_theta_init=max_theta_init
+        )
 
-    agent = DLQRSafetyLearner.load(
-        load_path=simpath,
-        env=env,
-        x_seed=x_seed,
-        y_seed=y_seed,
-        gamma_cautious=gamma_cautious,
-        lambda_cautious=lambda_cautious,
-        gamma_optimistic=gamma_optimistic,
-        perturbations=perturbations,
-        learn_safety=True,
-        checks_safety=False
-    )
+        agent = DLQRSafetyLearner.load(
+            load_path=safetypath,
+            env=env,
+            x_seed=x_seed,
+            y_seed=y_seed,
+            gamma_cautious=gamma_cautious,
+            lambda_cautious=lambda_cautious,
+            gamma_optimistic=gamma_optimistic,
+            perturbations=perturbations,
+            learn_safety=False,
+            checks_safety=True,
+            is_free_from_safety=False,
+        )
+        agent.update_safety_params(t=get_t_from_modelnum(modelnum,
+                                                         max_modelnum))
 
-    run(agent, args.episodes, args.render, args.log)
+        run(agent, args.episodes, args.render, args.log, performances, modelnum)
+    savepath = simpath / 'data'
+    performances.save(savepath)
