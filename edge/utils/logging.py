@@ -26,3 +26,22 @@ class ConfigFilter(ContentFilter):
 
 def config_msg(msg):
     return f'{CONFIG} {msg}'
+
+
+def setup_default_logging_configuration(log_path):
+    training_handler = logging.FileHandler(log_path)
+    training_handler.addFilter(ConfigFilter(log_if_match=False))
+    training_handler.setLevel(logging.INFO)
+    stdout_handler = logging.StreamHandler()
+    stdout_handler.setLevel(logging.INFO)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(training_handler)
+    root_logger.addHandler(stdout_handler)
+
+
+def reset_default_logging_configuration():
+    root_logger = logging.getLogger()
+    list(map(root_logger.removeHandler, root_logger.handlers[:]))
+    list(map(root_logger.removeFilter, root_logger.filters[:]))

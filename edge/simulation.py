@@ -80,24 +80,32 @@ class Simulation:
                 print(f'Error: could not compile {name}.gif. Exception: {e}')
 
     def setup_default_logging_configuration(self):
-        training_handler = logging.FileHandler(
+        self.__training_handler = logging.FileHandler(
             self.log_path / 'training.log'
         )
-        training_handler.addFilter(ConfigFilter(log_if_match=False))
-        training_handler.setLevel(logging.INFO)
-        config_handler = logging.FileHandler(
+        self.__training_handler.addFilter(ConfigFilter(log_if_match=False))
+        self.__training_handler.setLevel(logging.INFO)
+        self.__config_handler = logging.FileHandler(
             self.log_path / 'config.log'
         )
-        config_handler.addFilter(ConfigFilter(log_if_match=True))
-        config_handler.setLevel(logging.INFO)
-        stdout_handler = logging.StreamHandler()
-        stdout_handler.setLevel(logging.INFO)
+        self.__config_handler.addFilter(ConfigFilter(log_if_match=True))
+        self.__config_handler.setLevel(logging.INFO)
+        self.__stdout_handler = logging.StreamHandler()
+        self.__stdout_handler.setLevel(logging.INFO)
 
         root_logger = logging.getLogger()
         root_logger.setLevel(logging.INFO)
-        root_logger.addHandler(training_handler)
-        root_logger.addHandler(config_handler)
-        root_logger.addHandler(stdout_handler)
+        root_logger.addHandler(self.__training_handler)
+        root_logger.addHandler(self.__config_handler)
+        root_logger.addHandler(self.__stdout_handler)
+
+    def reset_default_logging_configuration(self):
+        root_logger = logging.getLogger()
+        root_logger.removeHandler(self.__training_handler)
+        root_logger.removeHandler(self.__config_handler)
+        root_logger.removeHandler(self.__stdout_handler)
+
+        list(map(root_logger.removeFilter, root_logger.filters[:]))
 
 
 class ModelLearningSimulation(Simulation):
