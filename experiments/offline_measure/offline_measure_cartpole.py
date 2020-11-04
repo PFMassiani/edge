@@ -52,6 +52,8 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
 
         self.hyperparameters_dataset = None
 
+        self.viability_ratio = None
+
     def get_last_hyperparameters(self):
         if self.hyperparameters_dataset is None:
             return None, None, None
@@ -67,7 +69,9 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         return ls, os, nz
 
     def create_offline_learner(self, n_optim):
-        t = 1 if self.n_optimizations == 1 else n_optim / self.n_optimizations
+        u = (self.n_optimizations - 1) / (
+                self.n_optimizations - 1 - n_optim + 1e-4) - 1
+        t = 1 - (1/2) ** u
 
         x_seed = np.array([[0, 0, 0, 0, 0.]])
         y_seed = np.array([1.])
@@ -281,13 +285,14 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         logging.info(header + message)
 
     def log_measures(self, measures, iterate_t, diff, n_optim, header=True):
+        self.viability_ratio = len(measures[measures>0])/len(measures)
         header = f'-------- Measure --------\n' if header else ''
         message = (f'--- Iteration {n_optim+1}/{self.n_optimizations}\n'
                    f'Average measure: {measures.mean():.4f}\n'
                    f'Nonzero measure # of points: '
                    f'{len(measures[measures>0])}/{len(measures)}\n'
                    f'Nonzero measure proportion: '
-                   f'{len(measures[measures>0])/len(measures)*100:.3f} %\n')
+                   f'{self.viability_ratio*100:.3f} %\n')
         message += f'Measure variation: {diff:.5f}\n' if diff else ''
         message += f'Computation time: {iterate_t:.3f} s'
         logging.info(header + message)
@@ -366,7 +371,7 @@ if __name__ == '__main__':
         control_frequency=2,
         perturbations={'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1},
         max_theta_init=0.4,
-        gamma_measure=(0.7, 0.9),
+        gamma_measure=(0.6, 0.9),
         n_episodes=30,
         checkpoint_dataset_every=5,
         n_optimizations=100,

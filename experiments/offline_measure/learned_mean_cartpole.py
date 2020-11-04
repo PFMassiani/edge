@@ -189,7 +189,10 @@ class LearnedMeanSimulation(ModelLearningSimulation):
     def run(self):
         for n in range(self.n_train_test):
             logging.info(f'========= CYCLE {n+1}/{self.n_train_test} ========')
-            t = 1 if self.n_train_test == 1 else n / (self.n_train_test - 1)
+            # t = 1 if self.n_train_test == 1 else n / (self.n_train_test - 1)
+            u = (self.n_train_test - 1) / (
+                    self.n_train_test - 1 - n + 1e-4) - 1
+            t = 1 - (1/2)**u
             self.agent.update_safety_params(t=t)
             try:
                 train_t = self.train_agent(n)
@@ -229,9 +232,9 @@ if __name__ == '__main__':
         mean_sim_name='test_1',
         mean_checkpoint_number=1,
         load_hypers=None,
-        gamma_cautious=(0.6, 0.7),
+        gamma_cautious=(0.6, 0.9),
         lambda_cautious=(0, 0.05),
-        gamma_optimistic=(0.55, 0.65),
+        gamma_optimistic=(0.55, 0.85),
         n_episodes_train=5,
         n_episodes_test=5,
         n_train_test=10,

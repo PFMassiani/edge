@@ -85,7 +85,9 @@ class OfflineMeasureSimulation(ModelLearningSimulation):
         return ls, os, nz
 
     def create_offline_learner(self, n_optim):
-        t = 1 if self.n_optimizations == 1 else n_optim / self.n_optimizations
+        u = (self.n_optimizations - 1) / (
+                self.n_optimizations - 1 - n_optim + 1e-4) - 1
+        t = 1 - (1 / 2) ** u
 
         if self.envname == 'hovership':
             x_seed = np.array([[1.3, 0.6], [0, 2]])
