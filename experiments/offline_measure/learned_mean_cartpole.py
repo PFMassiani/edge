@@ -28,7 +28,7 @@ def append_to_episode(dataset, episode, state, action, new_state, reward,
 
 
 class LearnedMeanSimulation(ModelLearningSimulation):
-    def __init__(self, name, shape, control_frequency,
+    def __init__(self, output_dir, name, shape, control_frequency,
                  perturbations, max_theta_init,
                  mean_sim_name, mean_checkpoint_number, load_hypers,
                  gamma_cautious, lambda_cautious, gamma_optimistic,
@@ -48,7 +48,8 @@ class LearnedMeanSimulation(ModelLearningSimulation):
         self.load_hypers = load_hypers
         self.agent = self.create_agent()
 
-        output_directory = Path(__file__).parent.resolve()
+        output_directory = Path(__file__).parent.resolve() \
+            if output_dir is None else output_dir
         super().__init__(
             output_directory, name, {}
         )
@@ -218,29 +219,39 @@ class LearnedMeanSimulation(ModelLearningSimulation):
             logging.info(f'Checkpointing time: {chkpt_t:.3f} s')
         if self.render:
             self.env.gym_env.close()
+        self.reset_default_logging_configuration()
 
 
-if __name__ == '__main__':
-    seed = int(time.time())
-    # seed = 0
+def run_sim(offline_seed, mean_number, output_dir=None):
     sim = LearnedMeanSimulation(
-        name=f'learned_mean_{seed}',
+        output_dir=output_dir,
+        name=f'learned_mean_{offline_seed}_{mean_number}',
         shape=(50, 50, 50, 50, 41),
         control_frequency=2,
         perturbations={'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1},
-        max_theta_init=0.5,
-        mean_sim_name='test_1',
-        mean_checkpoint_number=1,
+        max_theta_init=0.4,
+        mean_sim_name=f'offline_{offline_seed}',
+        mean_checkpoint_number=mean_number,
         load_hypers=None,
         gamma_cautious=(0.6, 0.9),
         lambda_cautious=(0, 0.05),
         gamma_optimistic=(0.55, 0.85),
-        n_episodes_train=5,
-        n_episodes_test=5,
-        n_train_test=10,
+        n_episodes_train=2,
+        n_episodes_test=2,
+        n_train_test=2,
         render=False
     )
-    sim.set_seed(value=seed)
-    logging.info(config_msg(f'Random seed: {seed}'))
+    sim.set_seed(value=offline_seed+1)
+    logging.info(config_msg(f'Random seed: {offline_seed+1}'))
+    logging.info(config_msg(f'Offline_seed: {offline_seed}\n'
+                            f'Mean number: {mean_number}'))
     run_t = sim.run()
     logging.info(f'Simulation duration: {run_t:.2f} s')
+
+
+if __name__ == '__main__':
+    seed = 1604500243
+    mean_number = 4
+    output_dir = (Path(__file__).parent.resolve() / f'offline_{seed}' /
+                  'models' / 'learned_mean')
+    run_sim(seed, mean_number, output_dir=output_dir)

@@ -154,11 +154,17 @@ class DLQRSafetyLearner(ControlledSafetyLearner):
         safety_model = LearnedMeanMaternSafety.load(
             load_path, env, gamma_optimistic, x_seed, y_seed
         )
+        if gamma_optimistic is None:
+            gamma_optimistic = safety_model.gamma_measure
+
+        def get_true_arg(arg):
+            return (arg, arg) if isinstance(arg, float) else arg
+
         return DLQRSafetyLearner(
             env, {},
-            (gamma_cautious, gamma_cautious),
-            (lambda_cautious, lambda_cautious),
-            (gamma_optimistic, gamma_optimistic),
+            get_true_arg(gamma_cautious),
+            get_true_arg(lambda_cautious),
+            get_true_arg(gamma_optimistic),
             perturbations, safety_model=safety_model,
             **kwargs
         )
