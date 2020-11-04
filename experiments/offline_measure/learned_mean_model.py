@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from gpytorch.means import Mean
+import json
 
 from edge.utils import atleast_2d, get_hyperparameters
 from edge.model.inference import MaternGP, GP
@@ -38,10 +39,9 @@ def final_param_value(mean_module, param_name, param):
 
 
 def system_agnostic_mean_path(mean_path):
-    ROOT_DIR = Path(__file__).parent.parent.parent.parent
-    mean_path = str(mean_path)
-    mean_path = mean_path.split('edge')[-1]
-    return ROOT_DIR / mean_path
+    ROOT_DIR = Path(__file__).parent.parent.parent
+    mean_path_end = str(mean_path).split('edge/')[-1]
+    return ROOT_DIR / mean_path_end
 
 
 class GPMeanMaternGP(MaternGP):
@@ -141,6 +141,18 @@ class LearnedMeanMaternSafety(SafetyMeasure):
         load_path = Path(load_folder)
         gp_load_path = str(load_path / LearnedMeanMaternSafety.GP_SAVE_NAME)
         gp = GPMeanMaternGP.load(gp_load_path, x_seed, y_seed)
+        if gamma_measure is None:
+            model_save_path = str(load_path / LearnedMeanMaternSafety.SAVE_NAME)
+            try:
+                with open(model_save_path, 'r') as f:
+                    json_str = f.read()
+                    state_dict = json.loads(json_str)
+                gamma_measure = state_dict['gamma_measure']
+            except FileNotFoundError:
+                raise ValueError(f'Could not find file {model_save_path}. '
+                                 f'Specify gamma_measure instead to load this '
+                                 f'model')
+
         model = LearnedMeanMaternSafety(env, gamma_measure=gamma_measure,
                                         x_seed=x_seed, y_seed=y_seed,
                                         gp_params=gp.structure_dict)

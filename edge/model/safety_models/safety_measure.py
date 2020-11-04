@@ -248,8 +248,9 @@ class MaternSafety(SafetyMeasure):
         if gamma_measure is None:
             model_save_path = str(load_path / GPModel.SAVE_NAME)
             try:
-                with open(model_save_path, 'w') as f:
-                    state_dict = json.load(f)
+                with open(model_save_path, 'r') as f:
+                    json_str = f.read()
+                    state_dict = json.loads(json_str)
                 gamma_measure = state_dict['gamma_measure']
             except FileNotFoundError:
                 raise ValueError(f'Could not find file {model_save_path}. '
