@@ -119,8 +119,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    logname = ('prior_' if SAMPLE_PRIOR else '') + 'evaluation.log'
     setup_default_logging_configuration(
-        log_path=offline_path(args.offline_seed) / 'logs' / 'evaluation.log'
+        log_path=offline_path(args.offline_seed) / 'logs' / logname
     )
 
     n_safety_params_updates = 100
