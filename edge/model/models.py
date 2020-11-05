@@ -125,7 +125,7 @@ class GPModel(ContinuousModel):
         :return: the mean value of the GP at these points, and if return_covar=True, the covariance at these points
         """
         prediction = self.gp.predict(x)
-        mean = prediction.mean.cpu().numpy()
+        mean = prediction.mean.cpu().detach().numpy()
 
         output = (mean,) if return_covar or return_covar_matrix else mean
         if return_covar:
