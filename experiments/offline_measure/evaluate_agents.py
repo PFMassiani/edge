@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 import numpy as np
 import logging
+import gpytorch
 
 from edge.envs.continuous_cartpole import ContinuousCartPole
 from edge.dataset import Dataset
@@ -16,6 +17,7 @@ from offline_measure_agent import DLQRController
 
 SAFETY_NAME = 'Next safety'
 MODELNUM_NAME = 'Model number'
+SAMPLE_PRIOR = True
 
 
 def average_performances(ds):
@@ -35,24 +37,25 @@ def append_to_episode(dataset, episode, state, action, new_state, reward,
 
 
 def run_episode(agent, ds, render):
-    episode = {cname: []
-               for cname in ds.columns_wo_group}
-    while agent.env.done:
-        agent.reset()
-    done = agent.env.done
-    while not done:
-        old_state = agent.state
-        new_state, reward, failed, done = agent.step()
-        action = agent.last_action
-        try:
-            safety_update = agent.safety_update if agent.do_safety_update \
-                else None
-        except AttributeError:
-            safety_update = None
-        append_to_episode(ds, episode, old_state, action,
-                          new_state, reward, failed, done, safety_update)
-        if render:
-            agent.env.gym_env.render()
+    with gpytorch.settings.prior_mode(state=SAMPLE_PRIOR):
+        episode = {cname: []
+                   for cname in ds.columns_wo_group}
+        while agent.env.done:
+            agent.reset()
+        done = agent.env.done
+        while not done:
+            old_state = agent.state
+            new_state, reward, failed, done = agent.step()
+            action = agent.last_action
+            try:
+                safety_update = agent.safety_update if agent.do_safety_update \
+                    else None
+            except AttributeError:
+                safety_update = None
+            append_to_episode(ds, episode, old_state, action,
+                              new_state, reward, failed, done, safety_update)
+            if render:
+                agent.env.gym_env.render()
     return episode
 
 
@@ -110,9 +113,9 @@ def learned_load_path(offline_seed, modelnum):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('offline_seed')
-    parser.add_argument('--episodes', default=6)
+    parser.add_argument('--episodes', default=30)
     parser.add_argument('--render', default=False)
-    parser.add_argument('--log', default=2)
+    parser.add_argument('--log', default=1)
 
     args = parser.parse_args()
 
@@ -131,9 +134,11 @@ if __name__ == '__main__':
     x_seed = np.array([[0, 0, 0, 0, 0.]])
     y_seed = np.array([1.])
 
+    name = 'learned_models_evaluations' if not SAMPLE_PRIOR else \
+        'priors_evaluations'
     performances = Dataset(Dataset.EPISODE, Dataset.REWARD, Dataset.FAILED,
                            group_name=MODELNUM_NAME,
-                           name='learned_models_evaluations')
+                           name=name)
     logging.info(
         "####################################\n"
         "## Evaluating safety-aware models ##\n"
