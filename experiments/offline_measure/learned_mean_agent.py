@@ -168,3 +168,45 @@ class DLQRSafetyLearner(ControlledSafetyLearner):
             perturbations, safety_model=safety_model,
             **kwargs
         )
+
+
+class PickyDLQRSafetyLearner(DLQRSafetyLearner):
+    def __init__(self, env, s_gp_params, gamma_cautious, lambda_cautious,
+                 gamma_optimistic, perturbations=None, safety_model=None,
+                 pick_radius=0.01,
+                 **kwargs):
+        super().__init__(env, s_gp_params, gamma_cautious, lambda_cautious,
+                         gamma_optimistic, perturbations, safety_model,
+                         **kwargs)
+        self.pick_radius = pick_radius
+        self._last_added_sa = None
+
+    def update_models(self, state, action, next_state, reward, failed, done):
+        sa = np.hstack((state.reshape(-1), action.reshape(-1)))
+        if self._last_added_sa is None or failed or done or (
+            np.linalg.norm(sa - self._last_added_sa) >= self.pick_radius
+        ):
+            self._last_added_sa = sa
+            super().update_models(state, action, next_state, reward, failed,
+                                  done)
+
+    @staticmethod
+    def load(load_path, env, x_seed, y_seed, gamma_cautious, lambda_cautious,
+             gamma_optimistic, perturbations=None, **kwargs):
+        safety_model = LearnedMeanMaternSafety.load(
+            load_path, env, gamma_optimistic, x_seed, y_seed
+        )
+        if gamma_optimistic is None:
+            gamma_optimistic = safety_model.gamma_measure
+
+        def get_true_arg(arg):
+            return (arg, arg) if isinstance(arg, float) else arg
+
+        return PickyDLQRSafetyLearner(
+            env, {},
+            get_true_arg(gamma_cautious),
+            get_true_arg(lambda_cautious),
+            get_true_arg(gamma_optimistic),
+            perturbations, safety_model=safety_model,
+            **kwargs
+        )

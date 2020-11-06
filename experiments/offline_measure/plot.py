@@ -8,10 +8,13 @@ figpath = basepath / 'figs'
 
 PRIORS = True
 SAFE_RESET = True
+UNTUNED = True
+prefix = 'untuned_' if UNTUNED else ''
 load_suffix = '_safe_reset' if SAFE_RESET else ''
 priors_fname = f'priors_evaluations{load_suffix}.csv'
 learned_fname = f'learned_models_evaluations{load_suffix}.csv'
 fname = priors_fname if PRIORS else learned_fname
+fname = prefix + fname
 ds = Dataset.load(basepath/'data'/fname)
 df = ds.df
 
