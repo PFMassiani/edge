@@ -245,9 +245,9 @@ if __name__ == '__main__':
         # except IndexError:
         #     agent_perf = 0.
 
-        if best_modelnum is None or (
-                can_initialize_viably and
-                (best_perf < agent_perf)
+        if can_initialize_viably and (
+                best_modelnum is None or
+                best_perf < agent_perf
         ):
             best_modelnum = modelnum
             best_perf = agent_perf
