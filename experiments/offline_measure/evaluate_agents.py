@@ -17,7 +17,9 @@ from offline_measure_agent import DLQRController
 
 SAFETY_NAME = 'Next safety'
 MODELNUM_NAME = 'Model number'
+SAFE_RESET = 'Safe reset'
 SAMPLE_PRIOR = True
+CHECK_VIAB = True
 
 
 def average_performances(ds):
@@ -25,62 +27,99 @@ def average_performances(ds):
     r, f = general_performances(
         df, ds.group_name, ds.EPISODE, None
     )
+    safe_reset_df = df.loc[df[SAFE_RESET]]
+    safe_r, safe_f = general_performances(
+        safe_reset_df, ds.group_name, ds.EPISODE, None
+    )
     # s = df.groupby(ds.group_name)[SAFETY_NAME].mean().mean()
-    return r, f
+    return r, f, safe_r, safe_f
 
 
 def append_to_episode(dataset, episode, state, action, new_state, reward,
-                      failed, done, safety_update):
+                      failed, done, safe_reset):
     general_append(dataset, episode, state, action, new_state, reward,
                    failed, done)
-    # episode[SAFETY_NAME].append(safety_update)
+    episode[SAFE_RESET].append(safe_reset)
+
+def reset(agent, check_initial_viability=False, safety_measure=None):
+    t = 0
+    reset_done = False
+    while not reset_done:
+        t += 1
+        agent.reset()
+        if check_initial_viability:
+            with gpytorch.settings.prior_mode(state=SAMPLE_PRIOR):
+                measure = safety_measure.measure(
+                    state=agent.state,
+                    lambda_threshold=0,
+                    gamma_threshold=safety_measure.gamma_measure
+                )
+            reset_done = (not agent.env.done) and (measure[0] > 0)
+        else:
+            reset_done = not agent.env.done
+        if t >= 100 and check_initial_viability:
+            msg = (f"Could not reset the agent after {t} attempts with " 
+                   "check_initial_viability enabled. Falling back on default "
+                   "agent.reset() behaviour")
+            logging.warning(msg)
+            reset(agent)
+            break
+    return reset_done
 
 
-def run_episode(agent, ds, render):
+def run_episode(agent, ds, render, check_initial_viability=False,
+                safety_measure=None):
     with gpytorch.settings.prior_mode(state=SAMPLE_PRIOR):
         episode = {cname: []
                    for cname in ds.columns_wo_group}
-        while agent.env.done:
-            agent.reset()
+        reset_successful = reset(agent, check_initial_viability, safety_measure)
         done = agent.env.done
         while not done:
             old_state = agent.state
             new_state, reward, failed, done = agent.step()
             action = agent.last_action
-            try:
-                safety_update = agent.safety_update if agent.do_safety_update \
-                    else None
-            except AttributeError:
-                safety_update = None
+            # try:
+            #     safety_update = agent.safety_update if agent.do_safety_update \
+            #         else None
+            # except AttributeError:
+            #     safety_update = None
             append_to_episode(ds, episode, old_state, action,
-                              new_state, reward, failed, done, safety_update)
+                              new_state, reward, failed, done, reset_successful)
             if render:
                 agent.env.gym_env.render()
     return episode
 
 
-def run(agent, max_episodes, render, log_every, performances, modelnum):
+def run(agent, max_episodes, render, log_every, performances, modelnum,
+        check_initial_viability, safety_measure):
     # ds = Dataset(*Dataset.DEFAULT_COLUMNS, SAFETY_NAME)
     # performances = Dataset(Dataset.REWARD, Dataset.FAILED, name=name)
-    ds = Dataset()
+    ds = Dataset(*Dataset.DEFAULT_COLUMNS, SAFE_RESET)
     for n_episode in range(max_episodes):
-        episode = run_episode(agent, ds, render)
+        episode = run_episode(agent, ds, render, check_initial_viability,
+                              safety_measure)
         ds.add_group(episode, group_number=n_episode)
         if (n_episode + 1) % log_every == 0:
-            r, f = log_performance(ds, n_episode+1, max_episodes)
-            performances.add_entry(modelnum, n_episode, r, f)
+            r, f, s_r, s_f = log_performance(ds, n_episode+1, max_episodes)
+            performances.add_entry(modelnum, n_episode, r, f, s_r, s_f)
     if render:
         agent.env.gym_env.close()
 
 
 def log_performance(ds, n_episode, max_episodes):
-    r, f = average_performances(ds)
+    r, f, safe_r, safe_f = average_performances(ds)
+    if np.isnan(safe_r):
+        safe_r = 0.
+    if np.isnan(safe_f):
+        safe_f = 1.
     header = f'------ Checkpoint {n_episode}/{max_episodes} ------\n'
-    message = (f'Average total reward per episode: {r:.3f}\n'
-               f'Average number of failures: {f * 100:.3f} %\n')
+    message = (f'Average total reward per episode: {r:.3f} (all) '
+               f'| {safe_r:.3f} (safe resets)\n'
+               f'Average number of failures: {f * 100:.3f} % (all) '
+               f'| {safe_f * 100:.3f} % (safe resets)\n')
                # f'Average next state safety: {s:.3f} %\n')
     logging.info(header + message)
-    return r, f
+    return r, f, safe_r, safe_f
 
 
 def get_t_from_modelnum(modelnum, max_modelnum):
@@ -113,7 +152,7 @@ def learned_load_path(offline_seed, modelnum):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('offline_seed')
-    parser.add_argument('--episodes', default=30)
+    parser.add_argument('--episodes', default=50)
     parser.add_argument('--render', default=False)
     parser.add_argument('--log', default=1)
 
@@ -135,16 +174,37 @@ if __name__ == '__main__':
     x_seed = np.array([[0, 0, 0, 0, 0.]])
     y_seed = np.array([1.])
 
+
+    def load_agent(g_opt, modelnum):
+        return DLQRSafetyLearner.load(
+            load_path=learned_load_path(args.offline_seed, modelnum),
+            env=env,
+            x_seed=x_seed,
+            y_seed=y_seed,
+            gamma_cautious=gamma_cautious,
+            lambda_cautious=lambda_cautious,
+            gamma_optimistic=g_opt,
+            perturbations=perturbations,
+            learn_safety=False,
+            checks_safety=True,
+            is_free_from_safety=False,
+        )
+
     name = 'learned_models_evaluations' if not SAMPLE_PRIOR else \
         'priors_evaluations'
+    if CHECK_VIAB:
+        name += '_safe_reset'
+    suffix = ' (safe reset)'
     performances = Dataset(Dataset.EPISODE, Dataset.REWARD, Dataset.FAILED,
-                           group_name=MODELNUM_NAME,
-                           name=name)
+                           Dataset.REWARD + suffix, Dataset.FAILED + suffix,
+                           group_name=MODELNUM_NAME, name=name)
     logging.info(
         "####################################\n"
         "## Evaluating safety-aware models ##\n"
         "####################################"
     )
+    best_modelnum = None
+    best_perf = None
     for modelnum in modelnum_iter(learned_path(args.offline_seed)):
         logging.info(f"====== Evaluating model {modelnum} ======")
         env = ContinuousCartPole(
@@ -153,34 +213,33 @@ if __name__ == '__main__':
             max_theta_init=max_theta_init
         )
 
-        def load_agent(g_opt):
-            return DLQRSafetyLearner.load(
-                load_path=learned_load_path(args.offline_seed, modelnum),
-                env=env,
-                x_seed=x_seed,
-                y_seed=y_seed,
-                gamma_cautious=gamma_cautious,
-                lambda_cautious=lambda_cautious,
-                gamma_optimistic=g_opt,
-                perturbations=perturbations,
-                learn_safety=False,
-                checks_safety=True,
-                is_free_from_safety=False,
-            )
         # Try loading the agent with the saved gamma_optimistic
         try:
-            agent = load_agent(None)
+            agent = load_agent(None, modelnum)
             logging.info("Loaded agent with saved gamma_measure: "
                          f"{agent.safety_model.gamma_measure}")
         except ValueError:
-            agent = load_agent(gamma_optimistic)
+            agent = load_agent(gamma_optimistic, modelnum)
             logging.info("Could not load saved gamma_measure. Using "
                          f"{gamma_optimistic} instead")
         t = get_t_from_modelnum(modelnum, n_safety_params_updates)
         agent.update_safety_params(t=t)
         logging.info(f"Updated safety params with t={t}")
 
-        run(agent, args.episodes, args.render, args.log, performances, modelnum)
+        run(agent, args.episodes, args.render, args.log, performances, modelnum,
+            CHECK_VIAB, agent.safety_model)
+        try:
+            agent_perf = performances.loc[
+                performances.df[
+                    performances.df[MODELNUM_NAME] == best_modelnum
+                ].index[-1],
+                Dataset.REWARD
+            ]
+        except IndexError:
+            agent_perf = 0.
+        if best_modelnum is None or (best_perf < agent_perf):
+            best_modelnum = modelnum
+            best_perf = agent_perf
         del agent
         del env
     logging.info(
@@ -198,7 +257,18 @@ if __name__ == '__main__':
         env=env,
         perturbations=perturbations
     )
-    run(agent, args.episodes, args.render, args.log, performances, -1)
+    if CHECK_VIAB:
+        try:
+            best_agent = load_agent(None, best_modelnum)
+        except ValueError:
+            best_agent = load_agent(gamma_optimistic, best_modelnum)
+        t = get_t_from_modelnum(best_modelnum, n_safety_params_updates)
+        best_agent.update_safety_params(t=t)
+        best_measure = best_agent.safety_model
+    else:
+        best_measure = None
+    run(agent, args.episodes, args.render, args.log, performances, -1,
+            CHECK_VIAB, best_measure)
 
     savepath = offline_path(args.offline_seed) / 'data'
     performances.save(savepath)
