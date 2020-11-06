@@ -158,7 +158,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    logname = ('prior_' if SAMPLE_PRIOR else '') + 'evaluation.log'
+    suffix = '_safe_reset' if CHECK_VIAB else ''
+    logname = ('prior_' if SAMPLE_PRIOR else '') + f'evaluation{suffix}.log'
     setup_default_logging_configuration(
         log_path=offline_path(args.offline_seed) / 'logs' / logname
     )
@@ -193,7 +194,7 @@ if __name__ == '__main__':
     name = 'learned_models_evaluations' if not SAMPLE_PRIOR else \
         'priors_evaluations'
     if CHECK_VIAB:
-        name += '_safe_reset'
+        name += suffix
     suffix = ' (safe reset)'
     performances = Dataset(Dataset.EPISODE, Dataset.REWARD, Dataset.FAILED,
                            Dataset.REWARD + suffix, Dataset.FAILED + suffix,
