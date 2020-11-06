@@ -6,7 +6,11 @@ from edge.dataset import Dataset
 basepath = Path('/home/pifou/Documents/Max_Planck/WD/edge/experiments/offline_measure/offline_1604494254')
 figpath = basepath / 'figs'
 
-ds = Dataset.load(basepath/'data'/'learned_models_evaluations.csv')
+PRIORS = True
+priors_fname = 'priors_evaluations.csv'
+learned_fname = 'learned_models_evaluations.csv'
+fname = priors_fname if PRIORS else learned_fname
+ds = Dataset.load(basepath/'data'/fname)
 df = ds.df
 
 gr = df.groupby('Model number')
@@ -38,7 +42,8 @@ ax_r.grid()
 ax_f.grid()
 plt.legend()
 
-fig_r.savefig(str(figpath/'reward.pdf'), format='pdf')
-fig_f.savefig(str(figpath/'failure.pdf'), format='pdf')
+prefix = 'priors_' if PRIORS else ''
+fig_r.savefig(str(figpath/(prefix + 'reward.pdf')), format='pdf')
+fig_f.savefig(str(figpath/(prefix + 'failure.pdf')), format='pdf')
 # plt.show()
 
