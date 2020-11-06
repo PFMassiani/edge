@@ -41,18 +41,21 @@ def append_to_episode(dataset, episode, state, action, new_state, reward,
                    failed, done)
     episode[SAFE_RESET].append(safe_reset)
 
-def reset(agent, check_initial_viability=False, safety_measure=None):
+def reset(agent, check_initial_viability=False, safety_measure=None,
+          gamma_prior=0.6):
     t = 0
     reset_done = False
     while not reset_done:
         t += 1
         agent.reset()
         if check_initial_viability:
+            gamma = safety_measure.gamma_measure if not SAMPLE_PRIOR else\
+                gamma_prior
             with gpytorch.settings.prior_mode(state=SAMPLE_PRIOR):
                 measure = safety_measure.measure(
                     state=agent.state,
                     lambda_threshold=0,
-                    gamma_threshold=safety_measure.gamma_measure
+                    gamma_threshold=gamma
                 )
             reset_done = (not agent.env.done) and (measure[0] > 0)
         else:
@@ -68,11 +71,12 @@ def reset(agent, check_initial_viability=False, safety_measure=None):
 
 
 def run_episode(agent, ds, render, check_initial_viability=False,
-                safety_measure=None):
+                safety_measure=None, gamma_prior=0.6):
     with gpytorch.settings.prior_mode(state=SAMPLE_PRIOR):
         episode = {cname: []
                    for cname in ds.columns_wo_group}
-        reset_successful = reset(agent, check_initial_viability, safety_measure)
+        reset_successful = reset(agent, check_initial_viability, safety_measure,
+                                 gamma_prior)
         done = agent.env.done
         while not done:
             old_state = agent.state
@@ -91,13 +95,13 @@ def run_episode(agent, ds, render, check_initial_viability=False,
 
 
 def run(agent, max_episodes, render, log_every, performances, modelnum,
-        check_initial_viability, safety_measure):
+        check_initial_viability, safety_measure, gamma_prior):
     # ds = Dataset(*Dataset.DEFAULT_COLUMNS, SAFETY_NAME)
     # performances = Dataset(Dataset.REWARD, Dataset.FAILED, name=name)
     ds = Dataset(*Dataset.DEFAULT_COLUMNS, SAFE_RESET)
     for n_episode in range(max_episodes):
         episode = run_episode(agent, ds, render, check_initial_viability,
-                              safety_measure)
+                              safety_measure, gamma_prior)
         ds.add_group(episode, group_number=n_episode)
         if (n_episode + 1) % log_every == 0:
             r, f, s_r, s_f = log_performance(ds, n_episode+1, max_episodes)
@@ -165,9 +169,9 @@ if __name__ == '__main__':
     )
 
     n_safety_params_updates = 100
-    gamma_cautious = (0.7, 0.95)
+    gamma_cautious = (0.6, 0.9)
     lambda_cautious = (0., 0.05)
-    gamma_optimistic = (0.6, 0.9)
+    gamma_optimistic = (0.55, 0.85)
     max_theta_init = 0.4
     shape = (50, 50, 50, 50, 41)
     perturbations = {'g': 1/1, 'mcart': 1, 'mpole': 1, 'l': 1}
@@ -228,7 +232,7 @@ if __name__ == '__main__':
         logging.info(f"Updated safety params with t={t}")
 
         run(agent, args.episodes, args.render, args.log, performances, modelnum,
-            CHECK_VIAB, agent.safety_model)
+            CHECK_VIAB, agent.safety_model, gamma_cautious[0])
         try:
             agent_perf = performances.loc[
                 performances.df[
@@ -269,7 +273,7 @@ if __name__ == '__main__':
     else:
         best_measure = None
     run(agent, args.episodes, args.render, args.log, performances, -1,
-            CHECK_VIAB, best_measure)
+        CHECK_VIAB, best_measure, gamma_cautious[0])
 
     savepath = offline_path(args.offline_seed) / 'data'
     performances.save(savepath)
