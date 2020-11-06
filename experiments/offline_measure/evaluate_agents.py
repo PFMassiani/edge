@@ -105,7 +105,9 @@ def run(agent, max_episodes, render, log_every, performances, modelnum,
         ds.add_group(episode, group_number=n_episode)
         if (n_episode + 1) % log_every == 0:
             r, f, s_r, s_f = log_performance(ds, n_episode+1, max_episodes)
-            performances.add_entry(modelnum, n_episode, r, f, s_r, s_f)
+            can_safe_reset = ds.df[SAFE_RESET].any()
+            performances.add_entry(modelnum, n_episode, r, f, s_r, s_f,
+                                   can_safe_reset)
     if render:
         agent.env.gym_env.close()
 
@@ -202,6 +204,7 @@ if __name__ == '__main__':
     suffix = ' (safe reset)'
     performances = Dataset(Dataset.EPISODE, Dataset.REWARD, Dataset.FAILED,
                            Dataset.REWARD + suffix, Dataset.FAILED + suffix,
+                           SAFE_RESET,
                            group_name=MODELNUM_NAME, name=name)
     logging.info(
         "####################################\n"
@@ -233,16 +236,19 @@ if __name__ == '__main__':
 
         run(agent, args.episodes, args.render, args.log, performances, modelnum,
             CHECK_VIAB, agent.safety_model, gamma_cautious[0])
-        try:
-            agent_perf = performances.loc[
-                performances.df[
-                    performances.df[MODELNUM_NAME] == best_modelnum
-                ].index[-1],
-                Dataset.REWARD
-            ]
-        except IndexError:
-            agent_perf = 0.
-        if best_modelnum is None or (best_perf < agent_perf):
+        # try:
+        model_perfs = performances.df.loc[
+            performances.df[MODELNUM_NAME] == modelnum, :
+        ]
+        agent_perf = model_perfs.loc[model_perfs.index[-1], Dataset.REWARD]
+        can_initialize_viably = model_perfs[SAFE_RESET].any()
+        # except IndexError:
+        #     agent_perf = 0.
+
+        if best_modelnum is None or (
+                can_initialize_viably and
+                (best_perf < agent_perf)
+        ):
             best_modelnum = modelnum
             best_perf = agent_perf
         del agent

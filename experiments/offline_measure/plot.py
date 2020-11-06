@@ -35,11 +35,16 @@ def plot_and_save(suffix, save_suffix):
 	i = 0
 	TOP = 5
 	for label, dframe in sorted_label_gr:
+		if i < TOP and int(label) == -1:
+			TOP += 1
 		detailed = (i < TOP or int(label) == -1)
 		alpha = 1 if detailed else 0.1
 		lab = label if detailed else '_nolegend_'
-		dframe.plot(x='episode', y=reward, ax=ax_r, label=lab, alpha=alpha)
-		dframe.plot(x='episode', y=failed, ax=ax_f, label=lab, alpha=alpha)
+		linewitdh = 4 if int(label) == -1 else 1
+		dframe.plot(x='episode', y=reward, ax=ax_r, label=lab, alpha=alpha,
+					linewidth=linewitdh)
+		dframe.plot(x='episode', y=failed, ax=ax_f, label=lab, alpha=alpha,
+					linewidth=linewitdh)
 		i += 1
 	ax_r.set_title('Average ' + reward)
 	ax_f.set_title('Average ' + failed)
@@ -58,5 +63,5 @@ def plot_and_save(suffix, save_suffix):
 
 # Comment/Uncomment the desired line
 # Uncommenting both wrecks the second plot
-# plot_and_save('', '')
-plot_and_save(suffix=' (safe reset)', save_suffix='_safe_reset')
+plot_and_save('', '')
+# plot_and_save(suffix=' (safe reset)', save_suffix='_safe_reset')
