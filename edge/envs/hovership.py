@@ -61,7 +61,7 @@ class Hovership(Environment):
 
     @property
     def done(self):
-        return self.s[0] == 2. or super().done
+        return (self.goal_state and self.s[0] == 2.) or super().done
 
 
 class DiscreteHovership(Environment):
