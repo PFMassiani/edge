@@ -124,6 +124,8 @@ class SafetyMeasure(GPModel):
         if state is None:
             # Unspecfied state means the whole state space
             index = (slice(None, None, None), slice(None, None, None))
+        elif isinstance(state, slice):
+            index = (state, slice(None, None, None))
         elif state.ndim > 1 and state.shape[0] > 1:
             # This means `state` is a list of states
             index = [
