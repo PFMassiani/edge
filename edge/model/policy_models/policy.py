@@ -1,4 +1,5 @@
 import numpy as np
+from edge.error import OutOfSpace
 
 
 class Policy:
@@ -40,3 +41,15 @@ class RandomPolicy(Policy):
         n_available = prod(action_space.shape)
         chosen_action = np.random.choice(n_available)
         return action_space[np.unravel_index(chosen_action, action_space.shape)]
+
+
+class ConstantPolicy(Policy):
+    def __init__(self, stateaction_space, constant_action):
+        super().__init__(stateaction_space)
+        if constant_action not in stateaction_space.action_space:
+            raise OutOfSpace(f'The constant action {constant_action} is not '
+                             f'valid')
+        self.constant_action = constant_action
+
+    def get_action(self, state):
+        return self.constant_action

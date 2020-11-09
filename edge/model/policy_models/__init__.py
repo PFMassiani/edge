@@ -1,7 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from .policy import Policy, RandomPolicy
+from .policy import Policy, RandomPolicy, ConstantPolicy
 from .greedy import ConstrainedEpsilonGreedy, EpsilonGreedy
 from .safety import SafetyMaximization, SafetyActiveSampling
 from .gaussian_policy import GaussianPolicy
