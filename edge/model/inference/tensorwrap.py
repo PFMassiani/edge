@@ -75,7 +75,10 @@ def tensorwrap(*deco_args):
                 args
             )))
             for name in names_to_wrap:
-                kwargs[name] = ensure_tensor(kwargs[name])
+                try:
+                    kwargs[name] = ensure_tensor(kwargs[name])
+                except RuntimeError:
+                    pass
             return func(**kwargs)
 
     return numpy_tensor_wrapper
