@@ -1,9 +1,10 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from .policy import Policy, RandomPolicy, ConstantPolicy
+from .policy import Policy, RandomPolicy, ConstantPolicy, AffinePolicy
 from .greedy import ConstrainedEpsilonGreedy, EpsilonGreedy
-from .safety import SafetyMaximization, SafetyActiveSampling
+from .safety import SafetyMaximization, SafetyActiveSampling, \
+    SafeProjectionPolicy
 from .gaussian_policy import GaussianPolicy
 from .bayesian import ExpectedImprovementPolicy, SafetyInformationMaximization
 from .dlqr import DLQRPolicy

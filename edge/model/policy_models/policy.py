@@ -53,3 +53,15 @@ class ConstantPolicy(Policy):
 
     def get_action(self, state):
         return self.constant_action
+
+
+class AffinePolicy(Policy):
+    def __init__(self, stateaction_space, offset, jacobian):
+        super().__init__(stateaction_space)
+        self.s0, self.a0 = offset
+        self.jacobian = jacobian
+
+    def get_action(self, state):
+        a = self.a0 + self.jacobian @ (state - self.s0)
+        a = self.stateaction_space.action_space.closest_in(a)
+        return a

@@ -66,3 +66,17 @@ class SafetyActiveSampling(Policy):
 
     def get_policy_map(self):
         raise NotImplementedError
+
+
+class SafeProjectionPolicy(Policy):
+    def get_action(self, to_project, constraints):
+        if not constraints.any():
+            return None
+        actions = np.array([
+            a for _, a in iter(self.stateaction_space.action_space)
+        ], dtype=np.float)
+        distances = np.linalg.norm(actions - to_project, axis=1)
+        distances[~constraints.squeeze()] = np.inf
+        action_idx = np.argmin(distances)
+        action = actions[action_idx]
+        return action
