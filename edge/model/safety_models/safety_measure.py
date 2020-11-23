@@ -245,7 +245,11 @@ class MaternSafety(SafetyMeasure):
         load_path = Path(load_folder)
         gp_load_path = str(load_path / GPModel.GP_SAVE_NAME)
 
-        gp = MaternGP.load(gp_load_path, x_seed, y_seed)
+        load_data = x_seed is None
+        gp = MaternGP.load(gp_load_path, x_seed, y_seed, load_data=load_data)
+        if load_data:
+            x_seed = gp.train_x
+            y_seed = gp.train_y
 
         if gamma_measure is None:
             model_save_path = str(load_path / GPModel.SAVE_NAME)
