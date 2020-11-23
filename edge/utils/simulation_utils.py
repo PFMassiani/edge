@@ -1,8 +1,11 @@
 import functools
 import time
 import pandas as pd
+import json
+import logging
 
 from edge.dataset import Dataset
+from edge.utils.logging import config_msg
 
 def timeit(f):
     @functools.wraps(f)
@@ -55,3 +58,13 @@ def average_performances(df, group_name, episode_name, last_n_episodes=None):
 
 def affine_interpolation(t, start, end):
     return start + (end - start) * t
+
+
+def log_simulation_parameters(f):
+    @functools.wraps(f)
+    def logged_function(*args, **kwargs):
+        out = f(*args, **kwargs)
+        message = (f'Function {f.__name__} called with parameters:\n'
+                   f'ARGS:\n{args}\nKWARGS:{json.dumps(kwargs, indent=1)}')
+        logging.info(config_msg(message))
+    return logged_function

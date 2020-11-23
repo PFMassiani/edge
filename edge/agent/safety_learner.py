@@ -48,6 +48,10 @@ class SafetyLearner(Agent):
         """
         return self.safety_model.gamma_measure
 
+    @gamma_optimistic.setter
+    def gamma_optimistic(self, new_gamma_optimistic):
+        self.safety_model.gamma_measure = new_gamma_optimistic
+
     def get_random_safe_state(self):
         """
         Returns a random state that is classified as safe by the safety model

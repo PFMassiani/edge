@@ -3,12 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from edge.dataset import Dataset
 
-basepath = Path('/home/pifou/Documents/Max_Planck/WD/edge/experiments/offline_measure/offline_1604494254')
+basepath = Path('/home/pifou/Documents/Max_Planck/WD/edge/experiments/offline_measure/offline_long')
 figpath = basepath / 'figs'
+figpath.mkdir(parents=True, exist_ok=True)
 
-PRIORS = True
+PRIORS = False
 SAFE_RESET = True
-UNTUNED = True
+UNTUNED = False
 prefix = 'untuned_' if UNTUNED else ''
 load_suffix = '_safe_reset' if SAFE_RESET else ''
 priors_fname = f'priors_evaluations{load_suffix}.csv'
