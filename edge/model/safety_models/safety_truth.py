@@ -127,12 +127,24 @@ class SafetyTruth(GroundTruth):
         :param stateaction: the stateaction
         :return: boolean: whether the state-action pair (resp. the stateaction) is viable
         """
-        if stateaction is None:
-            stateaction = self.stateaction_space[state, action]
-        index = self.stateaction_space.get_index_of(
-            stateaction, around_ok=True
-        )
-        return self.viable_set[index] == 1
+        if stateaction is not None or (state is not None and action is not None):
+            if stateaction is None:
+                stateaction = self.stateaction_space[state, action]
+            index = self.stateaction_space.get_index_of(
+                stateaction, around_ok=True
+            )
+            return self.viable_set[index] == 1
+        elif state is not None:
+            return any([
+                self.viable_set[
+                    self.stateaction_space.get_index_of(
+                        self.stateaction_space[state, a], around_ok=True
+                    )
+                ] for _, a in iter(self.stateaction_space.action_space)
+            ])
+        else:
+            raise ValueError("Either specify stateaction, state and action, or "
+                             "state only")
 
     def is_unviable(self, state, action):
         """
