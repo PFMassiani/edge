@@ -71,7 +71,7 @@ class SampleSubplotter(Subplotter):
                         actions,
                         states,
                         color=masked(colors, fltr),
-                        s=30,
+                        s=60,
                         marker=marker,
                         edgecolors='none'
                     )

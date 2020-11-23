@@ -11,12 +11,17 @@ green = [115, 163, 72]
 orange = [253, 174, 97]
 yellow = [227, 198, 52]
 
+dark_grey = [169, 169, 169]
+
 optimistic = tuple([c / 256 for c in light_blue])
 cautious = tuple([c / 256 for c in dark_blue])
-truth = tuple([c / 256 for c in green])
 
-failure = tuple([c / 256 for c in orange])
-unviable = tuple([c / 256 for c in yellow])
+# truth = tuple([c / 256 for c in green])
+# failure = tuple([c / 256 for c in orange])
+# unviable = tuple([c / 256 for c in yellow])
+truth = tuple([c / 256 for c in dark_grey])
+failure = tuple([c / 256 for c in dark_grey])
+unviable = tuple([c / 256 for c in dark_grey])
 
 cmap_var = cm.cividis
 cmap_meas = cm.seismic

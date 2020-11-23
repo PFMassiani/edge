@@ -46,7 +46,8 @@ class SafetyMeasureSubplotter(Subplotter):
                 self.states_grid,
                 Q,
                 [.5],
-                colors='k'
+                colors='k',
+                linewidths=0.5,
             )
 
         def fill_contour(Q, color):
@@ -77,11 +78,11 @@ class SafetyMeasureSubplotter(Subplotter):
                        self.states[-1] + frame_width_y))
 
     def draw_on_S(self, ax_S, S_optimistic):
-        ax_S.plot(S_optimistic, self.states, color='k')
+        ax_S.plot(S_optimistic, self.states, color='k', linewidth=0.5)
         ax_S.fill_betweenx(self.states, 0, S_optimistic,
                            facecolor=self.colors.optimistic, alpha=0.7)
 
-        ax_S.set_xlim((0, max(S_optimistic) * 1.2))
+        ax_S.set_xlim((0, 1.2))
         ax_S.get_yaxis().set_visible(False)
         ax_S.set_xlabel('$\Lambda$')
 

@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 
 from . import Plotter
 from ..subplotter import SafetyMeasureSubplotter, SafetyTruthSubplotter,\
-    SampleSubplotter, SafetyGPSubplotter
+    SampleSubplotter, SafetyGPSubplotter, DeterministicControllerSubplotter
 from ..colors import corl_colors
 
 
 class SafetyPlotter(Plotter):
-    def __init__(self, agent, ground_truth=None):
+    def __init__(self, agent, ground_truth=None, controller=None):
         super(SafetyPlotter, self).__init__(agent)
 
         self.safety_subplotter = SafetyMeasureSubplotter(agent, corl_colors)
@@ -18,6 +18,12 @@ class SafetyPlotter(Plotter):
                                                           corl_colors)
         else:
             self.truth_subplotter = None
+        if controller is not None:
+            self.controller_subplotter = DeterministicControllerSubplotter(
+                agent.env.stateaction_space, controller, corl_colors
+            )
+        else:
+            self.controller_subplotter = None
 
     def get_figure(self):
         figure = plt.figure(constrained_layout=True, figsize=(5.5, 4.8))
@@ -34,6 +40,8 @@ class SafetyPlotter(Plotter):
         Q_optimistic, Q_cautious, S_optimistic = self.get_subplotters_params()
         self.safety_subplotter.draw_on_axs(ax_Q, ax_S, Q_optimistic,
                                            Q_cautious, S_optimistic)
+        if self.controller_subplotter is not None:
+            self.controller_subplotter.draw_on_axs(ax_Q)
         self.sample_subplotter.draw_on_axs(ax_Q)
 
         plt.title('Safety measure')
