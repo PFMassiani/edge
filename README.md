@@ -2,11 +2,11 @@
 
 Source code for the article "On exploration requirements for learning safety constraints" presented at the [3rd L4DC conference](https://l4dc.ethz.ch).
 
-This code was developed in __python 3.7.10__.
+This code was developed in __python 3.7.9__.
 
 ## Installation
 
-Clone the repository. Create and activate a [virtual environment](https://docs.python.org/3/tutorial/venv.html) with a Python 3.7.10 interpreter. Then run in the project folder:
+Clone the repository, and checkout the branch `l4dc-2021`. Create and activate a [virtual environment](https://docs.python.org/3/tutorial/venv.html) with a Python 3.7.9 interpreter. Then run in the project folder:
 ```
 pip3 install -r requirements.txt
 ```
@@ -19,10 +19,9 @@ pip3 install -e .
 
 To reproduce the results in the article, first follow the installation instructions. Then, execute the following commands from the project folder:
 ```
-cd experiments/on_policy_hovership/
-python on_policy_hovership.py [CONTROLLER]
+python experiments/on_policy_hovership/on_policy_hovership.py [CONTROLLER]
 ```
-where `[CONTROLLER]` should be either `affine` or `random`, depending on what results you want to reproduce. Depending on your machine, this command may take some time to complete.
+where `[CONTROLLER]` should be either `affine` or `random`, depending on what results you want to reproduce. Do not `cd` in the `experiments/on_policy_hovership/` folder to execute the script, as this breaks relative paths in the code. Depending on your machine, this command may take some time to complete.
 Note that you can further customize parameters by directly editing the file `on_policy_hovership.py`. The main parameters can be changed between lines 314 and 347.
 
 ## Results
