@@ -17,8 +17,9 @@ pip3 install -e .
 
 ## Usage
 
-To reproduce the result in the article, first follow the installation instructions. Then, move to the directory `./experiments/on_policy_hovership/`, where `.` is the project folder. Execute the following command:
+To reproduce the results in the article, first follow the installation instructions. Then, execute the following commands from the project folder:
 ```
+cd experiments/on_policy_hovership/
 python on_policy_hovership.py [CONTROLLER]
 ```
 where `[CONTROLLER]` should be either `affine` or `random`, depending on what results you want to reproduce. Depending on your machine, this command may take some time to complete.
