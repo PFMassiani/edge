@@ -1,8 +1,6 @@
-Box2D==2.3.10
 cloudpickle==1.2.2
 cycler==0.10.0
 decorator==4.4.2
--e git+git@github.com:PFMassiani/edge.git@221fb9c25afa7f4f5feee24de337743576db2278#egg=edge
 future==0.18.2
 gpytorch==1.1.1
 gym==0.15.7
