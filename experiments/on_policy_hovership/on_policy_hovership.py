@@ -14,8 +14,7 @@ from edge.utils import device, cuda, timeit, log_simulation_parameters, \
 from edge.model.safety_models import SafetyTruth
 
 # noinspection PyUnresolvedReferences
-from on_policy_agent import RandomSafetyLearner, ConstantSafetyLearner, \
-    AffineSafetyLearner, CoRLSafetyLearner
+from on_policy_agent import RandomSafetyLearner, AffineSafetyLearner
 # noinspection PyUnresolvedReferences
 from on_policy_environment import LowGoalHovership, LowGoalSlip
 
@@ -66,26 +65,16 @@ class FixedControllerLowdim(ModelLearningSimulation):
     @log_simulation_parameters
     def __init__(self, name, shape,
                  gamma_cautious, lambda_cautious, gamma_optimistic,
-                 controller, corl, reset_in_safe_state,
+                 controller, reset_in_safe_state,
                  n_episodes_train, n_episodes_test, n_train_test,
                  plot_every=1):
         shapedict = {} if shape is None else {'shape': shape}
-        # TODO random viable initialization
         self.env = LowGoalHovership(
             goal_state=False,
             initial_state=np.array([1.3]),
             **shapedict  # This matters for the GP
         )
 
-        # x_seed = np.array([[2., 0.],
-        #                    [2., 0.2],
-        #                    [1.3, 0.6],
-        #                    [1.5, 0.],
-        #                    [1., 0.8],
-        #                    [1., 0.4]])
-        # y_seed = np.array([1., 1., 1., 1., 1., 1.])
-        # x_seed = np.array([[1.2, .6], [1.8, .1]])
-        # y_seed = np.array([1., 1.])
         x_seed = np.array([[2, .1]])
         y_seed = np.array([.5])
         lengthscale_means = (0.2, 0.2)
@@ -103,6 +92,7 @@ class FixedControllerLowdim(ModelLearningSimulation):
             'mean_constant': None,
             'dataset_type': None,
             'dataset_params': None,
+            # Other possible options:
             # 'dataset_type': 'downsampling',
             # 'dataset_params': {'append_every': 10},
             # 'dataset_type': 'neighborerasing',
@@ -112,15 +102,6 @@ class FixedControllerLowdim(ModelLearningSimulation):
         if controller == 'random':
             agent = RandomSafetyLearner(
                 env=self.env,
-                s_gp_params=gp_params.copy(),
-                gamma_cautious=gamma_cautious,
-                lambda_cautious=lambda_cautious,
-                gamma_optimistic=gamma_optimistic,
-            )
-        elif controller == 'constant':
-            agent = ConstantSafetyLearner(
-                env=self.env,
-                constant_action=np.array([0.1]),
                 s_gp_params=gp_params.copy(),
                 gamma_cautious=gamma_cautious,
                 lambda_cautious=lambda_cautious,
@@ -139,17 +120,7 @@ class FixedControllerLowdim(ModelLearningSimulation):
         else:
             raise ValueError('Invalid controller')
 
-        if corl:
-            self.agent = CoRLSafetyLearner(
-                env=self.env,
-                s_gp_params=gp_params.copy(),
-                gamma_cautious=gamma_cautious,
-                lambda_cautious=lambda_cautious,
-                gamma_optimistic=gamma_optimistic,
-                base_controller=agent.policy
-            )
-        else:
-            self.agent = agent
+        self.agent = agent
 
         truth_path = Path(__file__).parent.parent.parent / 'data' / \
                      'ground_truth' / 'from_vibly' / f'hover_map.pickle'
@@ -252,7 +223,6 @@ class FixedControllerLowdim(ModelLearningSimulation):
     @timeit
     def log_performance(self, n_train, ds, name_in_log, duration=None,
                         header=True, limit_episodes=None):
-        # TODO define useful performances
         df = ds.df
         if n_train is not None:
             train = df.loc[df[ds.group_name] == n_train, :]
@@ -306,9 +276,6 @@ class FixedControllerLowdim(ModelLearningSimulation):
     def run(self):
         for n in range(self.n_train_test):
             logging.info(f'========= CYCLE {n+1}/{self.n_train_test} ========')
-            # u = (self.n_train_test - 1) / (
-            #         self.n_train_test - 1 - n + 1e-4) - 1
-            # t = 1 - (1 / 2) ** u
             t = 0 if self.n_train_test == 1 else n / (self.n_train_test - 1)
             self.agent.update_safety_params(t=t)
             train_t = self.train_agent(n)
@@ -345,24 +312,33 @@ class FixedControllerLowdim(ModelLearningSimulation):
 
 
 if __name__ == '__main__':
-    seed = int(time.time())
-    # seed = 1605218995
-    controller = 'random'
-    corl = False
-    name = f'{"corl_" if corl else ""}{controller}_{seed}'
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('controller', choices=['affine', 'random'], help='chosen controller')
+
+    args = parser.parse_args()
+    controller = args.controller
+    if controller == 'affine':
+        seed = 1605218995
+    elif controller == 'random':
+        seed = 1605262057
+    else:
+        raise ValueError('Unrecognized controller')
+
+    name = f'{controller}_{seed}'
     sim = FixedControllerLowdim(
         name=name,
-        shape=None,  # (201, 161),
+        shape=None, 
         gamma_cautious=(0.75, 0.75),
         lambda_cautious=(0, 0.0),
         gamma_optimistic=(0.55, 0.70),
         controller=controller,
-        corl=corl,
         reset_in_safe_state=True,
         n_episodes_train=10,
         n_episodes_test=10,
-        n_train_test=5,
-        plot_every=1
+        n_train_test=5,  # Number of train-test cycles (number of model checkpoints)
+        # Total number of training episodes is: n_train_test * n_episodes_train
+        plot_every=5  # How often figures are plotted. Low is time and memory consuming
     )
     sim.set_seed(value=seed)
     logging.info(config_msg(f'Random seed: {seed}'))
